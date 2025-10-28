@@ -1,7 +1,6 @@
 ---
 hostname: site-b-m710q2
-hardware_profile: lenovo-m710q-sata
-disk_device: /dev/sda
+hardware_profile: lenovo-m710q
 netmode: static
 nic: enp1s0
 ip: 203.0.113.21

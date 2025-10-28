@@ -37,9 +37,9 @@ This repository contains the templates and automation required to build fully au
 1. **Select a hardware profile (optional)**
    ```bash
    ls inventory/profiles/hardware
-   make gen PROFILE=lenovo-m710q-nvme
+   make gen PROFILE=lenovo-m710q
    ```
-   Artifacts are produced under `autoinstall/generated/lenovo-m710q-nvme/`.
+   Artifacts are produced under `autoinstall/generated/lenovo-m710q/`.
 2. **Define host variables**
    ```bash
    cp inventory/host_vars/example.yml inventory/host_vars/site-a-m710q1.yml
@@ -67,13 +67,16 @@ This repository contains the templates and automation required to build fully au
 ## Hardware profiles
 Files under `inventory/profiles/hardware/` capture the minimal values per model (disk, NIC, demo SSH keys, etc.) required to validate autoinstall generation. Each profile can be rendered via `make gen PROFILE=<profile>` and becomes the baseline that site-specific automation (Ansible) can extend.
 
+- `lenovo-m710q`: ThinkCentre M710q Tiny fitted with an NVMe stick plus a 2.5" SATA bay. The profile merges both drives into the same LVM volume group to expose a single capacity pool.
+
 ## Host variables
 Each `inventory/host_vars/<host>.yml` file may include:
 
 | Variable | Description |
 | --- | --- |
 | `hostname` | Hostname configured during installation |
-| `disk_device` | Target disk (e.g., `/dev/nvme0n1`, `/dev/sda`) |
+| `disk_device` | Primary system disk (e.g., `/dev/nvme0n1`) |
+| `additional_disk_devices` | Optional list of extra disks to fold into the LVM VG (e.g., `['/dev/sda']`) |
 | `netmode` | `dhcp` or `static` |
 | `nic` | Network interface (e.g., `enp1s0`) for static IP |
 | `ip`, `cidr`, `gw`, `dns` | Static network parameters |

@@ -1,10 +1,12 @@
 ---
-hostname: lenovo-m710q-sata
+hostname: lenovo-m710q
 hardware_model: lenovo-thinkcentre-m710q
-storage_profile: sata
+storage_profile: nvme-plus-sata
 netmode: dhcp
 nic: enp1s0
-disk_device: /dev/sda
+disk_device: /dev/nvme0n1
+additional_disk_devices:
+  - /dev/sda
 ssh_authorized_keys:
   - ssh-ed25519 AAAA...REPLACE_ME your_key@model
 password_hash: $y$j9T$REPLACE_ME_HASH
