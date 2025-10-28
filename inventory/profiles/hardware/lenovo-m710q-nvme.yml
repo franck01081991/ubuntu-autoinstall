@@ -1,0 +1,10 @@
+---
+hostname: lenovo-m710q-nvme
+hardware_model: lenovo-thinkcentre-m710q
+storage_profile: nvme
+netmode: dhcp
+nic: enp1s0
+disk_device: /dev/nvme0n1
+ssh_authorized_keys:
+  - ssh-ed25519 AAAA...REPLACE_ME your_key@model
+password_hash: $y$j9T$REPLACE_ME_HASH

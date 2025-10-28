@@ -1,4 +1,6 @@
+---
 hostname: site-b-m710q2
+hardware_profile: lenovo-m710q-sata
 disk_device: /dev/sda
 netmode: static
 nic: enp1s0
@@ -6,8 +8,8 @@ ip: 203.0.113.21
 cidr: 29
 gw: 203.0.113.17
 dns:
-- 9.9.9.9
-- 1.1.1.1
+  - 9.9.9.9
+  - 1.1.1.1
 ssh_authorized_keys:
-- ssh-ed25519 AAAA...REPLACE_ME your_key@host
+  - ssh-ed25519 AAAA...REPLACE_ME your_key@host
 password_hash: $y$j9T$REPLACE_ME_HASH

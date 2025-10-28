@@ -1,6 +1,8 @@
+---
 hostname: site-a-m710q1
+hardware_profile: lenovo-m710q-nvme
 disk_device: /dev/nvme0n1
 netmode: dhcp
 ssh_authorized_keys:
-- ssh-ed25519 AAAA...REPLACE_ME your_key@host
+  - ssh-ed25519 AAAA...REPLACE_ME your_key@host
 password_hash: $y$j9T$REPLACE_ME_HASH

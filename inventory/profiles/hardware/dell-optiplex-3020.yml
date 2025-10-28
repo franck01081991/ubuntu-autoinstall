@@ -1,0 +1,10 @@
+---
+hostname: dell-optiplex-3020
+hardware_model: dell-optiplex-3020
+storage_profile: sata
+netmode: dhcp
+nic: enp2s0
+disk_device: /dev/sda
+ssh_authorized_keys:
+  - ssh-ed25519 AAAA...REPLACE_ME your_key@model
+password_hash: $y$j9T$REPLACE_ME_HASH

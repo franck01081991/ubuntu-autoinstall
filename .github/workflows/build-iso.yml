@@ -29,16 +29,30 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        host: [ "site-a-m710q1", "site-b-m710q2", "site-b-dell3020", "site-c-m710q3", "vps-sapinet" ]
+        model: [ "lenovo-m710q-nvme", "lenovo-m710q-sata", "dell-optiplex-3020" ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Cache Python packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('ansible/requirements.txt') }}
+
+      - name: Cache Ubuntu ISO downloads
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: iso-${{ runner.os }}-ubuntu-24-04
+          restore-keys: |
+            iso-${{ runner.os }}-
 
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y python3-pip xorriso p7zip-full make wget genisoimage
-          python3 -m pip install --user ansible-core
+          python3 -m pip install --user -r ansible/requirements.txt
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Download Ubuntu ISO
@@ -53,25 +67,25 @@ jobs:
           wget -c "$ISO_URL" -O "$FILE"
           echo "file=$FILE" >> $GITHUB_OUTPUT
 
-      - name: Generate autoinstall for ${{ matrix.host }}
+      - name: Generate autoinstall for ${{ matrix.model }}
         run: |
-          make gen HOST="${{ matrix.host }}"
-      
-      - name: Build seed ISO (CIDATA) for ${{ matrix.host }}
-        run: |
-          make seed HOST="${{ matrix.host }}"
+          make gen PROFILE="${{ matrix.model }}"
 
-      - name: Build full installer ISO for ${{ matrix.host }}
+      - name: Build seed ISO (CIDATA) for ${{ matrix.model }}
         run: |
-          make fulliso HOST="${{ matrix.host }}" UBUNTU_ISO="${{ steps.iso.outputs.file }}"
+          make seed PROFILE="${{ matrix.model }}"
 
-      - name: Upload artifacts for ${{ matrix.host }}
+      - name: Build full installer ISO for ${{ matrix.model }}
+        run: |
+          make fulliso PROFILE="${{ matrix.model }}" UBUNTU_ISO="${{ steps.iso.outputs.file }}"
+
+      - name: Upload artifacts for ${{ matrix.model }}
         uses: actions/upload-artifact@v4
         with:
-          name: autoinstall-${{ matrix.host }}
+          name: autoinstall-${{ matrix.model }}
           path: |
-            autoinstall/generated/${{ matrix.host }}/user-data
-            autoinstall/generated/${{ matrix.host }}/meta-data
-            autoinstall/generated/${{ matrix.host }}/seed-${{ matrix.host }}.iso
-            autoinstall/generated/${{ matrix.host }}/ubuntu-autoinstall-${{ matrix.host }}.iso
+            autoinstall/generated/${{ matrix.model }}/user-data
+            autoinstall/generated/${{ matrix.model }}/meta-data
+            autoinstall/generated/${{ matrix.model }}/seed-${{ matrix.model }}.iso
+            autoinstall/generated/${{ matrix.model }}/ubuntu-autoinstall-${{ matrix.model }}.iso
           if-no-files-found: error
