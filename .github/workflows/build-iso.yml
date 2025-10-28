@@ -1,0 +1,77 @@
+name: Build Host ISOs
+
+on:
+  workflow_dispatch:
+    inputs:
+      UBUNTU_ISO_URL:
+        description: "URL of Ubuntu 24.04 live-server ISO"
+        required: false
+        default: "https://releases.ubuntu.com/24.04/ubuntu-24.04-live-server-amd64.iso"
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'autoinstall/**'
+      - 'inventory/**'
+      - 'ansible/**'
+      - 'scripts/**'
+      - 'Makefile'
+  pull_request:
+    paths:
+      - 'autoinstall/**'
+      - 'inventory/**'
+      - 'ansible/**'
+      - 'scripts/**'
+      - 'Makefile'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [ "site-a-m710q1", "site-b-m710q2", "site-b-dell3020", "site-c-m710q3", "vps-sapinet" ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip xorriso p7zip-full make wget genisoimage
+          python3 -m pip install --user ansible-core
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Download Ubuntu ISO
+        id: iso
+        run: |
+          ISO_URL="${{ github.event.inputs.UBUNTU_ISO_URL }}"
+          if [ -z "$ISO_URL" ]; then
+            ISO_URL="https://releases.ubuntu.com/24.04/ubuntu-24.04-live-server-amd64.iso"
+          fi
+          mkdir -p .cache
+          FILE=".cache/$(basename $ISO_URL)"
+          wget -c "$ISO_URL" -O "$FILE"
+          echo "file=$FILE" >> $GITHUB_OUTPUT
+
+      - name: Generate autoinstall for ${{ matrix.host }}
+        run: |
+          make gen HOST="${{ matrix.host }}"
+      
+      - name: Build seed ISO (CIDATA) for ${{ matrix.host }}
+        run: |
+          make seed HOST="${{ matrix.host }}"
+
+      - name: Build full installer ISO for ${{ matrix.host }}
+        run: |
+          make fulliso HOST="${{ matrix.host }}" UBUNTU_ISO="${{ steps.iso.outputs.file }}"
+
+      - name: Upload artifacts for ${{ matrix.host }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoinstall-${{ matrix.host }}
+          path: |
+            autoinstall/generated/${{ matrix.host }}/user-data
+            autoinstall/generated/${{ matrix.host }}/meta-data
+            autoinstall/generated/${{ matrix.host }}/seed-${{ matrix.host }}.iso
+            autoinstall/generated/${{ matrix.host }}/ubuntu-autoinstall-${{ matrix.host }}.iso
+          if-no-files-found: error

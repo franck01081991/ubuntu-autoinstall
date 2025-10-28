@@ -1,0 +1,25 @@
+- name: Render autoinstall NoCloud for a host
+  hosts: localhost
+  gather_facts: false
+  vars:
+    host: "{{ lookup('env','HOST') | default(host, true) }}"
+  vars_files:
+    - "../inventory/host_vars/{{ host }}.yml"
+  tasks:
+    - name: Ensure output dir exists
+      file:
+        path: "../autoinstall/generated/{{ host }}"
+        state: directory
+        mode: "0755"
+
+    - name: Render user-data (autoinstall)
+      template:
+        src: "../autoinstall/templates/user-data.j2"
+        dest: "../autoinstall/generated/{{ host }}/user-data"
+        mode: "0644"
+
+    - name: Render meta-data
+      template:
+        src: "../autoinstall/templates/meta-data.j2"
+        dest: "../autoinstall/generated/{{ host }}/meta-data"
+        mode: "0644"

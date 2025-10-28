@@ -1,0 +1,6 @@
+hostname: site-c-m710q3
+disk_device: /dev/nvme0n1
+netmode: dhcp
+ssh_authorized_keys:
+- ssh-ed25519 AAAA...REPLACE_ME your_key@host
+password_hash: $y$j9T$REPLACE_ME_HASH

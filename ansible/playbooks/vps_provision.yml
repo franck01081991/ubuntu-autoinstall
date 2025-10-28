@@ -1,0 +1,213 @@
+---
+- name: Provision k3s mgmt cluster and platform on VPS
+  hosts: vps-sapinet
+  become: true
+  gather_facts: yes
+
+  vars:
+    k3s_version: ""
+    install_k3s_exec: "--flannel-backend=none --disable-network-policy --write-kubeconfig-mode=644"
+    kubeconfig_path: /etc/rancher/k3s/k3s.yaml
+    kube_user_home: "{{ ansible_env.HOME | default('/root') }}"
+    kube_user: root
+    cilium_helm_version: ""
+    domain_base: "{{ vps_domain | default('example.net') }}"
+    acme_email: "{{ vps_acme_email | default('admin@example.net') }}"
+    external_dns_provider: "{{ vps_external_dns_provider | default('cloudflare') }}"
+    external_dns_api_token: "{{ vps_external_dns_api_token | default('REPLACE_ME') }}"
+    keycloak_admin_user: "admin"
+    keycloak_admin_password: "{{ vps_keycloak_admin_password | default('ChangeMe!') }}"
+
+  pre_tasks:
+    - name: Base packages
+      apt:
+        name:
+          - curl
+          - jq
+          - ca-certificates
+          - gnupg
+          - htop
+          - git
+          - unzip
+        state: present
+        update_cache: yes
+
+    - name: Kernel/sysctl tuning
+      copy:
+        dest: /etc/sysctl.d/99-tuning.conf
+        content: |
+          net.ipv4.ip_forward=1
+          net.ipv4.tcp_congestion_control=bbr
+          net.ipv4.conf.all.rp_filter=2
+          net.ipv4.conf.default.accept_redirects=0
+          net.ipv4.conf.all.accept_redirects=0
+          net.ipv4.conf.default.send_redirects=0
+          net.ipv4.conf.all.send_redirects=0
+      notify: Reload sysctl
+
+    - name: Enable irqbalance
+      apt:
+        name: irqbalance
+        state: present
+      register: _irq
+    - name: Ensure irqbalance started
+      service:
+        name: irqbalance
+        state: started
+        enabled: yes
+
+  roles: []
+
+  tasks:
+    - name: Install k3s (server)
+      shell: |
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="{{ k3s_version }}" INSTALL_K3S_EXEC="{{ install_k3s_exec }}" sh -
+      args: { creates: /usr/local/bin/k3s }
+
+    - name: Ensure kubeconfig for {{ kube_user }}
+      file:
+        path: "{{ kube_user_home }}/.kube"
+        state: directory
+        owner: "{{ kube_user }}"
+        group: "{{ kube_user }}"
+        mode: "0700"
+
+    - name: Copy kubeconfig
+      copy:
+        src: "{{ kubeconfig_path }}"
+        dest: "{{ kube_user_home }}/.kube/config"
+        remote_src: yes
+        owner: "{{ kube_user }}"
+        group: "{{ kube_user }}"
+        mode: "0600"
+
+    - name: Install kubectl symlink
+      file:
+        src: /usr/local/bin/kubectl
+        dest: /usr/bin/kubectl
+        state: link
+
+    - name: Install helm
+      shell: |
+        curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      args: { creates: /usr/local/bin/helm }
+
+    - name: Add Cilium repo
+      shell: helm repo add cilium https://helm.cilium.io && helm repo update
+      environment:
+        KUBECONFIG: "{{ kube_user_home }}/.kube/config"
+
+    - name: Install Cilium
+      shell: |
+        helm upgrade --install cilium cilium/cilium -n kube-system \
+          --create-namespace \
+          --set kubeProxyReplacement=strict \
+          --set tunnel=disabled \
+          --set autoDirectNodeRoutes=true \
+          --set ipv4.enabled=true --set ipv6.enabled=false \
+          --set hubble.enabled=true
+      environment:
+        KUBECONFIG: "{{ kube_user_home }}/.kube/config"
+
+    - name: Install NGINX Ingress Controller
+      shell: |
+        helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx && helm repo update
+        kubectl create namespace ingress-nginx --dry-run=client -o yaml | kubectl apply -f -
+        helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx
+      environment:
+        KUBECONFIG: "{{ kube_user_home }}/.kube/config"
+
+    - name: Install cert-manager CRDs
+      shell: |
+        kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.crds.yaml
+      environment: { KUBECONFIG: "{{ kube_user_home }}/.kube/config" }
+
+    - name: Install cert-manager
+      shell: |
+        helm repo add jetstack https://charts.jetstack.io && helm repo update
+        kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+        helm upgrade --install cert-manager jetstack/cert-manager -n cert-manager \
+          --set installCRDs=false
+      environment:
+        KUBECONFIG: "{{ kube_user_home }}/.kube/config"
+
+    - name: Create ClusterIssuer (ACME DNS-01) placeholder
+      copy:
+        dest: /root/clusterissuer.yaml
+        content: |
+          apiVersion: cert-manager.io/v1
+          kind: ClusterIssuer
+          metadata: { name: letsencrypt-dns }
+          spec:
+            acme:
+              email: "{{ acme_email }}"
+              server: https://acme-v02.api.letsencrypt.org/directory
+              privateKeySecretRef: { name: acme-account-key }
+              solvers:
+              - dns01:
+                  cloudflare:
+                    email: "{{ acme_email }}"
+                    apiTokenSecretRef:
+                      name: cloudflare-api-token
+                      key: api-token
+      when: external_dns_provider == "cloudflare"
+
+    - name: Apply ClusterIssuer
+      shell: kubectl apply -f /root/clusterissuer.yaml
+      when: external_dns_provider == "cloudflare"
+      environment: { KUBECONFIG: "{{ kube_user_home }}/.kube/config" }
+
+    - name: ExternalDNS (Cloudflare) - secret
+      shell: |
+        kubectl -n kube-system create secret generic cloudflare-api-token \
+          --from-literal=api-token='{{ external_dns_api_token }}' \
+          --dry-run=client -o yaml | kubectl apply -f -
+      when: external_dns_provider == "cloudflare"
+      environment: { KUBECONFIG: "{{ kube_user_home }}/.kube/config" }
+
+    - name: Install ExternalDNS
+      shell: |
+        helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/ && helm repo update
+        helm upgrade --install external-dns external-dns/external-dns -n kube-system \
+          --set provider={{ external_dns_provider }} \
+          --set policy=upsert-only \
+          --set txtOwnerId=vps-sapinet \
+          --set domainFilters='{ {{ domain_base }} }'
+      environment: { KUBECONFIG: "{{ kube_user_home }}/.kube/config" }
+
+    - name: Install Argo CD
+      shell: |
+        kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+        kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+      environment: { KUBECONFIG: "{{ kube_user_home }}/.kube/config" }
+
+    - name: Install Keycloak (Bitnami)
+      shell: |
+        helm repo add bitnami https://charts.bitnami.com/bitnami && helm repo update
+        kubectl create namespace keycloak --dry-run=client -o yaml | kubectl apply -f -
+        helm upgrade --install keycloak bitnami/keycloak -n keycloak \
+          --set auth.adminUser={{ keycloak_admin_user }} \
+          --set auth.adminPassword={{ keycloak_admin_password }} \
+          --set proxy=edge
+      environment: { KUBECONFIG: "{{ kube_user_home }}/.kube/config" }
+
+    - name: Install MinIO (Bitnami)
+      shell: |
+        kubectl create namespace minio --dry-run=client -o yaml | kubectl apply -f -
+        helm upgrade --install minio bitnami/minio -n minio \
+          --set defaultBuckets=velero,backups \
+          --set resources.requests.memory=512Mi
+      environment: { KUBECONFIG: "{{ kube_user_home }}/.kube/config" }
+
+    - name: Install subctl
+      shell: |
+        curl -Ls https://get.submariner.io | bash
+      args: { creates: /usr/local/bin/subctl }
+
+    - name: Deploy Submariner Broker + Lighthouse
+      shell: subctl deploy-broker --components broker,lighthouse --globalnet=false
+      environment: { KUBECONFIG: "{{ kube_user_home }}/.kube/config" }
+
+  handlers:
+    - name: Reload sysctl
+      shell: sysctl --system

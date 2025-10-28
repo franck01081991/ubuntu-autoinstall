@@ -1,0 +1,5 @@
+vps_domain: example.net
+vps_acme_email: admin@example.net
+vps_external_dns_provider: cloudflare
+vps_external_dns_api_token: REPLACE_ME
+vps_keycloak_admin_password: "ChangeMe!"

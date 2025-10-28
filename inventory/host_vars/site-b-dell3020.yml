@@ -1,0 +1,13 @@
+hostname: site-b-dell3020
+disk_device: /dev/sda
+netmode: static
+nic: enp2s0
+ip: 203.0.113.22
+cidr: 29
+gw: 203.0.113.17
+dns:
+- 9.9.9.9
+- 1.1.1.1
+ssh_authorized_keys:
+- ssh-ed25519 AAAA...REPLACE_ME your_key@host
+password_hash: $y$j9T$REPLACE_ME_HASH

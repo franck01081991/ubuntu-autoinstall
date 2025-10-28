@@ -1,0 +1,7 @@
+# build artifacts
+autoinstall/generated/
+.cache/
+*.iso
+# editor / OS
+.DS_Store
+*.swp
