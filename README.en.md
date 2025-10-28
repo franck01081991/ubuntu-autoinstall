@@ -68,6 +68,7 @@ This repository contains the templates and automation required to build fully au
 Files under `inventory/profiles/hardware/` capture the minimal values per model (disk, NIC, demo SSH keys, etc.) required to validate autoinstall generation. Each profile can be rendered via `make gen PROFILE=<profile>` and becomes the baseline that site-specific automation (Ansible) can extend.
 
 - `lenovo-m710q`: ThinkCentre M710q Tiny fitted with an NVMe stick plus a 2.5" SATA bay. The profile merges both drives into the same LVM volume group to expose a single capacity pool.
+  - Optimisations: installs Intel microcode, `thermald`, `powertop` (auto-tuning service) and `lm-sensors` to keep the compact chassis efficient and thermally stable.
 
 ## Host variables
 Each `inventory/host_vars/<host>.yml` file may include:
@@ -82,6 +83,8 @@ Each `inventory/host_vars/<host>.yml` file may include:
 | `ip`, `cidr`, `gw`, `dns` | Static network parameters |
 | `ssh_authorized_keys` | List of authorized SSH public keys |
 | `password_hash` | Password hash (YESCRYPT or SHA512) |
+| `extra_packages` | Optional list of additional packages (e.g., hardware optimisations) |
+| `enable_powertop_autotune` | Enables the systemd `powertop-autotune` unit |
 
 ## Available Make targets
 - `make gen HOST=<name>`: render `user-data` and `meta-data` under `autoinstall/generated/<name>/`.

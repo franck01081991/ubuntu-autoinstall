@@ -70,6 +70,7 @@ Ce dépôt fournit les fichiers modèles et l'automatisation nécessaires pour c
 Les profils sous `inventory/profiles/hardware/` décrivent les valeurs minimales par modèle pour valider la génération autoinstall (disque, interface réseau, clés SSH de test, etc.). Chaque fichier peut être référencé via `make gen PROFILE=<profil>` et sert de base pour définir des sites spécifiques via Ansible.
 
 - `lenovo-m710q` : ThinkCentre M710q Tiny équipé d'un NVMe et d'un emplacement SATA 2,5". Le profil assemble les deux disques dans le même volume LVM afin d'offrir une capacité unique.
+  - Optimisations : microcode Intel, `thermald`, `powertop` (service d'auto-tune) et `lm-sensors` sont préinstallés pour stabiliser les températures et l'efficacité énergétique du châssis compact.
 
 ## Variables d'hôte
 Chaque fichier `inventory/host_vars/<hôte>.yml` peut contenir les paramètres suivants :
@@ -84,6 +85,8 @@ Chaque fichier `inventory/host_vars/<hôte>.yml` peut contenir les paramètres s
 | `ip`, `cidr`, `gw`, `dns` | Paramètres réseau statiques |
 | `ssh_authorized_keys` | Liste des clés publiques autorisées |
 | `password_hash` | Hash de mot de passe (YESCRYPT ou SHA512) |
+| `extra_packages` | Liste additionnelle de paquets à installer (ex. optimisations matérielles) |
+| `enable_powertop_autotune` | Active la création/activation du service systemd `powertop-autotune` |
 
 ## Commandes Make disponibles
 - `make gen HOST=<nom>` : génère `user-data` et `meta-data` dans `autoinstall/generated/<nom>/`.

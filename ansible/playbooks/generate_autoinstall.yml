@@ -11,9 +11,30 @@
     config_name: "{{ profile if profile else target }}"
     primary_vars_file: >-
       {{ inventory_root }}/{{ config_scope }}/{{ config_name }}.yml
-  vars_files:
-    - "{{ primary_vars_file }}"
   tasks:
+    - name: Load hardware profile when rendering a PROFILE directly
+      when: profile | length > 0
+      include_vars:
+        file: "{{ inventory_root }}/profiles/hardware/{{ profile }}.yml"
+
+    - name: Parse host variables to resolve the hardware profile
+      when: profile | length == 0
+      set_fact:
+        host_raw_vars: "{{ lookup('file', primary_vars_file) | from_yaml }}"
+
+    - name: Load hardware profile referenced by the host
+      when:
+        - profile | length == 0
+        - host_raw_vars.hardware_profile is defined
+        - host_raw_vars.hardware_profile | length > 0
+      include_vars:
+        file: "{{ inventory_root }}/profiles/hardware/{{ host_raw_vars.hardware_profile }}.yml"
+
+    - name: Load host variables
+      when: profile | length == 0
+      include_vars:
+        file: "{{ primary_vars_file }}"
+
     - name: Ensure output dir exists
       file:
         path: "{{ autoinstall_dir }}/generated/{{ config_name }}"
