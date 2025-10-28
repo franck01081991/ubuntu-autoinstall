@@ -83,6 +83,7 @@ Each `inventory/host_vars/<host>.yml` file may include:
 ## Continuous integration
 - The GitHub Actions workflow `.github/workflows/build-iso.yml` renders autoinstall files per host, builds both seed and full ISOs, and uploads them as artifacts.
 - To trigger manually: **Actions → Build Host ISOs → Run workflow**, optionally overriding `UBUNTU_ISO_URL`.
+  - By default the CI pulls the image from `https://old-releases.ubuntu.com/releases/24.04/ubuntu-24.04-live-server-amd64.iso` to ensure long-term availability.
 - Artifacts are grouped per host for straightforward traceability.
 
 ## Security and compliance

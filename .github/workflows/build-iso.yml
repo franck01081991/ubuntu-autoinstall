@@ -6,7 +6,7 @@ on:
       UBUNTU_ISO_URL:
         description: "URL of Ubuntu 24.04 live-server ISO"
         required: false
-        default: "https://releases.ubuntu.com/24.04/ubuntu-24.04-live-server-amd64.iso"
+        default: "https://old-releases.ubuntu.com/releases/24.04/ubuntu-24.04-live-server-amd64.iso"
   push:
     branches: [ main, master ]
     paths:
@@ -46,7 +46,7 @@ jobs:
         run: |
           ISO_URL="${{ github.event.inputs.UBUNTU_ISO_URL }}"
           if [ -z "$ISO_URL" ]; then
-            ISO_URL="https://releases.ubuntu.com/24.04/ubuntu-24.04-live-server-amd64.iso"
+            ISO_URL="https://old-releases.ubuntu.com/releases/24.04/ubuntu-24.04-live-server-amd64.iso"
           fi
           mkdir -p .cache
           FILE=".cache/$(basename $ISO_URL)"

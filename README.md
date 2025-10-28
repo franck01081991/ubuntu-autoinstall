@@ -83,6 +83,7 @@ Chaque fichier `inventory/host_vars/<hôte>.yml` peut contenir les paramètres s
 ## Intégration continue
 - La pipeline GitHub Actions définie dans `.github/workflows/build-iso.yml` rend les fichiers autoinstall par hôte, construit les ISO seed et complètes, puis les publie en artefacts.
 - Pour lancer manuellement : **Actions → Build Host ISOs → Run workflow** et, si besoin, surcharger `UBUNTU_ISO_URL`.
+  - Par défaut, la CI télécharge l'image depuis `https://old-releases.ubuntu.com/releases/24.04/ubuntu-24.04-live-server-amd64.iso` pour garantir la disponibilité dans le temps.
 - Les artefacts générés sont regroupés par hôte pour simplifier la traçabilité.
 
 ## Sécurité et conformité
