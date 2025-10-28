@@ -6,23 +6,38 @@ if [ -z "$HOST" ] || [ -z "$ISO_IN" ]; then
 fi
 OUTDIR="autoinstall/generated/${HOST}"
 [ -d "$OUTDIR" ] || { echo "Missing $OUTDIR. Run: make gen HOST=${HOST}"; exit 1; }
+[ -f "$ISO_IN" ] || { echo "Missing source ISO: $ISO_IN"; exit 1; }
+
 TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
 ISO_OUT="${OUTDIR}/ubuntu-autoinstall-${HOST}.iso"
 
-# Mount/extract ISO
-7z x -o"$TMP/iso" "$ISO_IN" >/dev/null
+# Prepare NoCloud payload
+mkdir -p "$TMP/nocloud"
+cp "${OUTDIR}/user-data" "${OUTDIR}/meta-data" "$TMP/nocloud/"
 
-# Embed NoCloud files
-mkdir -p "$TMP/iso/nocloud"
-cp "${OUTDIR}/user-data" "${OUTDIR}/meta-data" "$TMP/iso/nocloud/"
-
-# Patch GRUB to append autoinstall + NoCloud path
-GRUB_CFG="$TMP/iso/boot/grub/grub.cfg"
-if [ -f "$GRUB_CFG" ]; then
-  sed -i 's/---/ autoinstall ds=nocloud\\;s=\\/cdrom\\/nocloud\//g' "$GRUB_CFG"
+# Extract and patch GRUB to append autoinstall + NoCloud path
+GRUB_CFG="$TMP/grub.cfg"
+if ! xorriso -osirrox on -indev "$ISO_IN" -extract /boot/grub/grub.cfg "$GRUB_CFG" >/dev/null; then
+  echo "Unable to extract /boot/grub/grub.cfg from $ISO_IN" >&2
+  exit 1
+fi
+if [ ! -s "$GRUB_CFG" ]; then
+  echo "Extracted grub.cfg is empty" >&2
+  exit 1
+fi
+PATCH_ARGS="autoinstall ds=nocloud;s=/cdrom/nocloud/"
+if ! grep -q "$PATCH_ARGS" "$GRUB_CFG"; then
+  sed -i "s#---#--- ${PATCH_ARGS}#g" "$GRUB_CFG"
 fi
 
-# Repack ISO (UEFI+BIOS)
-xorriso -as mkisofs -r -V "UBUNTU_AUTOINSTALL_${HOST}"   -o "$ISO_OUT"   -J -l -cache-inodes   -isohybrid-mbr "$TMP/iso/isolinux/isohdpfx.bin"   -partition_offset 16   -b isolinux/isolinux.bin -c isolinux/boot.cat   -no-emul-boot -boot-load-size 4 -boot-info-table   -eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot   "$TMP/iso"
+# Repack ISO by replaying original boot parameters
+xorriso \
+  -indev "$ISO_IN" \
+  -outdev "$ISO_OUT" \
+  -map "$TMP/grub.cfg" /boot/grub/grub.cfg \
+  -map "$TMP/nocloud" /nocloud \
+  -boot_image any replay \
+  >/dev/null
 
 echo "Created ${ISO_OUT}"

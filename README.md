@@ -21,6 +21,7 @@ Ce dépôt fournit les fichiers modèles et l'automatisation nécessaires pour c
 ## Architecture GitOps
 - **Définition déclarative** : les paramètres spécifiques à chaque hôte résident dans `inventory/host_vars/<hôte>.yml`.
 - **Rendu automatisé** : Ansible et Jinja2 génèrent les fichiers `user-data`/`meta-data` dans `autoinstall/generated/<hôte>/`.
+  - Le playbook `ansible/playbooks/generate_autoinstall.yml` calcule dynamiquement les chemins `autoinstall/` et `inventory/host_vars/` via `{{ playbook_dir }}` pour rester fiable quel que soit le répertoire d'exécution (ex. `make gen`).
 - **Distribution contrôlée** : la CI construit les ISO d'installation, stockées en artefacts et récupérées lors du déploiement.
 - **Aucune intervention manuelle** : l'intégralité du flux passe par Git, CI/CD et les commandes documentées.
 
@@ -51,9 +52,10 @@ Ce dépôt fournit les fichiers modèles et l'automatisation nécessaires pour c
    - Démarrer sur l'installateur Ubuntu, appuyer sur `e` dans GRUB et ajouter `autoinstall` à la ligne Linux.
    - L'installation est ensuite entièrement automatisée via cloud-init (NoCloud).
 5. **(Optionnel) Construire une ISO complète avec autoinstall intégré**
-   ```bash
-   make fulliso HOST=site-a-m710q1 UBUNTU_ISO=/chemin/ubuntu-24.04-live-server-amd64.iso
-   ```
+    ```bash
+    make fulliso HOST=site-a-m710q1 UBUNTU_ISO=/chemin/ubuntu-24.04-live-server-amd64.iso
+    ```
+    Le script `scripts/make_full_iso.sh` rejoue la configuration de démarrage de l'ISO source via `xorriso` afin d'ajouter le dossier `nocloud/` sans dépendre d'`isolinux/` (flag `-boot_image any replay`).
 
 ## Variables d'hôte
 Chaque fichier `inventory/host_vars/<hôte>.yml` peut contenir les paramètres suivants :
