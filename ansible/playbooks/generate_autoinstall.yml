@@ -1,26 +1,33 @@
-- name: Render autoinstall NoCloud for a host
+---
+- name: Render autoinstall NoCloud for a host or hardware profile
   hosts: localhost
   gather_facts: false
   vars:
-    host: "{{ lookup('env','HOST') | default(host, true) }}"
     autoinstall_dir: "{{ playbook_dir }}/../../autoinstall"
+    inventory_root: "{{ playbook_dir }}/../../inventory"
+    target: "{{ lookup('env','HOST') | default(host, true) }}"
+    profile: "{{ lookup('env','PROFILE') | default('', true) }}"
+    config_scope: "{{ 'profiles/hardware' if profile else 'host_vars' }}"
+    config_name: "{{ profile if profile else target }}"
+    primary_vars_file: >-
+      {{ inventory_root }}/{{ config_scope }}/{{ config_name }}.yml
   vars_files:
-    - "{{ playbook_dir }}/../../inventory/host_vars/{{ host }}.yml"
+    - "{{ primary_vars_file }}"
   tasks:
     - name: Ensure output dir exists
       file:
-        path: "{{ autoinstall_dir }}/generated/{{ host }}"
+        path: "{{ autoinstall_dir }}/generated/{{ config_name }}"
         state: directory
         mode: "0755"
 
     - name: Render user-data (autoinstall)
       template:
         src: "{{ autoinstall_dir }}/templates/user-data.j2"
-        dest: "{{ autoinstall_dir }}/generated/{{ host }}/user-data"
+        dest: "{{ autoinstall_dir }}/generated/{{ config_name }}/user-data"
         mode: "0644"
 
     - name: Render meta-data
       template:
         src: "{{ autoinstall_dir }}/templates/meta-data.j2"
-        dest: "{{ autoinstall_dir }}/generated/{{ host }}/meta-data"
+        dest: "{{ autoinstall_dir }}/generated/{{ config_name }}/meta-data"
         mode: "0644"

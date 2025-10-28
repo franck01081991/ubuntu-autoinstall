@@ -1,12 +1,13 @@
 # ubuntu-autoinstall-git
 
-Provision **Ubuntu Server 24.04 LTS** per host (ThinkCentre M710q, Dell 3020 Tiny, VPS) using **Autoinstall + cloud-init (NoCloud)**, all driven from Git in a GitOps workflow.
+Provision **Ubuntu Server 24.04 LTS** per host (ThinkCentre M710q, Dell 3020 Tiny) using **Autoinstall + cloud-init (NoCloud)**, all driven from Git in a GitOps workflow.
 
 ## Table of contents
 - [Overview](#overview)
 - [GitOps architecture](#gitops-architecture)
 - [Prerequisites](#prerequisites)
 - [Quick start](#quick-start)
+- [Hardware profiles](#hardware-profiles)
 - [Host variables](#host-variables)
 - [Available Make targets](#available-make-targets)
 - [Validation and testing](#validation-and-testing)
@@ -16,10 +17,12 @@ Provision **Ubuntu Server 24.04 LTS** per host (ThinkCentre M710q, Dell 3020 Tin
 - [Additional resources](#additional-resources)
 
 ## Overview
-This repository contains the templates and automation required to build fully automated Ubuntu installation media. Each host stores its own variables in inventory, enabling reproducible and idempotent deployments. Generated seed and full ISOs are published as pipeline artifacts for auditing purposes.
+This repository contains the templates and automation required to build fully automated Ubuntu installation media. Each host stores its own variables in inventory, enabling reproducible and idempotent deployments. Generated seed and full ISOs are published as pipeline artifacts for auditing purposes. A library of **hardware profiles** under `inventory/profiles/hardware/` keeps the CI focused on validating autoinstall generation per model.
 
 ## GitOps architecture
-- **Declarative definition**: host-specific parameters live in `inventory/host_vars/<host>.yml`.
+- **Declarative definition**:
+  - host-specific parameters live in `inventory/host_vars/<host>.yml`;
+  - reusable hardware profiles are tracked in `inventory/profiles/hardware/<profile>.yml` and can be shared across sites.
 - **Automated rendering**: Ansible + Jinja2 generate `user-data`/`meta-data` files in `autoinstall/generated/<host>/`.
 - **Controlled distribution**: CI builds the installation ISOs, stores them as artifacts, and operators retrieve them as needed.
 - **Zero manual drift**: every change flows through Git, CI/CD, and the documented commands.
@@ -31,29 +34,38 @@ This repository contains the templates and automation required to build fully au
 - Valid SSH keys and hashed passwords (YESCRYPT recommended) for each host.
 
 ## Quick start
-1. **Define host variables**
+1. **Select a hardware profile (optional)**
+   ```bash
+   ls inventory/profiles/hardware
+   make gen PROFILE=lenovo-m710q-nvme
+   ```
+   Artifacts are produced under `autoinstall/generated/lenovo-m710q-nvme/`.
+2. **Define host variables**
    ```bash
    cp inventory/host_vars/example.yml inventory/host_vars/site-a-m710q1.yml
    $EDITOR inventory/host_vars/site-a-m710q1.yml
    ```
-2. **Render autoinstall files for the host**
+3. **Render autoinstall files for the host**
    ```bash
    make gen HOST=site-a-m710q1
    ```
-3. **Build the seed ISO (`CIDATA`)**
+4. **Build the seed ISO (`CIDATA`)**
    ```bash
    make seed HOST=site-a-m710q1
    ```
    The ISO is exported to `autoinstall/generated/site-a-m710q1/seed-site-a-m710q1.iso`.
-4. **Run the installation**
+5. **Run the installation**
    - Write the official Ubuntu ISO to a USB drive (USB #1).
    - Mount the seed ISO on a second USB drive or similar (USB #2).
    - Boot the installer, press `e` in GRUB, and append `autoinstall` to the Linux line.
    - The installation continues unattended via cloud-init (NoCloud).
-5. **(Optional) Build a full ISO with autoinstall baked in**
+6. **(Optional) Build a full ISO with autoinstall baked in**
    ```bash
    make fulliso HOST=site-a-m710q1 UBUNTU_ISO=/path/ubuntu-24.04-live-server-amd64.iso
    ```
+
+## Hardware profiles
+Files under `inventory/profiles/hardware/` capture the minimal values per model (disk, NIC, demo SSH keys, etc.) required to validate autoinstall generation. Each profile can be rendered via `make gen PROFILE=<profile>` and becomes the baseline that site-specific automation (Ansible) can extend.
 
 ## Host variables
 Each `inventory/host_vars/<host>.yml` file may include:
@@ -70,6 +82,7 @@ Each `inventory/host_vars/<host>.yml` file may include:
 
 ## Available Make targets
 - `make gen HOST=<name>`: render `user-data` and `meta-data` under `autoinstall/generated/<name>/`.
+- `make gen PROFILE=<profile>`: render artifacts for a hardware profile under `autoinstall/generated/<profile>/`.
 - `make seed HOST=<name>`: build `seed-<name>.iso` (NoCloud `CIDATA`).
 - `make fulliso HOST=<name> UBUNTU_ISO=<path>`: build a full installer ISO with autoinstall and boot flags.
 - `make clean`: remove generated artifacts.
@@ -81,10 +94,10 @@ Each `inventory/host_vars/<host>.yml` file may include:
 - `terraform fmt/validate` *(not applicable unless Terraform modules are added)*.
 
 ## Continuous integration
-- The GitHub Actions workflow `.github/workflows/build-iso.yml` renders autoinstall files per host, builds both seed and full ISOs, and uploads them as artifacts.
+- The GitHub Actions workflow `.github/workflows/build-iso.yml` now renders autoinstall files **per hardware model** (`PROFILE`), builds both seed and full ISOs, and uploads them as artifacts.
 - To trigger manually: **Actions → Build Host ISOs → Run workflow**, optionally overriding `UBUNTU_ISO_URL`.
-  - By default the CI pulls the image from `https://old-releases.ubuntu.com/releases/24.04/ubuntu-24.04-live-server-amd64.iso` to ensure long-term availability.
-- Artifacts are grouped per host for straightforward traceability.
+  - By default the CI pulls the image from `https://old-releases.ubuntu.com/releases/24.04/ubuntu-24.04-live-server-amd64.iso` to ensure long-term availability. The ISO download is cached in `.cache/` to avoid repeated transfers.
+- Artifacts are grouped per hardware profile for straightforward traceability.
 
 ## Security and compliance
 - Replace example SSH keys with production-grade host/user keys.
