@@ -21,6 +21,7 @@ Ce dépôt fournit les fichiers modèles et l'automatisation nécessaires pour c
 ## Architecture GitOps
 - **Définition déclarative** : les paramètres spécifiques à chaque hôte résident dans `inventory/host_vars/<hôte>.yml`.
 - **Rendu automatisé** : Ansible et Jinja2 génèrent les fichiers `user-data`/`meta-data` dans `autoinstall/generated/<hôte>/`.
+  - Le playbook `ansible/playbooks/generate_autoinstall.yml` calcule dynamiquement le chemin `autoinstall/` via `{{ playbook_dir }}` pour rester fiable quel que soit le répertoire d'exécution (ex. `make gen`).
 - **Distribution contrôlée** : la CI construit les ISO d'installation, stockées en artefacts et récupérées lors du déploiement.
 - **Aucune intervention manuelle** : l'intégralité du flux passe par Git, CI/CD et les commandes documentées.
 

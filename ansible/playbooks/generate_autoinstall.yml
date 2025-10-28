@@ -3,23 +3,24 @@
   gather_facts: false
   vars:
     host: "{{ lookup('env','HOST') | default(host, true) }}"
+    autoinstall_dir: "{{ playbook_dir }}/../../autoinstall"
   vars_files:
     - "../inventory/host_vars/{{ host }}.yml"
   tasks:
     - name: Ensure output dir exists
       file:
-        path: "../autoinstall/generated/{{ host }}"
+        path: "{{ autoinstall_dir }}/generated/{{ host }}"
         state: directory
         mode: "0755"
 
     - name: Render user-data (autoinstall)
       template:
-        src: "../autoinstall/templates/user-data.j2"
-        dest: "../autoinstall/generated/{{ host }}/user-data"
+        src: "{{ autoinstall_dir }}/templates/user-data.j2"
+        dest: "{{ autoinstall_dir }}/generated/{{ host }}/user-data"
         mode: "0644"
 
     - name: Render meta-data
       template:
-        src: "../autoinstall/templates/meta-data.j2"
-        dest: "../autoinstall/generated/{{ host }}/meta-data"
+        src: "{{ autoinstall_dir }}/templates/meta-data.j2"
+        dest: "{{ autoinstall_dir }}/generated/{{ host }}/meta-data"
         mode: "0644"
