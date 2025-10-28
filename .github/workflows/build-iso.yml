@@ -29,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        model: [ "lenovo-m710q-nvme", "lenovo-m710q-sata", "dell-optiplex-3020" ]
+        model: [ "lenovo-m710q", "dell-optiplex-3020" ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

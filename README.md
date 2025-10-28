@@ -38,9 +38,9 @@ Ce dépôt fournit les fichiers modèles et l'automatisation nécessaires pour c
 1. **Choisir un profil matériel (optionnel)**
    ```bash
    ls inventory/profiles/hardware
-   make gen PROFILE=lenovo-m710q-nvme
+   make gen PROFILE=lenovo-m710q
    ```
-   Les artefacts sont générés sous `autoinstall/generated/lenovo-m710q-nvme/`.
+   Les artefacts sont générés sous `autoinstall/generated/lenovo-m710q/`.
 2. **Définir les variables de l'hôte**
    ```bash
    cp inventory/host_vars/example.yml inventory/host_vars/site-a-m710q1.yml
@@ -69,13 +69,16 @@ Ce dépôt fournit les fichiers modèles et l'automatisation nécessaires pour c
 ## Profils matériels
 Les profils sous `inventory/profiles/hardware/` décrivent les valeurs minimales par modèle pour valider la génération autoinstall (disque, interface réseau, clés SSH de test, etc.). Chaque fichier peut être référencé via `make gen PROFILE=<profil>` et sert de base pour définir des sites spécifiques via Ansible.
 
+- `lenovo-m710q` : ThinkCentre M710q Tiny équipé d'un NVMe et d'un emplacement SATA 2,5". Le profil assemble les deux disques dans le même volume LVM afin d'offrir une capacité unique.
+
 ## Variables d'hôte
 Chaque fichier `inventory/host_vars/<hôte>.yml` peut contenir les paramètres suivants :
 
 | Variable | Description |
 | --- | --- |
 | `hostname` | Nom d'hôte configuré pendant l'installation |
-| `disk_device` | Disque cible (ex. `/dev/nvme0n1`, `/dev/sda`) |
+| `disk_device` | Disque système principal (ex. `/dev/nvme0n1`) |
+| `additional_disk_devices` | Liste de disques supplémentaires à intégrer au VG LVM (ex. `['/dev/sda']`) |
 | `netmode` | `dhcp` ou `static` |
 | `nic` | Interface réseau (ex. `enp1s0`) pour IP statique |
 | `ip`, `cidr`, `gw`, `dns` | Paramètres réseau statiques |
