@@ -7,6 +7,13 @@ nic: enp1s0
 disk_device: /dev/nvme0n1
 additional_disk_devices:
   - /dev/sda
+extra_packages:
+  - intel-microcode
+  - thermald
+  - powertop
+  - lm-sensors
+  - linux-tools-generic
+enable_powertop_autotune: true
 ssh_authorized_keys:
   - ssh-ed25519 AAAA...REPLACE_ME your_key@model
 password_hash: $y$j9T$REPLACE_ME_HASH

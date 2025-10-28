@@ -30,6 +30,9 @@ autoinstall:
     - ethtool
     - git
     - irqbalance
+{% for pkg in extra_packages | default([]) %}
+    - {{ pkg }}
+{% endfor %}
   storage:
     swap:
       size: 0
@@ -132,3 +135,9 @@ net.ipv4.conf.all.send_redirects=0
 EOF'
     - curtin in-target -- sysctl --system
     - curtin in-target -- systemctl enable irqbalance
+{% if enable_powertop_autotune | default(false) %}
+    - curtin in-target -- bash -lc 'cat >/etc/systemd/system/powertop-autotune.service <<"EOF"\n[Unit]\nDescription=Powertop auto-tuning on boot\nAfter=multi-user.target\n\n[Service]\nType=oneshot\nExecStart=/usr/sbin/powertop --auto-tune\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\nEOF'
+    - curtin in-target -- systemctl daemon-reload
+    - curtin in-target -- systemctl enable powertop-autotune.service
+    - curtin in-target -- systemctl start powertop-autotune.service
+{% endif %}
