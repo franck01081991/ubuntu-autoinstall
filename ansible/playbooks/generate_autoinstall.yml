@@ -5,7 +5,7 @@
     host: "{{ lookup('env','HOST') | default(host, true) }}"
     autoinstall_dir: "{{ playbook_dir }}/../../autoinstall"
   vars_files:
-    - "../inventory/host_vars/{{ host }}.yml"
+    - "{{ playbook_dir }}/../../inventory/host_vars/{{ host }}.yml"
   tasks:
     - name: Ensure output dir exists
       file:
