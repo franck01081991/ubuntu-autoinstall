@@ -7,6 +7,7 @@ fi
 OUTDIR="autoinstall/generated/${HOST}"
 [ -d "$OUTDIR" ] || { echo "Missing $OUTDIR. Run: make gen HOST=${HOST}"; exit 1; }
 TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
 ISO_OUT="${OUTDIR}/ubuntu-autoinstall-${HOST}.iso"
 
 # Mount/extract ISO
@@ -19,7 +20,10 @@ cp "${OUTDIR}/user-data" "${OUTDIR}/meta-data" "$TMP/iso/nocloud/"
 # Patch GRUB to append autoinstall + NoCloud path
 GRUB_CFG="$TMP/iso/boot/grub/grub.cfg"
 if [ -f "$GRUB_CFG" ]; then
-  sed -i 's/---/ autoinstall ds=nocloud\\;s=\\/cdrom\\/nocloud\//g' "$GRUB_CFG"
+  PATCH_ARGS="autoinstall ds=nocloud;s=/cdrom/nocloud/"
+  if ! grep -q "$PATCH_ARGS" "$GRUB_CFG"; then
+    sed -i "s#---#--- ${PATCH_ARGS}#g" "$GRUB_CFG"
+  fi
 fi
 
 # Repack ISO (UEFI+BIOS)
