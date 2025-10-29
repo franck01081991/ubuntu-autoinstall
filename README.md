@@ -157,6 +157,7 @@ Avant exécution :
 ```bash
 ansible-galaxy collection install -r ansible/collections/requirements.yml
 ```
+Le fichier `ansible/collections/requirements.yml` épingle `community.sops` en version **1.6.0**, dernière release stable disponible sans indicateur `--pre`.
 
 ## Ressources supplémentaires
 - [Documentation originale en anglais](README.en.md)

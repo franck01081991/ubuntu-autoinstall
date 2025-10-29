@@ -150,6 +150,7 @@ Install the required Ansible collections before running the playbook:
 ```bash
 ansible-galaxy collection install -r ansible/collections/requirements.yml
 ```
+The `ansible/collections/requirements.yml` file pins `community.sops` to **1.6.0**, the latest stable release available without the `--pre` flag.
 
 ## Additional resources
 - [Documentation en français](README.md)

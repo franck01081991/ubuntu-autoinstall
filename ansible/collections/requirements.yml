@@ -1,4 +1,4 @@
 ---
 collections:
   - name: community.sops
-    version: 1.6.0
+    version: "1.6.0"  # pin to stable release; 1.7.1 is pre-release and requires --pre
