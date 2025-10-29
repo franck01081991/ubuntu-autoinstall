@@ -21,12 +21,12 @@
 
 - name: Vérifier la version de Helm installée
   ansible.builtin.command: /usr/local/bin/helm version --short
-  register: helm_version
+  register: bootstrap_helm_version
   failed_when: false
   changed_when: false
 
-- name: Télécharger Helm {{ helm_version_tag }} si nécessaire
-  when: helm_version.stdout is not defined or helm_version.stdout is not search("{{ helm_version_tag }}")
+- name: Télécharger Helm si nécessaire
+  when: bootstrap_helm_version.stdout is not defined or (helm_version_tag not in bootstrap_helm_version.stdout)
   ansible.builtin.unarchive:
     src: "https://get.helm.sh/helm-{{ helm_version_tag }}-linux-amd64.tar.gz"
     dest: /usr/local/share
@@ -34,7 +34,7 @@
     creates: "/usr/local/share/linux-amd64/helm"
 
 - name: Installer le binaire Helm
-  when: helm_version.stdout is not defined or helm_version.stdout is not search("{{ helm_version_tag }}")
+  when: bootstrap_helm_version.stdout is not defined or (helm_version_tag not in bootstrap_helm_version.stdout)
   ansible.builtin.copy:
     src: /usr/local/share/linux-amd64/helm
     dest: /usr/local/bin/helm
@@ -53,7 +53,7 @@
     replace: '# \1'
 
 - name: Charger les modules noyau requis
-  ansible.builtin.modprobe:
+  community.general.modprobe:
     name: "{{ item }}"
     state: present
   loop: "{{ os_tuning.modules }}"
