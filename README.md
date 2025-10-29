@@ -135,7 +135,8 @@ Les clés `vps_external_dns_api_token` et `vps_keycloak_admin_password` doivent 
 - La pipeline GitHub Actions définie dans `.github/workflows/build-iso.yml` rend désormais les fichiers autoinstall **par modèle matériel** (`PROFILE`) pour valider le processus sans dépendance aux sites.
 - Pour lancer manuellement : **Actions → Build Host ISOs → Run workflow** et, si besoin, surcharger `UBUNTU_ISO_URL`.
   - Par défaut, la CI télécharge l'image depuis `https://old-releases.ubuntu.com/releases/24.04/ubuntu-24.04-live-server-amd64.iso` pour garantir la disponibilité dans le temps. Un cache ISO (`.cache/`) évite les téléchargements répétés.
-- Les artefacts générés sont regroupés par profil matériel pour simplifier la traçabilité.
+- Les artefacts générés sont regroupés par profil matériel pour simplifier la traçabilité et sont conservés **1 jour** (`retention-days: 1`).
+- Avant chaque téléversement, la CI supprime les artefacts GitHub Actions existants pour le même profil (`autoinstall-<profil>`) afin d'éviter d'atteindre le quota de stockage.
 
 ## Sécurité et conformité
 - Toujours remplacer les clés SSH de démonstration par des clés réelles spécifiques.

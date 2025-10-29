@@ -48,6 +48,29 @@ jobs:
           restore-keys: |
             iso-${{ runner.os }}-
 
+      - name: Delete existing artifacts for ${{ matrix.model }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const model = `${{ matrix.model }}`;
+            const artifactName = `autoinstall-${model}`;
+            const artifacts = await github.paginate(github.rest.actions.listArtifactsForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+            for (const artifact of artifacts) {
+              if (artifact.name === artifactName) {
+                core.info(`Deleting artifact ${artifact.id} (${artifact.name})`);
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                });
+              }
+            }
+
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -91,3 +114,4 @@ jobs:
             autoinstall/generated/${{ matrix.model }}/seed-${{ matrix.model }}.iso
             autoinstall/generated/${{ matrix.model }}/ubuntu-autoinstall-${{ matrix.model }}.iso
           if-no-files-found: error
+          retention-days: 1

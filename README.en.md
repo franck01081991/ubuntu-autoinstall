@@ -128,7 +128,8 @@ The keys `vps_external_dns_api_token` and `vps_keycloak_admin_password` must be 
 - The GitHub Actions workflow `.github/workflows/build-iso.yml` now renders autoinstall files **per hardware model** (`PROFILE`), builds both seed and full ISOs, and uploads them as artifacts.
 - To trigger manually: **Actions → Build Host ISOs → Run workflow**, optionally overriding `UBUNTU_ISO_URL`.
   - By default the CI pulls the image from `https://old-releases.ubuntu.com/releases/24.04/ubuntu-24.04-live-server-amd64.iso` to ensure long-term availability. The ISO download is cached in `.cache/` to avoid repeated transfers.
-- Artifacts are grouped per hardware profile for straightforward traceability.
+- Artifacts are grouped per hardware profile for straightforward traceability and retained for **1 day** (`retention-days: 1`).
+- Before uploading, the workflow deletes existing GitHub Actions artifacts for the same profile (`autoinstall-<profile>`) to stay within the storage quota.
 
 ## Security and compliance
 - Replace example SSH keys with production-grade host/user keys.
