@@ -25,6 +25,9 @@ on:
 
 jobs:
   build:
+    permissions:
+      contents: read
+      actions: write
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -49,6 +52,7 @@ jobs:
             iso-${{ runner.os }}-
 
       - name: Delete existing artifacts for ${{ matrix.model }}
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
