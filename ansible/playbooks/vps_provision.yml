@@ -38,7 +38,6 @@
       community.sops.load_vars:
         file: "{{ vps_secrets_file }}"
       no_log: true
-      delegate_to: localhost
 
     - name: Assert required VPS secrets are defined
       assert:
