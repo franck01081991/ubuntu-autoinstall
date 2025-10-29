@@ -34,7 +34,7 @@
 - **Idempotence** : toutes les opérations passent par Git + CI/CD + Make.
 - **Sécurité** : secrets chiffrés SOPS, scans tfsec/kube-linter/Trivy.
 - **Scalabilité** : ajout d'un site = nouveau dossier `kubernetes/terraform/envs/<site>`
-  + overlay Flux.
+  - overlay Flux.
 - **Risques** :
   - Dépendance à Flux pour l'état désiré (nécessite surveillance).
   - Complexité ClusterMesh/WireGuard → nécessite supervision réseau.

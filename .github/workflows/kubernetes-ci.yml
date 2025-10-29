@@ -62,9 +62,11 @@ jobs:
           curl -sSfL https://github.com/stackrox/kube-linter/releases/download/v0.6.8/kube-linter-linux.tar.gz | tar xz -C /tmp
           sudo install -m 0755 /tmp/kube-linter /usr/local/bin/kube-linter
           rm -f /tmp/kube-linter
-          curl -sSfL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install.sh | bash
-          sudo install -m 0755 ./tfsec /usr/local/bin/tfsec
-          rm -f tfsec
+          TFSEC_VERSION="1.28.11"
+          curl -sSLo tfsec.tar.gz "https://github.com/aquasecurity/tfsec/releases/download/v${TFSEC_VERSION}/tfsec-linux-amd64.tar.gz"
+          tar -xf tfsec.tar.gz tfsec
+          sudo install -m 0755 tfsec /usr/local/bin/tfsec
+          rm -f tfsec tfsec.tar.gz
           pip install checkov
       - name: Install Flux dependencies
         run: flux install --export > /tmp/flux-components.yaml
@@ -94,9 +96,11 @@ jobs:
           curl -sSfL https://github.com/stackrox/kube-linter/releases/download/v0.6.8/kube-linter-linux.tar.gz | tar xz -C /tmp
           sudo install -m 0755 /tmp/kube-linter /usr/local/bin/kube-linter
           rm -f /tmp/kube-linter
-          curl -sSfL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install.sh | bash
-          sudo install -m 0755 ./tfsec /usr/local/bin/tfsec
-          rm -f tfsec
+          TFSEC_VERSION="1.28.11"
+          curl -sSLo tfsec.tar.gz "https://github.com/aquasecurity/tfsec/releases/download/v${TFSEC_VERSION}/tfsec-linux-amd64.tar.gz"
+          tar -xf tfsec.tar.gz tfsec
+          sudo install -m 0755 tfsec /usr/local/bin/tfsec
+          rm -f tfsec tfsec.tar.gz
           python -m pip install --upgrade pip
           pip install checkov
       - name: Run security checks
