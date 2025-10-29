@@ -64,7 +64,7 @@ kubernetes/lint:
 		terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env fmt -check; \
 		terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env validate; \
 	done
-	find $(KUBERNETES_DIR)/flux \( -name '*.yaml' -o -name '*.yml' \) -print0 | xargs -0 -r kubeconform -summary -strict
+	find $(KUBERNETES_DIR)/flux \( -name '*.yaml' -o -name '*.yml' \) -print0 | xargs -0 -r kubeconform -summary -strict --schema-location default --schema-location "https://raw.githubusercontent.com/fluxcd/flux2/main/manifests/crds/{kind}.json"
 kubernetes/plan:
 	for env in $(TF_ENVS); do terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env init -upgrade && terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env plan; done
 

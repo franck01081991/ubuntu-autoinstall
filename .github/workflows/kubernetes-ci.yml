@@ -43,7 +43,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade "importlib-metadata>=8.7.0" "packaging>=25.0"
           pip install ansible-core ansible-lint yamllint
-          pip install --upgrade "importlib-metadata>=8.7.0"
+          pip install --upgrade "importlib-metadata>=8.7.0" "packaging>=25.0"
       - name: Install kubeconform
         run: |
           KUBECONFORM_VERSION="0.6.7"
@@ -72,6 +72,7 @@ jobs:
           sudo install -m 0755 tfsec /usr/local/bin/tfsec
           rm -f tfsec tfsec.tar.gz
           pip install checkov
+          pip install --upgrade "importlib-metadata>=8.7.0" "packaging>=25.0"
       - name: Install Flux dependencies
         run: flux install --export > /tmp/flux-components.yaml
       - name: Run make kubernetes/lint
@@ -109,6 +110,7 @@ jobs:
           rm -f tfsec tfsec.tar.gz
           python -m pip install --upgrade pip
           pip install checkov
+          pip install --upgrade "importlib-metadata>=8.7.0" "packaging>=25.0"
       - name: Run security checks
         run: make kubernetes/security
 
