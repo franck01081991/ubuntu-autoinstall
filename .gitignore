@@ -5,3 +5,6 @@ autoinstall/generated/
 # editor / OS
 .DS_Store
 *.swp
+# encryption keys
+*.agekey
+sops-age-key.txt

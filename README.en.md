@@ -31,6 +31,7 @@ This repository contains the templates and automation required to build fully au
 - Official Ubuntu 24.04 Live Server ISO (required for `make fulliso`).
 - Python 3.10+ and Ansible available in the build environment.
 - System tools: `mkpasswd`, `cloud-localds`, `xorriso`, `genisoimage` (or distro equivalents).
+- [SOPS](https://github.com/getsops/sops) and an [age](https://age-encryption.org/) key pair to keep sensitive variables encrypted. Use `scripts/install-sops.sh` to install the recommended (Linux amd64) release with SHA-256 verification.
 - Valid SSH keys and hashed passwords (YESCRYPT recommended) for each host.
 
 ## Quick start
@@ -86,6 +87,30 @@ Each `inventory/host_vars/<host>.yml` file may include:
 | `extra_packages` | Optional list of additional packages (e.g., hardware optimisations) |
 | `enable_powertop_autotune` | Enables the systemd `powertop-autotune` unit |
 
+## Managing shared variables and secrets
+
+- Common VPS variables now live under `inventory/group_vars/vps/` so they stay close to the GitOps inventory.
+- Secrets are versioned in **encrypted** form with [SOPS](https://github.com/getsops/sops):
+  1. Copy the template:
+     ```bash
+     cp inventory/group_vars/vps/secrets.sops.yaml.example inventory/group_vars/vps/secrets.sops.yaml
+     ```
+  2. Install SOPS when missing:
+     ```bash
+     sudo bash scripts/install-sops.sh /usr/local/bin
+     ```
+  3. Add your age public key to `.sops.yaml` (`age1...`).
+  4. Encrypt the file:
+     ```bash
+     sops --encrypt --in-place inventory/group_vars/vps/secrets.sops.yaml
+     ```
+  5. Edit the secret securely:
+     ```bash
+     sops inventory/group_vars/vps/secrets.sops.yaml
+     ```
+
+The keys `vps_external_dns_api_token` and `vps_keycloak_admin_password` must be present in this file for `vps_provision.yml` to run successfully. The playbook fails fast if they are missing.
+
 ## Available Make targets
 - `make gen HOST=<name>`: render `user-data` and `meta-data` under `autoinstall/generated/<name>/`.
 - `make gen PROFILE=<profile>`: render artifacts for a hardware profile under `autoinstall/generated/<profile>/`.
@@ -103,7 +128,9 @@ Each `inventory/host_vars/<host>.yml` file may include:
 - The GitHub Actions workflow `.github/workflows/build-iso.yml` now renders autoinstall files **per hardware model** (`PROFILE`), builds both seed and full ISOs, and uploads them as artifacts.
 - To trigger manually: **Actions → Build Host ISOs → Run workflow**, optionally overriding `UBUNTU_ISO_URL`.
   - By default the CI pulls the image from `https://old-releases.ubuntu.com/releases/24.04/ubuntu-24.04-live-server-amd64.iso` to ensure long-term availability. The ISO download is cached in `.cache/` to avoid repeated transfers.
-- Artifacts are grouped per hardware profile for straightforward traceability.
+- Artifacts are grouped per hardware profile for straightforward traceability and retained for **1 day** (`retention-days: 1`).
+- Before uploading, the workflow deletes existing GitHub Actions artifacts for the same profile (`autoinstall-<profile>`) to stay within the storage quota whenever the run originates from the main repository (local branches or manual dispatches).
+- When the GitHub Actions quota is exceeded or the token lacks permissions, artifact uploads fail with a warning but the workflow continues (best-effort mode, artifacts must be recovered manually if needed).
 
 ## Security and compliance
 - Replace example SSH keys with production-grade host/user keys.
@@ -118,7 +145,14 @@ After installing Ubuntu on the VPS, run:
 ansible-playbook -i inventory/hosts.yml ansible/playbooks/vps_provision.yml -u ubuntu --become
 ```
 
-Set variables via `group_vars` or `-e` flags (e.g., `vps_domain`, `vps_acme_email`, `vps_external_dns_api_token`).
+Define variables via `inventory/group_vars/vps/` (see previous section) or use `-e` flags for temporary overrides.
+
+Install the required Ansible collections before running the playbook:
+
+```bash
+ansible-galaxy collection install -r ansible/collections/requirements.yml
+```
+The `ansible/collections/requirements.yml` file pins `community.sops` to **1.6.0**, the latest stable release available without the `--pre` flag.
 
 ## Additional resources
 - [Documentation en français](README.md)

@@ -14,11 +14,41 @@
     domain_base: "{{ vps_domain | default('example.net') }}"
     acme_email: "{{ vps_acme_email | default('admin@example.net') }}"
     external_dns_provider: "{{ vps_external_dns_provider | default('cloudflare') }}"
-    external_dns_api_token: "{{ vps_external_dns_api_token | default('REPLACE_ME') }}"
+    external_dns_api_token: "{{ vps_external_dns_api_token | mandatory('vps_external_dns_api_token must be provided via SOPS') }}"
     keycloak_admin_user: "admin"
-    keycloak_admin_password: "{{ vps_keycloak_admin_password | default('ChangeMe!') }}"
+    keycloak_admin_password: "{{ vps_keycloak_admin_password | mandatory('vps_keycloak_admin_password must be provided via SOPS') }}"
 
   pre_tasks:
+    - name: Check that encrypted VPS secrets file exists
+      stat:
+        path: "{{ vps_secrets_file }}"
+      register: vps_secrets_stat
+      delegate_to: localhost
+      run_once: true
+
+    - name: Fail if encrypted VPS secrets file is missing
+      assert:
+        that:
+          - vps_secrets_stat.stat.exists | default(false)
+        fail_msg: >-
+          Create and encrypt {{ vps_secrets_file }} (cp *.example && sops --encrypt --in-place)
+      run_once: true
+
+    - name: Load encrypted VPS secrets
+      community.sops.load_vars:
+        file: "{{ vps_secrets_file }}"
+      no_log: true
+
+    - name: Assert required VPS secrets are defined
+      assert:
+        that:
+          - vps_external_dns_api_token is defined
+          - vps_external_dns_api_token | length > 0
+          - vps_keycloak_admin_password is defined
+          - vps_keycloak_admin_password | length > 0
+        fail_msg: >-
+          Populate inventory/group_vars/vps/secrets.sops.yaml using SOPS (see README)
+
     - name: Base packages
       apt:
         name:

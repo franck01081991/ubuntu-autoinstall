@@ -25,6 +25,9 @@ on:
 
 jobs:
   build:
+    permissions:
+      contents: read
+      actions: write
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -48,11 +51,38 @@ jobs:
           restore-keys: |
             iso-${{ runner.os }}-
 
+      - name: Delete existing artifacts for ${{ matrix.model }}
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const model = `${{ matrix.model }}`;
+            const artifactName = `autoinstall-${model}`;
+            const artifacts = await github.paginate(github.rest.actions.listArtifactsForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+            for (const artifact of artifacts) {
+              if (artifact.name === artifactName) {
+                core.info(`Deleting artifact ${artifact.id} (${artifact.name})`);
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                });
+              }
+            }
+
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pip xorriso p7zip-full make wget genisoimage
+          sudo apt-get install -y python3-pip xorriso p7zip-full make wget genisoimage age curl
+          bash scripts/install-sops.sh /usr/local/bin
           python3 -m pip install --user -r ansible/requirements.txt
+          $HOME/.local/bin/ansible-galaxy collection install -r ansible/collections/requirements.yml
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Download Ubuntu ISO
@@ -80,7 +110,9 @@ jobs:
           make fulliso PROFILE="${{ matrix.model }}" UBUNTU_ISO="${{ steps.iso.outputs.file }}"
 
       - name: Upload artifacts for ${{ matrix.model }}
+        id: upload
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: autoinstall-${{ matrix.model }}
           path: |
@@ -89,3 +121,9 @@ jobs:
             autoinstall/generated/${{ matrix.model }}/seed-${{ matrix.model }}.iso
             autoinstall/generated/${{ matrix.model }}/ubuntu-autoinstall-${{ matrix.model }}.iso
           if-no-files-found: error
+          retention-days: 1
+
+      - name: Report artifact upload issues
+        if: steps.upload.outcome == 'failure'
+        run: |
+          echo "::warning::Artifact upload failed (likely due to storage quota or permissions). Build completed without artifacts." 
