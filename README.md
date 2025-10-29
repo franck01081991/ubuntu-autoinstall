@@ -137,6 +137,7 @@ Les clés `vps_external_dns_api_token` et `vps_keycloak_admin_password` doivent 
   - Par défaut, la CI télécharge l'image depuis `https://old-releases.ubuntu.com/releases/24.04/ubuntu-24.04-live-server-amd64.iso` pour garantir la disponibilité dans le temps. Un cache ISO (`.cache/`) évite les téléchargements répétés.
 - Les artefacts générés sont regroupés par profil matériel pour simplifier la traçabilité et sont conservés **1 jour** (`retention-days: 1`).
 - Avant chaque téléversement, la CI supprime les artefacts GitHub Actions existants pour le même profil (`autoinstall-<profil>`) afin d'éviter d'atteindre le quota de stockage lorsque le workflow s'exécute depuis le dépôt principal (branches locales ou workflows manuels).
+- Si le quota GitHub Actions est dépassé ou que le token ne dispose pas des droits suffisants, l'upload d'artefacts échoue en avertissant mais sans interrompre le workflow (mode best-effort, artefacts absents à récupérer manuellement si besoin).
 
 ## Sécurité et conformité
 - Toujours remplacer les clés SSH de démonstration par des clés réelles spécifiques.
