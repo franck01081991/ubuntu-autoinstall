@@ -1,6 +1,6 @@
 # ubuntu-autoinstall-git
 
-Provisionner **Ubuntu Server 24.04 LTS** hôte par hôte (ThinkCentre M710q, Dell 3020 Tiny) grâce à **Autoinstall + cloud-init (NoCloud)**, entièrement piloté par Git dans une approche GitOps.
+Provisionner **Ubuntu Server 24.04 LTS** hôte par hôte (ThinkCentre M710q, Dell OptiPlex 3020M) grâce à **Autoinstall + cloud-init (NoCloud)**, entièrement piloté par Git dans une approche GitOps.
 
 ## Table des matières
 - [Vue d'ensemble](#vue-densemble)

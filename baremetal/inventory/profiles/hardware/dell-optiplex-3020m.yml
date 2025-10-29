@@ -1,6 +1,6 @@
 ---
-hostname: dell-optiplex-3020
-hardware_model: dell-optiplex-3020
+hostname: dell-optiplex-3020m
+hardware_model: dell-optiplex-3020m
 storage_profile: sata
 netmode: dhcp
 nic: enp2s0
