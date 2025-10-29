@@ -1,10 +1,10 @@
 ---
-- name: Render autoinstall NoCloud for a host or hardware profile (baremetal)
+- name: Render autoinstall NoCloud for a host or hardware profile (vps)
   hosts: localhost
   gather_facts: false
   vars:
     autoinstall_dir: "{{ playbook_dir }}/../../autoinstall"
-    templates_root: "{{ autoinstall_dir }}/templates"
+    templates_root: "{{ playbook_dir }}/../../../baremetal/autoinstall/templates"
     inventory_root: "{{ playbook_dir }}/../../inventory"
     target: "{{ lookup('env','HOST') | default(host, true) }}"
     profile: "{{ lookup('env','PROFILE') | default('', true) }}"

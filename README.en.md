@@ -44,11 +44,13 @@ validate autoinstall generation per model.
   - shared hardware profiles reside in
     `baremetal/inventory/profiles/hardware/<profile>.yml` for reuse.
 - **Automated rendering**: Ansible + Jinja2 produce `user-data`/`meta-data` in
-  `baremetal/autoinstall/generated/<host>/`.
-  - the playbook `baremetal/ansible/playbooks/generate_autoinstall.yml` leverages
-    `{{ playbook_dir }}` to resolve `autoinstall/` and `inventory/host_vars/`
-    reliably regardless of the execution path (for example
-    `make baremetal/gen`).
+  `<track>/autoinstall/generated/<host>/` for both bare metal and VPS
+  inventories.
+  - the playbooks `baremetal/ansible/playbooks/generate_autoinstall.yml` and
+    `vps/ansible/playbooks/generate_autoinstall.yml` import the shared task list
+    under `ansible/playbooks/common/`, guaranteeing identical behaviour
+    regardless of the execution path (for example `make baremetal/gen` or
+    `make vps/gen`).
 - **Controlled distribution**: CI builds the installer ISOs, stores them as
   artifacts, and feeds them into deployments.
 - **No manual steps**: Git, CI/CD, and documented commands drive the entire
@@ -63,9 +65,11 @@ baremetal/
 ├── inventory/          # Host vars and bare-metal hardware profiles
 └── scripts/            # Seed/full ISO build scripts
 vps/
-├── ansible/            # Post-install provisioning playbook
+├── ansible/            # Autoinstall rendering + post-install provisioning
+├── autoinstall/        # Generated artefacts (templates shared with baremetal)
 └── inventory/          # Inventory and SOPS-encrypted secrets
 ansible/                # Shared dependencies (collections, requirements)
+ansible/playbooks/common/ # Shared task files between playbooks
 scripts/install-sops.sh # SOPS installer (baremetal & vps)
 ```
 
@@ -135,14 +139,26 @@ scripts/install-sops.sh # SOPS installer (baremetal & vps)
 
 6. **(Optional) Build a fully integrated installer ISO**
 
-   ```bash
-   make baremetal/fulliso HOST=site-a-m710q1 \
-     UBUNTU_ISO=/path/ubuntu-24.04-live-server-amd64.iso
-   ```
+ ```bash
+  make baremetal/fulliso HOST=site-a-m710q1 \
+    UBUNTU_ISO=/path/ubuntu-24.04-live-server-amd64.iso
+  ```
 
-   `baremetal/scripts/make_full_iso.sh` replays the source ISO boot
-   configuration via `xorriso` to add the `nocloud/` directory without depending
-   on `isolinux/` (`-boot_image any replay`).
+  `baremetal/scripts/make_full_iso.sh` replays the source ISO boot
+  configuration via `xorriso` to add the `nocloud/` directory without depending
+  on `isolinux/` (`-boot_image any replay`).
+
+### VPS autoinstall quickstart
+
+The VPS inventory reuses the exact same rendering logic:
+
+```bash
+make vps/gen VPS_HOST=vps-sapinet
+```
+
+Artefacts are created under `vps/autoinstall/generated/vps-sapinet/`. The VPS
+playbook consumes the same host variables (`hostname`, `disk_device`, network
+parameters, SSH keys, passwords) as the bare metal workflow.
 
 ## Hardware profiles
 
@@ -217,11 +233,15 @@ playbook fails loudly when they are missing.
   `baremetal/autoinstall/generated/<name>/`.
 - `make baremetal/gen PROFILE=<profile>`: render artefacts for a hardware
   profile into `baremetal/autoinstall/generated/<profile>/`.
+- `make vps/gen VPS_HOST=<name>` or `make vps/gen PROFILE=<profile>`: render
+  autoinstall artefacts into `vps/autoinstall/generated/<name or profile>/`
+  while reusing the same templates as the bare metal track.
 - `make baremetal/seed HOST=<name>`: build `seed-<name>.iso` (NoCloud
   `CIDATA`).
 - `make baremetal/fulliso HOST=<name> UBUNTU_ISO=<path>`: build a full
   installer ISO with autoinstall and boot flags.
 - `make baremetal/clean`: remove generated artefacts.
+- `make vps/clean`: remove generated VPS artefacts.
 - `make vps/provision`: execute the VPS playbook (post-install, no ISO
   involved).
 - `make vps/lint`: run `yamllint` and `ansible-lint` on the VPS track.
