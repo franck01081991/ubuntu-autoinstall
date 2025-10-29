@@ -194,7 +194,7 @@ Avant exécution :
 ```bash
 ansible-galaxy collection install -r ansible/collections/requirements.yml
 ```
-Le fichier `ansible/collections/requirements.yml` épingle `community.sops` en version **1.6.0**, dernière release stable disponible sans indicateur `--pre`.
+Le fichier `ansible/collections/requirements.yml` épingle `community.sops` (**1.6.0**), `community.kubernetes` (**2.0.3**) et `kubernetes.core` (**3.0.1**) afin d'alimenter les modules Helm/kubectl nécessaires aux déploiements GitOps.
 
 ## Ressources supplémentaires
 - [Documentation originale en anglais](README.en.md)

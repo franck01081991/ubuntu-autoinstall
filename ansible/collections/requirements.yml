@@ -1,4 +1,8 @@
 ---
 collections:
   - name: community.sops
-    version: "1.6.0"  # pin to stable release; 1.7.1 is pre-release and requires --pre
+    version: "1.6.0"
+  - name: community.kubernetes
+    version: "2.0.3"
+  - name: kubernetes.core
+    version: "3.0.1"

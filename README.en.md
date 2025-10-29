@@ -185,7 +185,7 @@ Install the required Ansible collections before running the playbook:
 ```bash
 ansible-galaxy collection install -r ansible/collections/requirements.yml
 ```
-The `ansible/collections/requirements.yml` file pins `community.sops` to **1.6.0**, the latest stable release available without the `--pre` flag.
+The `ansible/collections/requirements.yml` file pins `community.sops` (**1.6.0**), `community.kubernetes` (**2.0.3**), and `kubernetes.core` (**3.0.1**) to provide the Helm/kubectl modules required by the GitOps workflows.
 
 ## Additional resources
 - [Documentation en français](README.md)
