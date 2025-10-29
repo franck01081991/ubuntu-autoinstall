@@ -1,0 +1,8 @@
+---
+# Exemple de variables pour un hôte bare metal Ubuntu autoinstall
+hostname: site-a-m710q1
+hardware_profile: lenovo-m710q
+netmode: dhcp
+ssh_authorized_keys:
+  - ssh-ed25519 AAAA...REPLACE_ME votre_cle@machine
+password_hash: $y$j9T$REPLACE_ME_HASH
