@@ -65,7 +65,7 @@ jobs:
           sudo install -m 0755 kube-linter /usr/local/bin/kube-linter
           rm -f kube-linter kube-linter.tar.gz
           TFSEC_VERSION="1.28.11"
-          curl -sSLo tfsec.tar.gz "https://github.com/aquasecurity/tfsec/releases/download/v${TFSEC_VERSION}/tfsec-linux-amd64.tar.gz"
+          curl -sSLo tfsec.tar.gz "https://github.com/aquasecurity/tfsec/releases/download/v${TFSEC_VERSION}/tfsec_${TFSEC_VERSION}_linux_amd64.tar.gz"
           tar -xzf tfsec.tar.gz tfsec
           sudo install -m 0755 tfsec /usr/local/bin/tfsec
           rm -f tfsec tfsec.tar.gz
@@ -101,7 +101,7 @@ jobs:
           sudo install -m 0755 kube-linter /usr/local/bin/kube-linter
           rm -f kube-linter kube-linter.tar.gz
           TFSEC_VERSION="1.28.11"
-          curl -sSLo tfsec.tar.gz "https://github.com/aquasecurity/tfsec/releases/download/v${TFSEC_VERSION}/tfsec-linux-amd64.tar.gz"
+          curl -sSLo tfsec.tar.gz "https://github.com/aquasecurity/tfsec/releases/download/v${TFSEC_VERSION}/tfsec_${TFSEC_VERSION}_linux_amd64.tar.gz"
           tar -xzf tfsec.tar.gz tfsec
           sudo install -m 0755 tfsec /usr/local/bin/tfsec
           rm -f tfsec tfsec.tar.gz

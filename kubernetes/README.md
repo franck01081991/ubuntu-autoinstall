@@ -56,7 +56,7 @@ curl -sSLo kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/down
 tar -xzf kubeconform.tar.gz kubeconform && sudo install -m 0755 kubeconform /usr/local/bin/ && rm kubeconform kubeconform.tar.gz
 curl -sSLo flux.tar.gz https://github.com/fluxcd/flux2/releases/download/v2.7.3/flux_2.7.3_linux_amd64.tar.gz
 tar -xzf flux.tar.gz flux && sudo install -m 0755 flux /usr/local/bin/ && rm flux flux.tar.gz
-curl -sSLo tfsec.tar.gz https://github.com/aquasecurity/tfsec/releases/download/v1.28.11/tfsec-linux-amd64.tar.gz
+curl -sSLo tfsec.tar.gz https://github.com/aquasecurity/tfsec/releases/download/v1.28.11/tfsec_1.28.11_linux_amd64.tar.gz
 tar -xzf tfsec.tar.gz tfsec && sudo install -m 0755 tfsec /usr/local/bin/ && rm tfsec tfsec.tar.gz
 curl -sSLo kube-linter.tar.gz https://github.com/stackrox/kube-linter/releases/download/v0.6.8/kube-linter-linux.tar.gz
 tar -xzf kube-linter.tar.gz kube-linter && sudo install -m 0755 kube-linter /usr/local/bin/ && rm kube-linter kube-linter.tar.gz
