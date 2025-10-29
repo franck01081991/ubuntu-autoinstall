@@ -1,0 +1,42 @@
+---
+- name: Déterminer l'hôte primaire control-plane
+  ansible.builtin.set_fact:
+    k3s_cluster_init: >-
+      {{ (inventory_hostname == (groups[(site_name | replace('-', '_')) + '_control_plane'] | first)) and (k3s_common.cluster_init | default(true)) }}
+
+- name: Déployer la configuration k3s server
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Télécharger le script d'installation k3s
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /usr/local/bin/k3s-install.sh
+    mode: "0755"
+
+- name: Installer k3s server
+  ansible.builtin.command:
+    cmd: /bin/sh /usr/local/bin/k3s-install.sh
+    creates: /usr/local/bin/k3s
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_common.version }}"
+    INSTALL_K3S_EXEC: "server"
+    INSTALL_K3S_SKIP_DOWNLOAD: "false"
+
+- name: S'assurer que le service k3s est actif
+  ansible.builtin.service:
+    name: k3s
+    state: started
+    enabled: true
+
+- name: Créer un kubeconfig lisible
+  ansible.builtin.file:
+    path: /etc/rancher/k3s/k3s.yaml
+    mode: "0644"
+    owner: root
+    group: root
+  when: ansible_facts['os_family'] == 'Debian'

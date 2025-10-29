@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cilium-values
+  namespace: kube-system
+data:
+  values.yaml: |
+    cluster:
+      name: default
+      id: 0
+    routingMode: native
+    ipv4NativeRoutingCIDR: 10.42.0.0/16
+    kubeProxyReplacement: strict
+    enableIPv4Masquerade: false
+    autoDirectNodeRoutes: true
+    bpf:
+      masquerade: true
+    l2announcements:
+      enabled: true
+    bgpControlPlane:
+      enabled: false
+    kubeProxyReplacementHealthzBindAddr: 0.0.0.0:10256
+    encryption:
+      enabled: true
+      type: wireguard
+    hubble:
+      enabled: true
+      relay:
+        enabled: true
+      ui:
+        enabled: true
+    clustermesh:
+      enabled: true
+      useAPIServer: true
+      apiserver:
+        service:
+          type: LoadBalancer
+          ports:
+            - port: 2379
+              name: client
+              targetPort: 2379
+            - port: 9966
+              name: metrics
+              targetPort: 9966
+    loadBalancer:
+      serviceMonitor:
+        enabled: true

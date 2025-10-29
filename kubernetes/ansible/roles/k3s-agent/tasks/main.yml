@@ -1,0 +1,38 @@
+---
+- name: Calculer le groupe control-plane du site
+  ansible.builtin.set_fact:
+    control_plane_group: "{{ (site_name | replace('-', '_')) + '_control_plane' }}"
+
+- name: Récupérer l'hôte control-plane principal
+  ansible.builtin.set_fact:
+    control_plane_host: "{{ groups[control_plane_group] | first }}"
+    control_plane_ip: "{{ hostvars[groups[control_plane_group] | first].ansible_host }}"
+
+- name: Déployer la configuration k3s agent
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Télécharger le script d'installation k3s
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /usr/local/bin/k3s-install.sh
+    mode: "0755"
+
+- name: Installer k3s agent
+  ansible.builtin.command:
+    cmd: /bin/sh /usr/local/bin/k3s-install.sh
+    creates: /usr/local/bin/k3s-agent
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_common.version }}"
+    INSTALL_K3S_EXEC: "agent"
+    INSTALL_K3S_SKIP_DOWNLOAD: "false"
+
+- name: S'assurer que le service k3s-agent est actif
+  ansible.builtin.service:
+    name: k3s-agent
+    state: started
+    enabled: true

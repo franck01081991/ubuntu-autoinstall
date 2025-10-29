@@ -1,0 +1,141 @@
+name: kubernetes-gitops
+
+on:
+  pull_request:
+    paths:
+      - 'kubernetes/**'
+      - '.github/workflows/kubernetes-ci.yml'
+      - 'Makefile'
+      - 'README.md'
+      - 'docs/adr/**'
+  push:
+    branches: [ main ]
+    paths:
+      - 'kubernetes/**'
+      - '.github/workflows/kubernetes-ci.yml'
+      - 'Makefile'
+      - 'README.md'
+      - 'docs/adr/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to promote (staging|prod)"
+        required: true
+        default: staging
+
+jobs:
+  lint:
+    name: Lint & Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.5
+      - name: Setup Python tooling
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-core ansible-lint yamllint kubeconform
+      - name: Install security tooling
+        run: |
+          curl -sL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+          curl -sSfL https://raw.githubusercontent.com/fluxcd/flux2/main/install/flux.sh | sudo bash -s -- -b /usr/local/bin
+          curl -sSfL https://github.com/stackrox/kube-linter/releases/download/v0.6.8/kube-linter-linux.tar.gz | tar xz -C /tmp
+          sudo mv /tmp/kube-linter /usr/local/bin/kube-linter
+          curl -sSfL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install.sh | bash
+          sudo mv ./tfsec /usr/local/bin/tfsec
+          pip install checkov
+      - name: Install Flux dependencies
+        run: flux install --export > /tmp/flux-components.yaml
+      - name: Run make kubernetes/lint
+        run: make kubernetes/lint
+      - name: Flux diff (dry-run)
+        run: |
+          make kubernetes/flux-diff
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  security:
+    name: Security Scans
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install scanners
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+          curl -sSfL https://github.com/stackrox/kube-linter/releases/download/v0.6.8/kube-linter-linux.tar.gz | tar xz -C /tmp
+          sudo mv /tmp/kube-linter /usr/local/bin/kube-linter
+          curl -sSfL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install.sh | bash
+          sudo mv ./tfsec /usr/local/bin/tfsec
+          python -m pip install --upgrade pip
+          pip install checkov
+      - name: Run security checks
+        run: make kubernetes/security
+
+  review:
+    name: Review Plan
+    needs: [lint, security]
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: review
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.5
+      - name: Terraform plan (all sites)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+        run: make kubernetes/plan
+
+  staging:
+    name: Promote to staging
+    needs: [lint, security]
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.5
+      - name: Terraform apply (staging)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+        run: make kubernetes/apply
+
+  prod:
+    name: Promote to production
+    needs: staging
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
+    runs-on: ubuntu-latest
+    environment:
+      name: prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.5
+      - name: Terraform apply (production)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+        run: make kubernetes/apply

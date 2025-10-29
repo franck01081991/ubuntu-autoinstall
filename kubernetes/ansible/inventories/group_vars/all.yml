@@ -1,0 +1,32 @@
+---
+# Variables communes à tous les sites.
+os_tuning:
+  sysctl:
+    net.ipv4.ip_forward: 1
+    net.ipv6.conf.all.forwarding: 1
+    net.ipv4.neigh.default.gc_thresh3: 8192
+    net.core.rmem_max: 67108864
+    net.core.wmem_max: 67108864
+  modules:
+    - br_netfilter
+    - overlay
+    - wireguard
+k3s_common:
+  version: "v1.29.4+k3s1"
+  data_dir: /var/lib/rancher/k3s
+  disable_components:
+    - traefik
+    - servicelb
+    - local-storage
+  disable_kube_proxy: true
+  flannel_backend: none
+  write_kubeconfig_mode: "0644"
+  cluster_init: true
+flux_bootstrap:
+  git_repository: git@github.com:example/ubuntu-autoinstall.git
+  git_branch: main
+  path: kubernetes/flux/clusters
+  namespace: flux-system
+  known_hosts: |
+    github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMf7sp1Ian+FJxuxMxDPZWS9Vyhi3F7S3w7D1RFM3Df
+helm_version_tag: v3.14.4

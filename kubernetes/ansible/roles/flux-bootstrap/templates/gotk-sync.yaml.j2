@@ -1,0 +1,26 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: flux-system
+  namespace: {{ flux_bootstrap.namespace }}
+spec:
+  interval: 1m0s
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: ./{{ flux_bootstrap.path }}/{{ site_name }}
+  timeout: 2m0s
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: flux-system
+  namespace: {{ flux_bootstrap.namespace }}
+spec:
+  interval: 1m0s
+  ref:
+    branch: {{ flux_bootstrap.git_branch }}
+  secretRef:
+    name: flux-system
+  url: {{ flux_bootstrap.git_repository }}

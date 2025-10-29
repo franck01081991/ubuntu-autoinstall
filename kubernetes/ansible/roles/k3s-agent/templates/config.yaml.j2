@@ -1,0 +1,17 @@
+# Configuration générée par Ansible - ne pas modifier manuellement
+write-kubeconfig-mode: "{{ k3s_common.write_kubeconfig_mode }}"
+token: "{{ k3s_token }}"
+server: "https://{{ control_plane_ip }}:6443"
+node-name: "{{ inventory_hostname }}"
+node-label:
+  - "topology.kubernetes.io/site={{ site_name }}"
+  - "node-role.kubernetes.io/worker="
+node-ip: "{{ ansible_host | default(ansible_default_ipv4.address) }}"
+disable:
+{% for item in k3s_common.disable_components %}
+  - {{ item }}
+{% endfor %}
+disable-kube-proxy: {{ k3s_common.disable_kube_proxy | bool | lower }}
+flannel-backend: "{{ k3s_common.flannel_backend }}"
+cluster-cidr: "{{ pod_cidr }}"
+service-cidr: "{{ service_cidr }}"

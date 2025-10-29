@@ -1,5 +1,6 @@
 # build artifacts
 baremetal/autoinstall/generated/
+kubernetes/terraform/generated/
 .cache/
 *.iso
 # editor / OS

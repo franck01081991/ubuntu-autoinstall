@@ -1,0 +1,31 @@
+---
+- name: Préparer l'OS pour k3s
+  hosts: "site_*"
+  gather_facts: true
+  roles:
+    - bootstrap
+
+- name: Configurer les nœuds control-plane k3s
+  hosts: "site_*_control_plane"
+  gather_facts: false
+  roles:
+    - k3s-control-plane
+
+- name: Configurer les nœuds worker k3s
+  hosts: "site_*_workers"
+  gather_facts: false
+  roles:
+    - k3s-agent
+
+- name: Installer Flux et initialiser GitOps
+  hosts: "site_*_control_plane"
+  gather_facts: false
+  tasks:
+    - name: Déterminer le groupe control-plane
+      ansible.builtin.set_fact:
+        site_group: "{{ (site_name | replace('-', '_')) + '_control_plane' }}"
+
+    - name: Exécuter le bootstrap Flux uniquement sur le premier nœud
+      ansible.builtin.include_role:
+        name: flux-bootstrap
+      when: inventory_hostname == (groups[site_group] | first)

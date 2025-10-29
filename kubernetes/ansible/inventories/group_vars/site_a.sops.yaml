@@ -1,0 +1,21 @@
+k3s_token: ENC[AES256_GCM,data:ixW/Yt6m5lhzK/8X+aw=,iv:pYtECv1JgSdO3NAlGCrLvaNmGXuW5+59,tag:3fwY+8l4DJ6nO8lBFEzYbg==,type:str]
+clustermesh_password: ENC[AES256_GCM,data:o5/k6D83Pldv/3It,iv:VohHWwq5jjAi3NM0q0DndM0dLAQ5RZMs,tag:NDDZW5trIo0NgU0UQSwvwg==,type:str]
+flux_git_deploy_key: ENC[AES256_GCM,data:Vh/8XfnggJLpLZsT7G90dNsQM3lW,iv:LZygrj0Epjv41Gev5rHoja8FJmvtXqgM,tag:3JcNBXDymlkVZRmTXeItGw==,type:str]
+sops:
+  kms: []
+  gcp_kms: []
+  azure_kv: []
+  hc_vault: []
+  age:
+    - recipient: age1kubernetesmultisite0000000000000000000000000000000000000000000000000
+      enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBDZ2V1T2YvbWxHYktRcnNk
+        ekdpSzFEVXoyMC9xRktIYjdYc1JYemlncUdrCjAwSzhwU0RpbDhHQVJ1Z0U5Wnly
+        VTRGQy9HUFJFL3kxeVFUdVJ3NVZ2alUKLS0tIDlWSW9Ob2pzN0k0Wkp4SkxxelJn
+        S0cyMUhyb2gwQnZNMnhoSFBzSGxtbUkKQXfayBU3k1mOwNqe3Lj4nKeJuGTmxtpY
+        RbjD3Jm2N4rhwgT14lsnW4sjRRvjWbg4v0cwleH0n06DBT8i87vbLQ==
+        -----END AGE ENCRYPTED FILE-----
+  lastmodified: "2024-06-04T00:00:00Z"
+  mac: ENC[AES256_GCM,data:N0D12VOsVAIJpScd9bJ9dd1T3sOV,iv:zPQaYwz1Z1XiDsZ+rbvd1Frk1wI4d0ER,tag:3sQ9wgoFXhn8vW7kPYRO0g==,type:str]
+  version: 3.8.1

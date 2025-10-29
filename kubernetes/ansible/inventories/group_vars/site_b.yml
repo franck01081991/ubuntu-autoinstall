@@ -1,0 +1,16 @@
+---
+site_name: site-b
+cluster_id: 2
+pod_cidr: 10.45.0.0/16
+service_cidr: 10.97.0.0/16
+metallb:
+  address_pools:
+    - name: public-services
+      protocol: layer2
+      addresses:
+        - 198.51.100.40-198.51.100.60
+  l2_advertisements:
+    - interfaces:
+        - eth0
+      ip_address_pools:
+        - public-services

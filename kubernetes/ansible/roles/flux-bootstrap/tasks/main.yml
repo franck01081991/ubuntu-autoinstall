@@ -1,0 +1,93 @@
+---
+- name: Définir les chemins temporaires Flux
+  ansible.builtin.set_fact:
+    flux_tmp_dir: /var/tmp/flux-bootstrap
+    flux_kubeconfig: /etc/rancher/k3s/k3s.yaml
+
+- name: Créer le dossier temporaire Flux
+  ansible.builtin.file:
+    path: "{{ flux_tmp_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Attendre la disponibilité de l'API Kubernetes
+  ansible.builtin.command: /usr/local/bin/k3s kubectl get nodes
+  register: kubectl_check
+  retries: 20
+  delay: 15
+  until: kubectl_check.rc == 0
+  changed_when: false
+
+- name: Ajouter le dépôt Helm FluxCD
+  kubernetes.core.helm_repository:
+    name: fluxcd
+    repo_url: https://fluxcd-community.github.io/helm-charts
+    kubeconfig: "{{ flux_kubeconfig }}"
+
+- name: Installer/mettre à jour FluxCD
+  kubernetes.core.helm:
+    name: flux-system
+    chart_ref: fluxcd/flux2
+    release_namespace: "{{ flux_bootstrap.namespace }}"
+    create_namespace: true
+    kubeconfig: "{{ flux_kubeconfig }}"
+    values:
+      image:
+        repository: ghcr.io/fluxcd/flux-cli
+      multitenancy:
+        enabled: false
+
+- name: Créer le namespace Flux system
+  kubernetes.core.k8s:
+    kubeconfig: "{{ flux_kubeconfig }}"
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ flux_bootstrap.namespace }}"
+
+- name: Créer le secret Git pour Flux
+  kubernetes.core.k8s:
+    kubeconfig: "{{ flux_kubeconfig }}"
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: flux-system
+        namespace: "{{ flux_bootstrap.namespace }}"
+      type: kubernetes.io/ssh-auth
+      stringData:
+        identity: "{{ flux_git_deploy_key }}"
+        identity.pub: ""
+        known_hosts: "{{ flux_bootstrap.known_hosts }}"
+
+- name: Provisionner le secret Cilium ClusterMesh
+  kubernetes.core.k8s:
+    kubeconfig: "{{ flux_kubeconfig }}"
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: cilium-clustermesh
+        namespace: kube-system
+      stringData:
+        key: "{{ clustermesh_password }}"
+
+- name: Rendre disponible la configuration gotk-sync
+  ansible.builtin.template:
+    src: gotk-sync.yaml.j2
+    dest: "{{ flux_tmp_dir }}/gotk-sync.yaml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Appliquer gotk-sync
+  kubernetes.core.k8s:
+    kubeconfig: "{{ flux_kubeconfig }}"
+    state: present
+    src: "{{ flux_tmp_dir }}/gotk-sync.yaml"

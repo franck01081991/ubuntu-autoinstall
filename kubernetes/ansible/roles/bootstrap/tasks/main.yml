@@ -1,0 +1,89 @@
+---
+- name: Mettre à jour l'index APT
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Installer les dépendances système
+  ansible.builtin.apt:
+    name:
+      - curl
+      - gnupg
+      - apt-transport-https
+      - ca-certificates
+      - software-properties-common
+      - chrony
+      - wireguard
+      - nfs-common
+      - ethtool
+      - jq
+    state: present
+
+- name: Vérifier la version de Helm installée
+  ansible.builtin.command: /usr/local/bin/helm version --short
+  register: helm_version
+  failed_when: false
+  changed_when: false
+
+- name: Télécharger Helm {{ helm_version_tag }} si nécessaire
+  when: helm_version.stdout is not defined or helm_version.stdout is not search("{{ helm_version_tag }}")
+  ansible.builtin.unarchive:
+    src: "https://get.helm.sh/helm-{{ helm_version_tag }}-linux-amd64.tar.gz"
+    dest: /usr/local/share
+    remote_src: true
+    creates: "/usr/local/share/linux-amd64/helm"
+
+- name: Installer le binaire Helm
+  when: helm_version.stdout is not defined or helm_version.stdout is not search("{{ helm_version_tag }}")
+  ansible.builtin.copy:
+    src: /usr/local/share/linux-amd64/helm
+    dest: /usr/local/bin/helm
+    mode: "0755"
+    remote_src: true
+
+- name: Désactiver le swap immédiatement
+  ansible.builtin.command: swapoff -a
+  when: ansible_swaptotal_mb | default(0) | int > 0
+  changed_when: false
+
+- name: Désactiver le swap au boot
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*\sswap\s)'
+    replace: '# \1'
+
+- name: Charger les modules noyau requis
+  ansible.builtin.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ os_tuning.modules }}"
+  when: os_tuning.modules is defined
+
+- name: Configurer les modules noyau persistants
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/kubernetes.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {% for module in os_tuning.modules | default([]) %}
+      {{ module }}
+      {% endfor %}
+
+- name: Appliquer les paramètres sysctl
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/99-kubernetes.conf
+    state: present
+    reload: true
+  loop: "{{ os_tuning.sysctl | dict2items }}"
+  when: os_tuning.sysctl is defined
+
+- name: Assurer la présence du dossier k3s
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"

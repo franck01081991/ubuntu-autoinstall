@@ -1,0 +1,34 @@
+# Configuration générée par Ansible - ne pas modifier manuellement
+write-kubeconfig-mode: "{{ k3s_common.write_kubeconfig_mode }}"
+token: "{{ k3s_token }}"
+node-name: "{{ inventory_hostname }}"
+node-label:
+  - "topology.kubernetes.io/site={{ site_name }}"
+node-ip: "{{ ansible_host | default(ansible_default_ipv4.address) }}"
+disable:
+{% for item in k3s_common.disable_components %}
+  - {{ item }}
+{% endfor %}
+disable-kube-proxy: {{ k3s_common.disable_kube_proxy | bool | lower }}
+disable-network-policy: true
+flannel-backend: "{{ k3s_common.flannel_backend }}"
+cluster-cidr: "{{ pod_cidr }}"
+service-cidr: "{{ service_cidr }}"
+cluster-init: {{ k3s_cluster_init | bool | lower }}
+# Activation de tls-san pour la haute dispo API
+{% set san_ips = [ansible_host | default(ansible_default_ipv4.address)] %}
+{% if flux_bootstrap.git_repository is defined %}
+{%   set san_ips = san_ips + ['127.0.0.1'] %}
+{% endif %}
+tls-san:
+{% for san in san_ips | unique %}
+  - {{ san }}
+{% endfor %}
+# Arguments Kubernetes pour l'intégration Cilium/Flux
+kube-apiserver-arg:
+  - enable-aggregator-routing=true
+  - allow-privileged=true
+kube-controller-manager-arg:
+  - bind-address=0.0.0.0
+kube-scheduler-arg:
+  - bind-address=0.0.0.0

@@ -13,6 +13,7 @@ GitOps pilotée par Git, CI/CD et revue de code.
 - [Vue d'ensemble](#vue-densemble)
 - [Architecture GitOps](#architecture-gitops)
 - [Structure du dépôt](#structure-du-dépôt)
+- [Périmètre Kubernetes multi-site](#périmètre-kubernetes-multi-site)
 - [Périmètre bare metal](#périmètre-bare-metal)
 - [Prérequis](#prérequis)
 - [Démarrage rapide (bare metal)](#démarrage-rapide-bare-metal)
@@ -72,6 +73,10 @@ baremetal/
 ├── autoinstall/        # Templates Jinja2 + artefacts générés
 ├── inventory/          # Host vars et profils matériels bare metal
 └── scripts/            # Génération ISO seed/full
+kubernetes/
+├── ansible/            # Bootstrap k3s, Flux et dépendances réseau multi-sites
+├── flux/               # Manifeste GitOps (Flux, Cilium, MetalLB, workloads)
+└── terraform/          # Provisioning réseau/machines mutualisé (modules + envs)
 vps/
 ├── ansible/            # Rendu autoinstall + provisioning applicatif
 ├── autoinstall/        # Artefacts générés (templates partagés)
@@ -91,6 +96,34 @@ scripts/install-sops.sh # Installation SOPS (baremetal & vps)
 - **Traçabilité GitOps** : chaque hôte ou profil matériel est décrit via
   Ansible/Jinja et suivi par la CI, ce qui assure une auditabilité complète sans
   scripts ad hoc.
+
+## Périmètre Kubernetes multi-site
+
+Ce périmètre introduit une pile GitOps complète pour opérer plusieurs sites
+Kubernetes basés sur **k3s** et Ubuntu Server 24.04 LTS.
+
+- **Provisioning** : Terraform modulaire (`kubernetes/terraform/`) pour les
+  réseaux, machines et dépendances ; backend S3 + DynamoDB pour l'état et le
+  verrouillage.
+- **Bootstrap** : Ansible (`kubernetes/ansible/`) prépare les hôtes (hardening,
+  k3s sans flannel, configuration Cilium native, installation Flux).
+- **GitOps** : Flux gère Cilium (eBPF native routing + ClusterMesh WireGuard),
+  MetalLB en mode L2 (pool d'IP publiques par site) et les workloads applicatifs.
+- **Sécurité** : secrets chiffrés via SOPS/age, scans tfsec/kube-linter/Trivy.
+
+Commandes principales :
+
+```bash
+make kubernetes/plan       # terraform fmt + validate + plan (backend distant)
+make kubernetes/apply      # terraform apply (idempotent)
+make kubernetes/bootstrap  # bootstrap k3s + Flux sur l'inventaire courant
+make kubernetes/lint       # yamllint, ansible-lint, terraform validate, kubeconform
+make kubernetes/security   # tfsec, checkov, kube-linter, trivy config
+```
+
+> ℹ️ Remplacez les valeurs d'inventaire (IPs, ID de cluster, plages MetalLB)
+> par vos données réelles avant exécution. Les secrets (`*.sops.yaml`) doivent
+> être chiffrés via `sops` avant commit.
 
 ## Prérequis
 
