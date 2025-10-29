@@ -16,7 +16,7 @@ Acceptée (2024-09-15).
 ## Conséquences
 - Le stockage est provisionné de manière homogène sur tout M710q : le NVMe porte le boot/EFI tandis que le(s) SSD SATA rejoint(ent) le VG LVM.
 - Les hôtes héritent de la configuration disque via le profil matériel et n'ont plus besoin de doubler la variable `disk_device`.
-- La matrice CI est simplifiée (`lenovo-m710q`, `dell-optiplex-3020`) tout en reflétant fidèlement le hardware réellement déployé.
+- La matrice CI est simplifiée (`lenovo-m710q`, `dell-optiplex-3020m`) tout en reflétant fidèlement le hardware réellement déployé.
 - La variable `additional_disk_devices` devient disponible pour d'autres profils si nécessaire.
 
 ## Références

@@ -1,6 +1,6 @@
 ---
-hostname: site-b-dell3020
-hardware_profile: dell-optiplex-3020
+hostname: site-b-dell3020m
+hardware_profile: dell-optiplex-3020m
 disk_device: /dev/sda
 netmode: static
 nic: enp2s0

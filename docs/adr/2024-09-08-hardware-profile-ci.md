@@ -6,7 +6,7 @@ La pipeline GitHub Actions `build-iso` exécutait jusqu'ici la génération d'au
 ## Décision
 - Introduire des profils matériels versionnés dans `baremetal/inventory/profiles/hardware/`.
 - Adapter le playbook `generate_autoinstall.yml` et le `Makefile` afin d'accepter `PROFILE=<profil>` pour générer les artefacts correspondants.
-- Simplifier la matrice CI sur les profils matériels (`lenovo-m710q-nvme`, `lenovo-m710q-sata`, `dell-optiplex-3020`) et supprimer la cible VPS.
+- Simplifier la matrice CI sur les profils matériels (`lenovo-m710q-nvme`, `lenovo-m710q-sata`, `dell-optiplex-3020m`) et supprimer la cible VPS.
 - Ajouter des caches GitHub Actions pour `~/.cache/pip` et `.cache/` (ISO téléchargées) afin d'accélérer la pipeline.
 
 ## Statut
