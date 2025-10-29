@@ -142,15 +142,20 @@ The keys `vps_external_dns_api_token` and `vps_keycloak_admin_password` must be 
 - `make baremetal/clean`: remove generated artefacts.
 - `make vps/provision`: execute the VPS playbook (post-install, no ISO involved).
 - `make vps/lint`: run `yamllint` and `ansible-lint` on the VPS track.
+- `make lint`: aggregates `yamllint`, `ansible-lint`, `shellcheck`, and `markdownlint` across the repository (mirrors the “Repository Integrity” CI workflow).
 
 ## Validation and testing
-- `make vps/lint`: lint the VPS inventory and playbook.
-- `ansible-lint`: validate roles and playbooks (run against `baremetal/ansible` as needed).
-- `yamllint baremetal/inventory baremetal/ansible vps/inventory vps/ansible`: check YAML syntax.
-- `terraform fmt/validate` *(not applicable unless Terraform modules are added)*.
+- `make lint`: runs the full syntax and style suite (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`). Requires `shellcheck` and `markdownlint` to be present locally.
+- `make vps/lint`: focused linting for the VPS track (`yamllint` + `ansible-lint`).
+- `ansible-lint`: re-run deep validation locally when debugging specific playbooks.
+- `yamllint baremetal/inventory baremetal/ansible vps/inventory vps/ansible`: run YAML-only checks.
+- `trivy fs --security-checks config,secret --severity HIGH,CRITICAL .`: local configuration & secret scanning with the same thresholds as CI.
 
 ## Continuous integration
-- The GitHub Actions workflow `.github/workflows/build-iso.yml` renders autoinstall files **per hardware model** (`PROFILE`), builds both seed and full ISOs, and uploads them as artifacts.
+- The workflow `.github/workflows/repository-integrity.yml` enforces repository hygiene:
+  - **Static analysis** job: runs `yamllint`, `ansible-lint`, `shellcheck`, and `markdownlint` (same scope as `make lint`).
+  - **Trivy configuration scan** job: `trivy fs` fails the run on **HIGH/CRITICAL** findings or exposed secrets.
+- The workflow `.github/workflows/build-iso.yml` renders autoinstall files **per hardware model** (`PROFILE`), builds both seed and full ISOs, and uploads them as artifacts.
 - To trigger manually: **Actions → Build Bare Metal ISOs → Run workflow**, optionally overriding `UBUNTU_ISO_URL`.
   - By default the CI pulls the image from `https://old-releases.ubuntu.com/releases/24.04/ubuntu-24.04-live-server-amd64.iso` to ensure long-term availability. The ISO download is cached in `.cache/` to avoid repeated transfers.
 - Artefacts are grouped per hardware profile for straightforward traceability and retained for **1 day** (`retention-days: 1`).

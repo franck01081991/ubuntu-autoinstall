@@ -151,14 +151,20 @@ Les clés `vps_external_dns_api_token` et `vps_keycloak_admin_password` doivent 
 - `make baremetal/clean` : supprime les artefacts générés.
 - `make vps/provision` : applique le playbook Ansible sur l'inventaire VPS (post-installation, aucune ISO).
 - `make vps/lint` : lance `yamllint` et `ansible-lint` sur la chaîne VPS.
+- `make lint` : agrège `yamllint`, `ansible-lint`, `shellcheck` et `markdownlint` sur l'ensemble du dépôt (mêmes contrôles que la CI « Repository Integrity »).
 
 ## Tests et validation
-- `make vps/lint` : lint du playbook VPS et de l'inventaire associé.
-- `ansible-lint` : valider les rôles et playbooks (`make vps/lint` couvre la partie VPS ; utiliser `ansible-lint` sur `baremetal/ansible` au besoin).
-- `yamllint baremetal/inventory baremetal/ansible vps/inventory vps/ansible` : vérifier la syntaxe YAML.
+- `make lint` : exécute l'intégralité des contrôles syntaxiques (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`). Prérequis : disposer de `shellcheck` et `markdownlint` dans le `PATH` local.
+- `make vps/lint` : lint ciblé sur la chaîne VPS (`yamllint` + `ansible-lint`).
+- `ansible-lint` : rejouer localement une analyse profonde (utile pour du débogage ciblé).
+- `yamllint baremetal/inventory baremetal/ansible vps/inventory vps/ansible` : vérifier uniquement la syntaxe YAML.
+- `trivy fs --security-checks config,secret --severity HIGH,CRITICAL .` : scanner localement la configuration et la détection de secrets (mêmes seuils que la CI).
 
 ## Intégration continue
-- La pipeline GitHub Actions définie dans `.github/workflows/build-iso.yml` rend désormais les fichiers autoinstall **par modèle matériel** (`PROFILE`) pour valider le processus sans dépendance aux sites.
+- Le workflow `.github/workflows/repository-integrity.yml` garantit l'intégrité du dépôt :
+  - job **Static analysis** : relance `yamllint`, `ansible-lint`, `shellcheck` et `markdownlint` (identique à `make lint`).
+  - job **Trivy configuration scan** : `trivy fs` échoue en cas de vulnérabilités **HIGH/CRITICAL** ou de secrets révélés.
+- Le workflow `.github/workflows/build-iso.yml` rend les fichiers autoinstall **par modèle matériel** (`PROFILE`) et construit les ISOs seed/full pour validation.
 - Pour lancer manuellement : **Actions → Build Bare Metal ISOs → Run workflow** et, si besoin, surcharger `UBUNTU_ISO_URL`.
   - Par défaut, la CI télécharge l'image depuis `https://old-releases.ubuntu.com/releases/24.04/ubuntu-24.04-live-server-amd64.iso` pour garantir la disponibilité dans le temps. Un cache ISO (`.cache/`) évite les téléchargements répétés.
 - Les artefacts générés sont regroupés par profil matériel pour simplifier la traçabilité et sont conservés **1 jour** (`retention-days: 1`).
