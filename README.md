@@ -101,6 +101,7 @@ Les profils sous `baremetal/inventory/profiles/hardware/` décrivent les valeurs
 
 - `lenovo-m710q` : ThinkCentre M710q Tiny équipé d'un NVMe et d'un emplacement SATA 2,5". Le profil assemble les deux disques dans le même volume LVM afin d'offrir une capacité unique.
   - Optimisations : microcode Intel, `thermald`, `powertop` (service d'auto-tune) et `lm-sensors` sont préinstallés pour stabiliser les températures et l'efficacité énergétique du châssis compact.
+- `lenovo-90dq004yfr` : ThinkCentre M700 Tiny (référence 90DQ004YFR) basé uniquement sur un disque SATA. Ce profil applique les optimisations d'alimentation et de microcode adaptées aux puces Intel de cette génération.
 
 ## Variables d'hôte bare metal
 Chaque fichier `baremetal/inventory/host_vars/<hôte>.yml` peut contenir les paramètres suivants :
