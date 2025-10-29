@@ -24,7 +24,7 @@ resource "random_password" "clustermesh_password" {
 
 resource "tls_private_key" "wireguard" {
   for_each = { for node in var.nodes : node.name => node }
-  algorithm = "ed25519"
+  algorithm = "ED25519"
 }
 
 locals {
