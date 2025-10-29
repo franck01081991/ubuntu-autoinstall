@@ -5,6 +5,7 @@ Provisionner **Ubuntu Server 24.04 LTS** hôte par hôte (ThinkCentre M710q, Del
 ## Table des matières
 - [Vue d'ensemble](#vue-densemble)
 - [Architecture GitOps](#architecture-gitops)
+- [Périmètre bare metal](#périmètre-bare-metal)
 - [Prérequis](#prérequis)
 - [Démarrage rapide](#démarrage-rapide)
 - [Profils matériels](#profils-matériels)
@@ -27,6 +28,11 @@ Ce dépôt fournit les fichiers modèles et l'automatisation nécessaires pour c
   - Le playbook `ansible/playbooks/generate_autoinstall.yml` calcule dynamiquement les chemins `autoinstall/` et `inventory/host_vars/` via `{{ playbook_dir }}` pour rester fiable quel que soit le répertoire d'exécution (ex. `make gen`).
 - **Distribution contrôlée** : la CI construit les ISO d'installation, stockées en artefacts et récupérées lors du déploiement.
 - **Aucune intervention manuelle** : l'intégralité du flux passe par Git, CI/CD et les commandes documentées.
+
+## Périmètre bare metal
+- **Infrastructure ciblée** : ce dépôt gère exclusivement le provisioning **bare metal** (ISO seed ou complète) pour les hôtes Ubuntu Server.
+- **Pas d'IaC cloud** : aucune ressource distante (Terraform, Kubernetes, secrets chiffrés) n'est gérée ici ; tout changement d'infrastructure cloud doit être traité dans un dépôt dédié.
+- **Traçabilité GitOps** : chaque hôte ou profil matériel est décrit via Ansible/Jinja et suivi par la CI, ce qui assure une auditabilité complète sans scripts ad hoc.
 
 ## Prérequis
 - Ubuntu 24.04 Live Server ISO officiel (pour `make fulliso`).
@@ -99,7 +105,6 @@ Chaque fichier `inventory/host_vars/<hôte>.yml` peut contenir les paramètres s
 - `make lint` *(si défini)* : lancer l'éventuelle cible de linting/validation.
 - `ansible-lint` : valider les rôles et playbooks.
 - `yamllint inventory ansible autoinstall` : vérifier la syntaxe YAML.
-- `terraform fmt/validate` *(non applicable ici sauf ajout futur)*.
 
 ## Intégration continue
 - La pipeline GitHub Actions définie dans `.github/workflows/build-iso.yml` rend désormais les fichiers autoinstall **par modèle matériel** (`PROFILE`) pour valider le processus sans dépendance aux sites.
