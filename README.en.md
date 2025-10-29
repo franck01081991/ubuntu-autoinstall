@@ -1,4 +1,4 @@
-# ubuntu-autoinstall-git
+# Ubuntu Autoinstall
 
 Provision individual **Ubuntu Server 24.04 LTS** hosts (ThinkCentre M710q,
 Dell OptiPlex 3020M) with **Autoinstall + cloud-init (NoCloud)** using a GitOps
