@@ -13,4 +13,5 @@
     primary_vars_file: >-
       {{ inventory_root }}/{{ config_scope }}/{{ config_name }}.yml
   tasks:
-    - ansible.builtin.import_tasks: "{{ playbook_dir }}/../../../ansible/playbooks/common/generate_autoinstall.yml"
+    - name: Include shared autoinstall rendering tasks
+      ansible.builtin.import_tasks: "{{ playbook_dir }}/../../../ansible/playbooks/common/generate_autoinstall.yml"
