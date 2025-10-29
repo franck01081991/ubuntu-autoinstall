@@ -1,60 +1,82 @@
 # ubuntu-autoinstall-git
 
-Provision **Ubuntu Server 24.04 LTS** per host (ThinkCentre M710q, Dell 3020 Tiny) using **Autoinstall + cloud-init (NoCloud)**, all driven from Git in a GitOps workflow.
+Provision **Ubuntu Server 24.04 LTS** per host (ThinkCentre M710q, Dell 3020 Tiny) using **Autoinstall + cloud-init (NoCloud)**, entirely driven by Git in a GitOps workflow.
 
 ## Table of contents
 - [Overview](#overview)
 - [GitOps architecture](#gitops-architecture)
+- [Repository layout](#repository-layout)
 - [Prerequisites](#prerequisites)
-- [Quick start](#quick-start)
+- [Quick start (bare metal)](#quick-start-bare-metal)
 - [Hardware profiles](#hardware-profiles)
-- [Host variables](#host-variables)
+- [Bare metal host variables](#bare-metal-host-variables)
+- [Managing shared variables and secrets](#managing-shared-variables-and-secrets)
 - [Available Make targets](#available-make-targets)
 - [Validation and testing](#validation-and-testing)
 - [Continuous integration](#continuous-integration)
 - [Security and compliance](#security-and-compliance)
-- [VPS provisioning with Ansible](#vps-provisioning-with-ansible)
+- [VPS provisioning with Ansible (no ISO)](#vps-provisioning-with-ansible-no-iso)
 - [Additional resources](#additional-resources)
 
 ## Overview
-This repository contains the templates and automation required to build fully automated Ubuntu installation media. Each host stores its own variables in inventory, enabling reproducible and idempotent deployments. Generated seed and full ISOs are published as pipeline artifacts for auditing purposes. A library of **hardware profiles** under `inventory/profiles/hardware/` keeps the CI focused on validating autoinstall generation per model.
+The repository now exposes two distinct GitOps tracks:
+
+- **`baremetal/`** – renders autoinstall payloads and builds (seed/full) ISOs for physical Ubuntu Server 24.04 LTS hosts.
+- **`vps/`** – drives post-install application deployment on VPS instances exclusively through Ansible (no ISO workflow).
+
+Each bare metal host stores its variables in version control, delivering reproducible and idempotent deployments. Generated seed and full ISOs are published as pipeline artifacts for auditing purposes. A library of **hardware profiles** under `baremetal/inventory/profiles/hardware/` keeps the CI focused on validating autoinstall generation per model.
 
 ## GitOps architecture
 - **Declarative definition**:
-  - host-specific parameters live in `inventory/host_vars/<host>.yml`;
-  - reusable hardware profiles are tracked in `inventory/profiles/hardware/<profile>.yml` and can be shared across sites.
-- **Automated rendering**: Ansible + Jinja2 generate `user-data`/`meta-data` files in `autoinstall/generated/<host>/`.
+  - host-specific parameters live in `baremetal/inventory/host_vars/<host>.yml`;
+  - reusable hardware profiles are tracked in `baremetal/inventory/profiles/hardware/<profile>.yml` and can be shared across sites.
+- **Automated rendering**: Ansible + Jinja2 generate `user-data`/`meta-data` files in `baremetal/autoinstall/generated/<host>/`.
+  - The playbook `baremetal/ansible/playbooks/generate_autoinstall.yml` resolves the `autoinstall/` and `inventory/host_vars/` paths through `{{ playbook_dir }}` so it works regardless of the execution directory (e.g. `make baremetal/gen`).
 - **Controlled distribution**: CI builds the installation ISOs, stores them as artifacts, and operators retrieve them as needed.
 - **Zero manual drift**: every change flows through Git, CI/CD, and the documented commands.
 
+## Repository layout
+```
+baremetal/
+├── ansible/           # Autoinstall rendering playbook (NoCloud)
+├── autoinstall/       # Jinja2 templates + generated artefacts
+├── inventory/         # Bare metal host vars & hardware profiles
+└── scripts/           # ISO (seed/full) build helpers
+vps/
+├── ansible/           # Application provisioning playbook
+└── inventory/         # VPS inventory and SOPS-encrypted secrets
+ansible/               # Shared dependencies (collections, requirements)
+scripts/install-sops.sh# SOPS installer (shared)
+```
+
 ## Prerequisites
-- Official Ubuntu 24.04 Live Server ISO (required for `make fulliso`).
+- Official Ubuntu 24.04 Live Server ISO (required for `make baremetal/fulliso`).
 - Python 3.10+ and Ansible available in the build environment.
 - System tools: `mkpasswd`, `cloud-localds`, `xorriso`, `genisoimage` (or distro equivalents).
 - [SOPS](https://github.com/getsops/sops) and an [age](https://age-encryption.org/) key pair to keep sensitive variables encrypted. Use `scripts/install-sops.sh` to install the recommended (Linux amd64) release with SHA-256 verification.
 - Valid SSH keys and hashed passwords (YESCRYPT recommended) for each host.
 
-## Quick start
+## Quick start (bare metal)
 1. **Select a hardware profile (optional)**
    ```bash
-   ls inventory/profiles/hardware
-   make gen PROFILE=lenovo-m710q
+   ls baremetal/inventory/profiles/hardware
+   make baremetal/gen PROFILE=lenovo-m710q
    ```
-   Artifacts are produced under `autoinstall/generated/lenovo-m710q/`.
+   Artefacts are produced under `baremetal/autoinstall/generated/lenovo-m710q/`.
 2. **Define host variables**
    ```bash
-   cp inventory/host_vars/example.yml inventory/host_vars/site-a-m710q1.yml
-   $EDITOR inventory/host_vars/site-a-m710q1.yml
+   cp baremetal/inventory/host_vars/example.yml baremetal/inventory/host_vars/site-a-m710q1.yml
+   $EDITOR baremetal/inventory/host_vars/site-a-m710q1.yml
    ```
 3. **Render autoinstall files for the host**
    ```bash
-   make gen HOST=site-a-m710q1
+   make baremetal/gen HOST=site-a-m710q1
    ```
 4. **Build the seed ISO (`CIDATA`)**
    ```bash
-   make seed HOST=site-a-m710q1
+   make baremetal/seed HOST=site-a-m710q1
    ```
-   The ISO is exported to `autoinstall/generated/site-a-m710q1/seed-site-a-m710q1.iso`.
+   The ISO is exported to `baremetal/autoinstall/generated/site-a-m710q1/seed-site-a-m710q1.iso`.
 5. **Run the installation**
    - Write the official Ubuntu ISO to a USB drive (USB #1).
    - Mount the seed ISO on a second USB drive or similar (USB #2).
@@ -62,17 +84,18 @@ This repository contains the templates and automation required to build fully au
    - The installation continues unattended via cloud-init (NoCloud).
 6. **(Optional) Build a full ISO with autoinstall baked in**
    ```bash
-   make fulliso HOST=site-a-m710q1 UBUNTU_ISO=/path/ubuntu-24.04-live-server-amd64.iso
+   make baremetal/fulliso HOST=site-a-m710q1 UBUNTU_ISO=/path/ubuntu-24.04-live-server-amd64.iso
    ```
+   The script `baremetal/scripts/make_full_iso.sh` replays the boot configuration from the source ISO via `xorriso` to inject the `nocloud/` payload without relying on `isolinux/` (flag `-boot_image any replay`).
 
 ## Hardware profiles
-Files under `inventory/profiles/hardware/` capture the minimal values per model (disk, NIC, demo SSH keys, etc.) required to validate autoinstall generation. Each profile can be rendered via `make gen PROFILE=<profile>` and becomes the baseline that site-specific automation (Ansible) can extend.
+Files under `baremetal/inventory/profiles/hardware/` capture the minimal values per model (disk, NIC, demo SSH keys, etc.) required to validate autoinstall generation. Each profile can be rendered via `make baremetal/gen PROFILE=<profile>` and becomes the baseline that site-specific automation (Ansible) can extend.
 
 - `lenovo-m710q`: ThinkCentre M710q Tiny fitted with an NVMe stick plus a 2.5" SATA bay. The profile merges both drives into the same LVM volume group to expose a single capacity pool.
   - Optimisations: installs Intel microcode, `thermald`, `powertop` (auto-tuning service) and `lm-sensors` to keep the compact chassis efficient and thermally stable.
 
-## Host variables
-Each `inventory/host_vars/<host>.yml` file may include:
+## Bare metal host variables
+Each `baremetal/inventory/host_vars/<host>.yml` file may include:
 
 | Variable | Description |
 | --- | --- |
@@ -89,11 +112,11 @@ Each `inventory/host_vars/<host>.yml` file may include:
 
 ## Managing shared variables and secrets
 
-- Common VPS variables now live under `inventory/group_vars/vps/` so they stay close to the GitOps inventory.
+- Common VPS variables live under `vps/inventory/group_vars/vps/` so they stay close to the GitOps inventory.
 - Secrets are versioned in **encrypted** form with [SOPS](https://github.com/getsops/sops):
   1. Copy the template:
      ```bash
-     cp inventory/group_vars/vps/secrets.sops.yaml.example inventory/group_vars/vps/secrets.sops.yaml
+     cp vps/inventory/group_vars/vps/secrets.sops.yaml.example vps/inventory/group_vars/vps/secrets.sops.yaml
      ```
   2. Install SOPS when missing:
      ```bash
@@ -102,33 +125,35 @@ Each `inventory/host_vars/<host>.yml` file may include:
   3. Add your age public key to `.sops.yaml` (`age1...`).
   4. Encrypt the file:
      ```bash
-     sops --encrypt --in-place inventory/group_vars/vps/secrets.sops.yaml
+     sops --encrypt --in-place vps/inventory/group_vars/vps/secrets.sops.yaml
      ```
   5. Edit the secret securely:
      ```bash
-     sops inventory/group_vars/vps/secrets.sops.yaml
+     sops vps/inventory/group_vars/vps/secrets.sops.yaml
      ```
 
-The keys `vps_external_dns_api_token` and `vps_keycloak_admin_password` must be present in this file for `vps_provision.yml` to run successfully. The playbook fails fast if they are missing.
+The keys `vps_external_dns_api_token` and `vps_keycloak_admin_password` must be present in this file for the VPS playbook to run successfully. The playbook fails fast if they are missing.
 
 ## Available Make targets
-- `make gen HOST=<name>`: render `user-data` and `meta-data` under `autoinstall/generated/<name>/`.
-- `make gen PROFILE=<profile>`: render artifacts for a hardware profile under `autoinstall/generated/<profile>/`.
-- `make seed HOST=<name>`: build `seed-<name>.iso` (NoCloud `CIDATA`).
-- `make fulliso HOST=<name> UBUNTU_ISO=<path>`: build a full installer ISO with autoinstall and boot flags.
-- `make clean`: remove generated artifacts.
+- `make baremetal/gen HOST=<name>`: render `user-data` and `meta-data` under `baremetal/autoinstall/generated/<name>/`.
+- `make baremetal/gen PROFILE=<profile>`: render artefacts for a hardware profile under `baremetal/autoinstall/generated/<profile>/`.
+- `make baremetal/seed HOST=<name>`: build `seed-<name>.iso` (NoCloud `CIDATA`).
+- `make baremetal/fulliso HOST=<name> UBUNTU_ISO=<path>`: build a full installer ISO with autoinstall and boot flags.
+- `make baremetal/clean`: remove generated artefacts.
+- `make vps/provision`: execute the VPS playbook (post-install, no ISO involved).
+- `make vps/lint`: run `yamllint` and `ansible-lint` on the VPS track.
 
 ## Validation and testing
-- `make lint` *(if defined)*: execute the optional lint target.
-- `ansible-lint`: validate roles and playbooks.
-- `yamllint inventory ansible autoinstall`: check YAML syntax.
+- `make vps/lint`: lint the VPS inventory and playbook.
+- `ansible-lint`: validate roles and playbooks (run against `baremetal/ansible` as needed).
+- `yamllint baremetal/inventory baremetal/ansible vps/inventory vps/ansible`: check YAML syntax.
 - `terraform fmt/validate` *(not applicable unless Terraform modules are added)*.
 
 ## Continuous integration
-- The GitHub Actions workflow `.github/workflows/build-iso.yml` now renders autoinstall files **per hardware model** (`PROFILE`), builds both seed and full ISOs, and uploads them as artifacts.
-- To trigger manually: **Actions → Build Host ISOs → Run workflow**, optionally overriding `UBUNTU_ISO_URL`.
+- The GitHub Actions workflow `.github/workflows/build-iso.yml` renders autoinstall files **per hardware model** (`PROFILE`), builds both seed and full ISOs, and uploads them as artifacts.
+- To trigger manually: **Actions → Build Bare Metal ISOs → Run workflow**, optionally overriding `UBUNTU_ISO_URL`.
   - By default the CI pulls the image from `https://old-releases.ubuntu.com/releases/24.04/ubuntu-24.04-live-server-amd64.iso` to ensure long-term availability. The ISO download is cached in `.cache/` to avoid repeated transfers.
-- Artifacts are grouped per hardware profile for straightforward traceability and retained for **1 day** (`retention-days: 1`).
+- Artefacts are grouped per hardware profile for straightforward traceability and retained for **1 day** (`retention-days: 1`).
 - Before uploading, the workflow deletes existing GitHub Actions artifacts for the same profile (`autoinstall-<profile>`) to stay within the storage quota whenever the run originates from the main repository (local branches or manual dispatches).
 - When the GitHub Actions quota is exceeded or the token lacks permissions, artifact uploads fail with a warning but the workflow continues (best-effort mode, artifacts must be recovered manually if needed).
 
@@ -138,14 +163,16 @@ The keys `vps_external_dns_api_token` and `vps_keycloak_admin_password` must be 
 - Network configuration enables BBR, sets `rp_filter=2`, disables ICMP redirects, and enables `irqbalance`.
 - Store ISO artifacts produced by CI in controlled storage (e.g., GitHub Actions artifacts).
 
-## VPS provisioning with Ansible
+## VPS provisioning with Ansible (no ISO)
+VPS instances are provisioned **exclusively** via Ansible. No ISO is ever mounted or installed for these hosts.
+
 After installing Ubuntu on the VPS, run:
 
 ```bash
-ansible-playbook -i inventory/hosts.yml ansible/playbooks/vps_provision.yml -u ubuntu --become
+ansible-playbook -i vps/inventory/hosts.yml vps/ansible/playbooks/provision.yml -u ubuntu --become
 ```
 
-Define variables via `inventory/group_vars/vps/` (see previous section) or use `-e` flags for temporary overrides.
+Define variables via `vps/inventory/group_vars/vps/` (see previous section) or use `-e` flags for temporary overrides.
 
 Install the required Ansible collections before running the playbook:
 
@@ -158,4 +185,3 @@ The `ansible/collections/requirements.yml` file pins `community.sops` to **1.6.0
 - [Documentation en français](README.md)
 - [Ubuntu Autoinstall Reference](https://ubuntu.com/server/docs/install/autoinstall)
 - [Cloud-init NoCloud Datasource](https://cloudinit.readthedocs.io/en/latest/topics/datasources/nocloud.html)
-

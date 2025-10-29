@@ -1,4 +1,4 @@
-name: Build Host ISOs
+name: Build Bare Metal ISOs
 
 on:
   workflow_dispatch:
@@ -10,17 +10,15 @@ on:
   push:
     branches: [ main, master ]
     paths:
-      - 'autoinstall/**'
-      - 'inventory/**'
+      - 'baremetal/**'
       - 'ansible/**'
-      - 'scripts/**'
+      - 'scripts/install-sops.sh'
       - 'Makefile'
   pull_request:
     paths:
-      - 'autoinstall/**'
-      - 'inventory/**'
+      - 'baremetal/**'
       - 'ansible/**'
-      - 'scripts/**'
+      - 'scripts/install-sops.sh'
       - 'Makefile'
 
 jobs:
@@ -99,15 +97,15 @@ jobs:
 
       - name: Generate autoinstall for ${{ matrix.model }}
         run: |
-          make gen PROFILE="${{ matrix.model }}"
+          make baremetal/gen PROFILE="${{ matrix.model }}"
 
       - name: Build seed ISO (CIDATA) for ${{ matrix.model }}
         run: |
-          make seed PROFILE="${{ matrix.model }}"
+          make baremetal/seed PROFILE="${{ matrix.model }}"
 
       - name: Build full installer ISO for ${{ matrix.model }}
         run: |
-          make fulliso PROFILE="${{ matrix.model }}" UBUNTU_ISO="${{ steps.iso.outputs.file }}"
+          make baremetal/fulliso PROFILE="${{ matrix.model }}" UBUNTU_ISO="${{ steps.iso.outputs.file }}"
 
       - name: Upload artifacts for ${{ matrix.model }}
         id: upload
@@ -116,14 +114,14 @@ jobs:
         with:
           name: autoinstall-${{ matrix.model }}
           path: |
-            autoinstall/generated/${{ matrix.model }}/user-data
-            autoinstall/generated/${{ matrix.model }}/meta-data
-            autoinstall/generated/${{ matrix.model }}/seed-${{ matrix.model }}.iso
-            autoinstall/generated/${{ matrix.model }}/ubuntu-autoinstall-${{ matrix.model }}.iso
+            baremetal/autoinstall/generated/${{ matrix.model }}/user-data
+            baremetal/autoinstall/generated/${{ matrix.model }}/meta-data
+            baremetal/autoinstall/generated/${{ matrix.model }}/seed-${{ matrix.model }}.iso
+            baremetal/autoinstall/generated/${{ matrix.model }}/ubuntu-autoinstall-${{ matrix.model }}.iso
           if-no-files-found: error
           retention-days: 1
 
       - name: Report artifact upload issues
         if: steps.upload.outcome == 'failure'
         run: |
-          echo "::warning::Artifact upload failed (likely due to storage quota or permissions). Build completed without artifacts." 
+          echo "::warning::Artifact upload failed (likely due to storage quota or permissions). Build completed without artifacts."

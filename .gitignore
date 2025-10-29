@@ -1,5 +1,5 @@
 # build artifacts
-autoinstall/generated/
+baremetal/autoinstall/generated/
 .cache/
 *.iso
 # editor / OS
