@@ -58,7 +58,8 @@ curl -sSLo flux.tar.gz https://github.com/fluxcd/flux2/releases/download/v2.7.3/
 tar -xf flux.tar.gz flux && sudo install -m 0755 flux /usr/local/bin/ && rm flux flux.tar.gz
 curl -sSLo tfsec.tar.gz https://github.com/aquasecurity/tfsec/releases/download/v1.28.11/tfsec-linux-amd64.tar.gz
 tar -xf tfsec.tar.gz tfsec && sudo install -m 0755 tfsec /usr/local/bin/ && rm tfsec tfsec.tar.gz
-curl -sSfL https://github.com/stackrox/kube-linter/releases/download/v0.6.8/kube-linter-linux.tar.gz | tar xz -C /tmp && sudo install -m 0755 /tmp/kube-linter /usr/local/bin/ && rm /tmp/kube-linter
+curl -sSLo kube-linter.tar.gz https://github.com/stackrox/kube-linter/releases/download/v0.6.8/kube-linter-linux.tar.gz
+tar -xf kube-linter.tar.gz kube-linter && sudo install -m 0755 kube-linter /usr/local/bin/ && rm kube-linter kube-linter.tar.gz
 curl -sL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
 ```
 

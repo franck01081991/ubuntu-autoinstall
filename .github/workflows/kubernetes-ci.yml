@@ -59,9 +59,11 @@ jobs:
       - name: Install security tooling
         run: |
           curl -sL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
-          curl -sSfL https://github.com/stackrox/kube-linter/releases/download/v0.6.8/kube-linter-linux.tar.gz | tar xz -C /tmp
-          sudo install -m 0755 /tmp/kube-linter /usr/local/bin/kube-linter
-          rm -f /tmp/kube-linter
+          KUBE_LINTER_VERSION="0.6.8"
+          curl -sSLo kube-linter.tar.gz "https://github.com/stackrox/kube-linter/releases/download/v${KUBE_LINTER_VERSION}/kube-linter-linux.tar.gz"
+          tar -xf kube-linter.tar.gz kube-linter
+          sudo install -m 0755 kube-linter /usr/local/bin/kube-linter
+          rm -f kube-linter kube-linter.tar.gz
           TFSEC_VERSION="1.28.11"
           curl -sSLo tfsec.tar.gz "https://github.com/aquasecurity/tfsec/releases/download/v${TFSEC_VERSION}/tfsec-linux-amd64.tar.gz"
           tar -xf tfsec.tar.gz tfsec
@@ -93,9 +95,11 @@ jobs:
       - name: Install scanners
         run: |
           curl -sSfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
-          curl -sSfL https://github.com/stackrox/kube-linter/releases/download/v0.6.8/kube-linter-linux.tar.gz | tar xz -C /tmp
-          sudo install -m 0755 /tmp/kube-linter /usr/local/bin/kube-linter
-          rm -f /tmp/kube-linter
+          KUBE_LINTER_VERSION="0.6.8"
+          curl -sSLo kube-linter.tar.gz "https://github.com/stackrox/kube-linter/releases/download/v${KUBE_LINTER_VERSION}/kube-linter-linux.tar.gz"
+          tar -xf kube-linter.tar.gz kube-linter
+          sudo install -m 0755 kube-linter /usr/local/bin/kube-linter
+          rm -f kube-linter kube-linter.tar.gz
           TFSEC_VERSION="1.28.11"
           curl -sSLo tfsec.tar.gz "https://github.com/aquasecurity/tfsec/releases/download/v${TFSEC_VERSION}/tfsec-linux-amd64.tar.gz"
           tar -xf tfsec.tar.gz tfsec
