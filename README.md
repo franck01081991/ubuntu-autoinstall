@@ -4,6 +4,10 @@ Provisionner **Ubuntu Server 24.04 LTS** hôte par hôte (ThinkCentre M710q, Del
 OptiPlex 3020M) grâce à **Autoinstall + cloud-init (NoCloud)** dans une approche
 GitOps pilotée par Git, CI/CD et revue de code.
 
+> 👋 **Nouveau dans le dépôt ?** Consultez le [guide débutant](docs/getting-started-beginner.md)
+> pour découvrir pas à pas la chaîne GitOps et lancer votre premier rendu
+> autoinstall.
+
 ## Table des matières
 
 - [Vue d'ensemble](#vue-densemble)
@@ -12,6 +16,7 @@ GitOps pilotée par Git, CI/CD et revue de code.
 - [Périmètre bare metal](#périmètre-bare-metal)
 - [Prérequis](#prérequis)
 - [Démarrage rapide (bare metal)](#démarrage-rapide-bare-metal)
+- [Parcours débutant](#parcours-débutant)
 - [Profils matériels](#profils-matériels)
 - [Variables d'hôte bare metal](#variables-dhôte-bare-metal)
 - [Gestion des variables et secrets partagés](#gestion-des-variables-et-secrets-partagés)
@@ -98,7 +103,9 @@ scripts/install-sops.sh # Installation SOPS (baremetal & vps)
 
 ## Démarrage rapide (bare metal)
 
-1. **Choisir un profil matériel (optionnel)**
+> 🎯 Idéal pour un premier rendu autoinstall sans personnalisation avancée.
+
+1. **Choisir (ou non) un profil matériel**
 
    ```bash
    ls baremetal/inventory/profiles/hardware
@@ -108,7 +115,7 @@ scripts/install-sops.sh # Installation SOPS (baremetal & vps)
    Les artefacts sont générés sous
    `baremetal/autoinstall/generated/lenovo-m710q/`.
 
-2. **Définir les variables de l'hôte**
+2. **Cloner un fichier d'exemple pour l'hôte**
 
    ```bash
    cp baremetal/inventory/host_vars/example.yml \
@@ -116,7 +123,10 @@ scripts/install-sops.sh # Installation SOPS (baremetal & vps)
    $EDITOR baremetal/inventory/host_vars/site-a-m710q1.yml
    ```
 
-3. **Générer les fichiers autoinstall pour l'hôte**
+   Le guide débutant détaille les champs clés à modifier (hostname, réseau,
+   disques).
+
+3. **Générer les fichiers autoinstall**
 
    ```bash
    make baremetal/gen HOST=site-a-m710q1
@@ -131,7 +141,7 @@ scripts/install-sops.sh # Installation SOPS (baremetal & vps)
    L'ISO est exportée dans
    `baremetal/autoinstall/generated/site-a-m710q1/seed-site-a-m710q1.iso`.
 
-5. **Lancer l'installation**
+5. **Démarrer l'installation automatisée**
 
    - Graver l'ISO officielle d'Ubuntu sur une clé USB (USB #1).
    - Monter l'ISO seed sur une deuxième clé USB ou via une clé USB dédiée
@@ -151,6 +161,16 @@ scripts/install-sops.sh # Installation SOPS (baremetal & vps)
    Le script `baremetal/scripts/make_full_iso.sh` rejoue la configuration de
    démarrage de l'ISO source via `xorriso` afin d'ajouter le dossier `nocloud/`
    sans dépendre d'`isolinux/` (flag `-boot_image any replay`).
+
+## Parcours débutant
+
+- 📘 **Guide pas à pas** : suivez le [parcours détaillé](docs/getting-started-beginner.md)
+  pour découvrir la structure du dépôt, comprendre les variables essentielles et
+  rejouer la génération autoinstall via `make`.
+- 🧠 **Concepts clés** : résumés des notions GitOps, autoinstall et SOPS avec des
+  liens vers la documentation amont.
+- ✅ **Checklist de validation** : assurez-vous que les commandes locales,
+  l'outillage (Ansible, SOPS) et la CI produisent les mêmes artefacts.
 
 ## Profils matériels
 
