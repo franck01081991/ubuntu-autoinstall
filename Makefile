@@ -43,33 +43,37 @@ vps/lint:
 	ansible-lint $(VPS_DIR)/ansible/playbooks/provision.yml
 
 lint:
-        yamllint ansible baremetal vps .github/workflows
-        ansible-lint ansible/playbooks/common/generate_autoinstall.yml baremetal/ansible/playbooks/generate_autoinstall.yml vps/ansible/playbooks/generate_autoinstall.yml vps/ansible/playbooks/provision.yml
-        find scripts baremetal/scripts -type f -name '*.sh' -print0 | xargs -0 -r shellcheck
-        find README*.md docs -type f -name '*.md' -print0 | xargs -0 -r markdownlint
+	yamllint ansible baremetal vps .github/workflows
+	ansible-lint \	
+		ansible/playbooks/common/generate_autoinstall.yml \	
+		baremetal/ansible/playbooks/generate_autoinstall.yml \	
+		vps/ansible/playbooks/generate_autoinstall.yml \	
+		vps/ansible/playbooks/provision.yml
+	find scripts baremetal/scripts -type f -name '*.sh' -print0 | xargs -0 -r shellcheck
+	find README*.md docs -type f -name '*.md' -print0 | xargs -0 -r markdownlint
 
 kubernetes/bootstrap:
-        cd $(KUBERNETES_DIR)/ansible && ansible-galaxy collection install -r requirements.yml
-        cd $(KUBERNETES_DIR)/ansible && ansible-playbook playbooks/site.yml
+	cd $(KUBERNETES_DIR)/ansible && ansible-galaxy collection install -r requirements.yml
+	cd $(KUBERNETES_DIR)/ansible && ansible-playbook playbooks/site.yml
 
 kubernetes/lint:
-        yamllint $(KUBERNETES_DIR)
-        ansible-lint $(KUBERNETES_DIR)/ansible/playbooks/site.yml
-        for env in $(TF_ENVS); do terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env fmt -check; terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env validate; done
-        find $(KUBERNETES_DIR)/flux \( -name '*.yaml' -o -name '*.yml' \) -print0 | xargs -0 -r kubeconform -summary -strict
+	yamllint $(KUBERNETES_DIR)
+	ansible-lint $(KUBERNETES_DIR)/ansible/playbooks/site.yml
+	for env in $(TF_ENVS); do terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env fmt -check; terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env validate; done
+	find $(KUBERNETES_DIR)/flux \( -name '*.yaml' -o -name '*.yml' \) -print0 | xargs -0 -r kubeconform -summary -strict
 
 kubernetes/plan:
-        for env in $(TF_ENVS); do terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env init -upgrade && terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env plan; done
+	for env in $(TF_ENVS); do terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env init -upgrade && terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env plan; done
 
 kubernetes/apply:
-        for env in $(TF_ENVS); do terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env apply -auto-approve; done
+	for env in $(TF_ENVS); do terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env apply -auto-approve; done
 
 kubernetes/security:
-        tfsec $(KUBERNETES_DIR)/terraform
-        checkov -d $(KUBERNETES_DIR)
-        kube-linter lint $(KUBERNETES_DIR)/flux
-        trivy config --severity CRITICAL,HIGH $(KUBERNETES_DIR)
+	tfsec $(KUBERNETES_DIR)/terraform
+	checkov -d $(KUBERNETES_DIR)
+	kube-linter lint $(KUBERNETES_DIR)/flux
+	trivy config --severity CRITICAL,HIGH $(KUBERNETES_DIR)
 
 kubernetes/flux-diff:
-        flux diff ks flux-system --path=$(KUBERNETES_DIR)/flux/clusters/site-a || true
-        flux diff ks flux-system --path=$(KUBERNETES_DIR)/flux/clusters/site-b || true
+	flux diff ks flux-system --path=$(KUBERNETES_DIR)/flux/clusters/site-a || true
+	flux diff ks flux-system --path=$(KUBERNETES_DIR)/flux/clusters/site-b || true

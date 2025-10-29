@@ -52,10 +52,13 @@ make kubernetes/security    # Scans sécurité (tfsec, kube-linter, Trivy)
 
 ```bash
 python -m pip install --upgrade pip ansible-core ansible-lint yamllint checkov
-curl -sSLO https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
-tar -xf kubeconform-linux-amd64.tar.gz kubeconform && sudo mv kubeconform /usr/local/bin/
+curl -sSLo kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+tar -xf kubeconform.tar.gz kubeconform && sudo install -m 0755 kubeconform /usr/local/bin/ && rm kubeconform kubeconform.tar.gz
+curl -sSLo flux.tar.gz https://github.com/fluxcd/flux2/releases/download/v2.7.3/flux_2.7.3_linux_amd64.tar.gz
+tar -xf flux.tar.gz flux && sudo install -m 0755 flux /usr/local/bin/ && rm flux flux.tar.gz
 curl -sSfL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install.sh | bash
-curl -sSfL https://github.com/stackrox/kube-linter/releases/download/v0.6.8/kube-linter-linux.tar.gz | tar xz -C /tmp && sudo mv /tmp/kube-linter /usr/local/bin/
+sudo install -m 0755 tfsec /usr/local/bin/tfsec && rm tfsec
+curl -sSfL https://github.com/stackrox/kube-linter/releases/download/v0.6.8/kube-linter-linux.tar.gz | tar xz -C /tmp && sudo install -m 0755 /tmp/kube-linter /usr/local/bin/ && rm /tmp/kube-linter
 curl -sL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
 ```
 

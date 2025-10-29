@@ -1,3 +1,5 @@
+---
+# yamllint disable rule:truthy
 name: kubernetes-gitops
 
 on:
@@ -9,7 +11,7 @@ on:
       - 'README.md'
       - 'docs/adr/**'
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - 'kubernetes/**'
       - '.github/workflows/kubernetes-ci.yml'
@@ -43,18 +45,26 @@ jobs:
       - name: Install kubeconform
         run: |
           KUBECONFORM_VERSION="0.6.7"
-          curl -sSLO https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz
-          tar -xf kubeconform-linux-amd64.tar.gz kubeconform
-          sudo mv kubeconform /usr/local/bin/kubeconform
-          rm kubeconform-linux-amd64.tar.gz
+          curl -sSLo kubeconform.tar.gz "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          tar -xf kubeconform.tar.gz kubeconform
+          sudo install -m 0755 kubeconform /usr/local/bin/kubeconform
+          rm -f kubeconform kubeconform.tar.gz
+      - name: Install Flux CLI
+        run: |
+          FLUX_VERSION="2.7.3"
+          curl -sSLo flux.tar.gz "https://github.com/fluxcd/flux2/releases/download/v${FLUX_VERSION}/flux_${FLUX_VERSION}_linux_amd64.tar.gz"
+          tar -xf flux.tar.gz flux
+          sudo install -m 0755 flux /usr/local/bin/flux
+          rm -f flux flux.tar.gz
       - name: Install security tooling
         run: |
           curl -sL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
-          curl -sSfL https://raw.githubusercontent.com/fluxcd/flux2/main/install/flux.sh | sudo bash -s -- -b /usr/local/bin
           curl -sSfL https://github.com/stackrox/kube-linter/releases/download/v0.6.8/kube-linter-linux.tar.gz | tar xz -C /tmp
-          sudo mv /tmp/kube-linter /usr/local/bin/kube-linter
+          sudo install -m 0755 /tmp/kube-linter /usr/local/bin/kube-linter
+          rm -f /tmp/kube-linter
           curl -sSfL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install.sh | bash
-          sudo mv ./tfsec /usr/local/bin/tfsec
+          sudo install -m 0755 ./tfsec /usr/local/bin/tfsec
+          rm -f tfsec
           pip install checkov
       - name: Install Flux dependencies
         run: flux install --export > /tmp/flux-components.yaml
@@ -82,9 +92,11 @@ jobs:
         run: |
           curl -sSfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
           curl -sSfL https://github.com/stackrox/kube-linter/releases/download/v0.6.8/kube-linter-linux.tar.gz | tar xz -C /tmp
-          sudo mv /tmp/kube-linter /usr/local/bin/kube-linter
+          sudo install -m 0755 /tmp/kube-linter /usr/local/bin/kube-linter
+          rm -f /tmp/kube-linter
           curl -sSfL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install.sh | bash
-          sudo mv ./tfsec /usr/local/bin/tfsec
+          sudo install -m 0755 ./tfsec /usr/local/bin/tfsec
+          rm -f tfsec
           python -m pip install --upgrade pip
           pip install checkov
       - name: Run security checks
