@@ -78,7 +78,7 @@ make baremetal/gen HOST=site-a-m710q1
 
 La commande rendra :
 
-```
+```text
 baremetal/autoinstall/generated/site-a-m710q1/
 ├── meta-data
 └── user-data
@@ -95,7 +95,7 @@ make baremetal/seed HOST=site-a-m710q1
 
 Le dépôt génère un fichier ISO idempotent :
 
-```
+```text
 baremetal/autoinstall/generated/site-a-m710q1/
 └── seed-site-a-m710q1.iso
 ```
@@ -117,7 +117,8 @@ CI pour récupérer une copie officielle.
    git status
    git diff
    git add baremetal/inventory/host_vars/site-a-m710q1.yml
-   git commit -m "feat: add site-a-m710q1 host"  # suivez le format Conventional Commits
+   # suivez le format Conventional Commits pour vos messages de commit
+   git commit -m "feat: add site-a-m710q1 host"
    ```
 
 3. Poussez et ouvrez une PR :
