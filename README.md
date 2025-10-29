@@ -1,4 +1,4 @@
-# ubuntu-autoinstall-git
+# Ubuntu Autoinstall
 
 Provisionner **Ubuntu Server 24.04 LTS** hôte par hôte (ThinkCentre M710q, Dell
 OptiPlex 3020M) grâce à **Autoinstall + cloud-init (NoCloud)** dans une approche
