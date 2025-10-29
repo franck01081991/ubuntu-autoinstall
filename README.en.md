@@ -31,7 +31,7 @@ This repository contains the templates and automation required to build fully au
 - Official Ubuntu 24.04 Live Server ISO (required for `make fulliso`).
 - Python 3.10+ and Ansible available in the build environment.
 - System tools: `mkpasswd`, `cloud-localds`, `xorriso`, `genisoimage` (or distro equivalents).
-- [SOPS](https://github.com/getsops/sops) and an [age](https://age-encryption.org/) key pair to keep sensitive variables encrypted.
+- [SOPS](https://github.com/getsops/sops) and an [age](https://age-encryption.org/) key pair to keep sensitive variables encrypted. Use `scripts/install-sops.sh` to install the recommended (Linux amd64) release with SHA-256 verification.
 - Valid SSH keys and hashed passwords (YESCRYPT recommended) for each host.
 
 ## Quick start
@@ -95,12 +95,16 @@ Each `inventory/host_vars/<host>.yml` file may include:
      ```bash
      cp inventory/group_vars/vps/secrets.sops.yaml.example inventory/group_vars/vps/secrets.sops.yaml
      ```
-  2. Add your age public key to `.sops.yaml` (`age1...`).
-  3. Encrypt the file:
+  2. Install SOPS when missing:
+     ```bash
+     sudo bash scripts/install-sops.sh /usr/local/bin
+     ```
+  3. Add your age public key to `.sops.yaml` (`age1...`).
+  4. Encrypt the file:
      ```bash
      sops --encrypt --in-place inventory/group_vars/vps/secrets.sops.yaml
      ```
-  4. Edit the secret securely:
+  5. Edit the secret securely:
      ```bash
      sops inventory/group_vars/vps/secrets.sops.yaml
      ```

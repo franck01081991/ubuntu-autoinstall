@@ -38,7 +38,7 @@ Ce dépôt fournit les fichiers modèles et l'automatisation nécessaires pour c
 - Ubuntu 24.04 Live Server ISO officiel (pour `make fulliso`).
 - Python 3.10+ et Ansible installés dans l'environnement de build.
 - Outils systèmes : `mkpasswd`, `cloud-localds`, `xorriso`, `genisoimage` ou équivalents selon la distribution.
-- [SOPS](https://github.com/getsops/sops) et une paire de clés [age](https://age-encryption.org/) pour chiffrer les variables sensibles.
+- [SOPS](https://github.com/getsops/sops) et une paire de clés [age](https://age-encryption.org/) pour chiffrer les variables sensibles. Le script `scripts/install-sops.sh` installe la version recommandée (Linux amd64) en vérifiant la somme SHA-256.
 - Clés SSH valides et un mot de passe chiffré (YESCRYPT recommandé) pour chaque hôte.
 
 ## Démarrage rapide
@@ -103,12 +103,16 @@ Chaque fichier `inventory/host_vars/<hôte>.yml` peut contenir les paramètres s
      ```bash
      cp inventory/group_vars/vps/secrets.sops.yaml.example inventory/group_vars/vps/secrets.sops.yaml
      ```
-  2. Ajouter votre clé publique age à `.sops.yaml` (`age1...`).
-  3. Chiffrer le fichier :
+  2. Installer SOPS si nécessaire :
+     ```bash
+     sudo bash scripts/install-sops.sh /usr/local/bin
+     ```
+  3. Ajouter votre clé publique age à `.sops.yaml` (`age1...`).
+  4. Chiffrer le fichier :
      ```bash
      sops --encrypt --in-place inventory/group_vars/vps/secrets.sops.yaml
      ```
-  4. Éditer le secret de façon sécurisée :
+  5. Éditer le secret de façon sécurisée :
      ```bash
      sops inventory/group_vars/vps/secrets.sops.yaml
      ```
