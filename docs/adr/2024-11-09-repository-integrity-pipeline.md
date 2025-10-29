@@ -19,3 +19,4 @@ Acceptée (2024-11-09).
 - Les développeurs disposent d'une commande unique (`make lint`) pour aligner leur environnement local sur la CI.
 - `markdownlint` et `shellcheck` deviennent des dépendances de développement explicites ; leur absence déclenche un échec clair.
 - Trivy fournit une visibilité continue sur les secrets accidentellement commités ou les configurations risquées.
+- Les dépendances Python critiques (ex. `ansible-core`) sont maintenues à jour pour satisfaire les contrôles de sécurité automatisés (CVE-2024-8775 corrigée via la version 2.16.13).

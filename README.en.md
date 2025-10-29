@@ -150,6 +150,7 @@ The keys `vps_external_dns_api_token` and `vps_keycloak_admin_password` must be 
 - `ansible-lint`: re-run deep validation locally when debugging specific playbooks.
 - `yamllint baremetal/inventory baremetal/ansible vps/inventory vps/ansible`: run YAML-only checks.
 - `trivy fs --security-checks config,secret --severity HIGH,CRITICAL .`: local configuration & secret scanning with the same thresholds as CI.
+- `pip install -r ansible/requirements.txt`: installs `ansible-core` 2.16.13 (fixes CVE-2024-8775) before running the playbooks.
 
 ## Continuous integration
 - The workflow `.github/workflows/repository-integrity.yml` enforces repository hygiene:

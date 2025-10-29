@@ -159,6 +159,7 @@ Les clés `vps_external_dns_api_token` et `vps_keycloak_admin_password` doivent 
 - `ansible-lint` : rejouer localement une analyse profonde (utile pour du débogage ciblé).
 - `yamllint baremetal/inventory baremetal/ansible vps/inventory vps/ansible` : vérifier uniquement la syntaxe YAML.
 - `trivy fs --security-checks config,secret --severity HIGH,CRITICAL .` : scanner localement la configuration et la détection de secrets (mêmes seuils que la CI).
+- `pip install -r ansible/requirements.txt` : garantit l'utilisation de `ansible-core` en version 2.16.13 (correctif CVE-2024-8775) avant d'exécuter les playbooks.
 
 ## Intégration continue
 - Le workflow `.github/workflows/repository-integrity.yml` garantit l'intégrité du dépôt :
