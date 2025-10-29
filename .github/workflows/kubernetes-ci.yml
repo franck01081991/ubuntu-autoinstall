@@ -46,14 +46,14 @@ jobs:
         run: |
           KUBECONFORM_VERSION="0.6.7"
           curl -sSLo kubeconform.tar.gz "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
-          tar -xf kubeconform.tar.gz kubeconform
+          tar -xzf kubeconform.tar.gz kubeconform
           sudo install -m 0755 kubeconform /usr/local/bin/kubeconform
           rm -f kubeconform kubeconform.tar.gz
       - name: Install Flux CLI
         run: |
           FLUX_VERSION="2.7.3"
           curl -sSLo flux.tar.gz "https://github.com/fluxcd/flux2/releases/download/v${FLUX_VERSION}/flux_${FLUX_VERSION}_linux_amd64.tar.gz"
-          tar -xf flux.tar.gz flux
+          tar -xzf flux.tar.gz flux
           sudo install -m 0755 flux /usr/local/bin/flux
           rm -f flux flux.tar.gz
       - name: Install security tooling
@@ -61,12 +61,12 @@ jobs:
           curl -sL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
           KUBE_LINTER_VERSION="0.6.8"
           curl -sSLo kube-linter.tar.gz "https://github.com/stackrox/kube-linter/releases/download/v${KUBE_LINTER_VERSION}/kube-linter-linux.tar.gz"
-          tar -xf kube-linter.tar.gz kube-linter
+          tar -xzf kube-linter.tar.gz kube-linter
           sudo install -m 0755 kube-linter /usr/local/bin/kube-linter
           rm -f kube-linter kube-linter.tar.gz
           TFSEC_VERSION="1.28.11"
           curl -sSLo tfsec.tar.gz "https://github.com/aquasecurity/tfsec/releases/download/v${TFSEC_VERSION}/tfsec-linux-amd64.tar.gz"
-          tar -xf tfsec.tar.gz tfsec
+          tar -xzf tfsec.tar.gz tfsec
           sudo install -m 0755 tfsec /usr/local/bin/tfsec
           rm -f tfsec tfsec.tar.gz
           pip install checkov
@@ -97,12 +97,12 @@ jobs:
           curl -sSfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
           KUBE_LINTER_VERSION="0.6.8"
           curl -sSLo kube-linter.tar.gz "https://github.com/stackrox/kube-linter/releases/download/v${KUBE_LINTER_VERSION}/kube-linter-linux.tar.gz"
-          tar -xf kube-linter.tar.gz kube-linter
+          tar -xzf kube-linter.tar.gz kube-linter
           sudo install -m 0755 kube-linter /usr/local/bin/kube-linter
           rm -f kube-linter kube-linter.tar.gz
           TFSEC_VERSION="1.28.11"
           curl -sSLo tfsec.tar.gz "https://github.com/aquasecurity/tfsec/releases/download/v${TFSEC_VERSION}/tfsec-linux-amd64.tar.gz"
-          tar -xf tfsec.tar.gz tfsec
+          tar -xzf tfsec.tar.gz tfsec
           sudo install -m 0755 tfsec /usr/local/bin/tfsec
           rm -f tfsec tfsec.tar.gz
           python -m pip install --upgrade pip
