@@ -38,6 +38,7 @@ Ce dépôt fournit les fichiers modèles et l'automatisation nécessaires pour c
 - Ubuntu 24.04 Live Server ISO officiel (pour `make fulliso`).
 - Python 3.10+ et Ansible installés dans l'environnement de build.
 - Outils systèmes : `mkpasswd`, `cloud-localds`, `xorriso`, `genisoimage` ou équivalents selon la distribution.
+- [SOPS](https://github.com/getsops/sops) et une paire de clés [age](https://age-encryption.org/) pour chiffrer les variables sensibles.
 - Clés SSH valides et un mot de passe chiffré (YESCRYPT recommandé) pour chaque hôte.
 
 ## Démarrage rapide
@@ -94,6 +95,26 @@ Chaque fichier `inventory/host_vars/<hôte>.yml` peut contenir les paramètres s
 | `extra_packages` | Liste additionnelle de paquets à installer (ex. optimisations matérielles) |
 | `enable_powertop_autotune` | Active la création/activation du service systemd `powertop-autotune` |
 
+## Gestion des variables et secrets partagés
+
+- Les variables communes aux VPS vivent maintenant dans `inventory/group_vars/vps/` pour rester proches de l'inventaire GitOps.
+- Les secrets sont versionnés sous forme **chiffrée** avec [SOPS](https://github.com/getsops/sops) :
+  1. Copier le modèle :
+     ```bash
+     cp inventory/group_vars/vps/secrets.sops.yaml.example inventory/group_vars/vps/secrets.sops.yaml
+     ```
+  2. Ajouter votre clé publique age à `.sops.yaml` (`age1...`).
+  3. Chiffrer le fichier :
+     ```bash
+     sops --encrypt --in-place inventory/group_vars/vps/secrets.sops.yaml
+     ```
+  4. Éditer le secret de façon sécurisée :
+     ```bash
+     sops inventory/group_vars/vps/secrets.sops.yaml
+     ```
+
+Les clés `vps_external_dns_api_token` et `vps_keycloak_admin_password` doivent être présentes dans ce fichier pour que le playbook `vps_provision.yml` aboutisse. Un échec explicite est déclenché si ces valeurs manquent.
+
 ## Commandes Make disponibles
 - `make gen HOST=<nom>` : génère `user-data` et `meta-data` dans `autoinstall/generated/<nom>/`.
 - `make gen PROFILE=<profil>` : génère les artefacts pour un profil matériel sous `autoinstall/generated/<profil>/`.
@@ -125,7 +146,13 @@ Pour finaliser la configuration d'un VPS après installation :
 ansible-playbook -i inventory/hosts.yml ansible/playbooks/vps_provision.yml -u ubuntu --become
 ```
 
-Définir les variables via `group_vars` ou l'option `-e` (ex. `vps_domain`, `vps_acme_email`, `vps_external_dns_api_token`).
+Définir les variables via `inventory/group_vars/vps/` (voir section précédente) ou, pour des tests ponctuels, l'option `-e`.
+
+Avant exécution :
+
+```bash
+ansible-galaxy collection install -r ansible/collections/requirements.yml
+```
 
 ## Ressources supplémentaires
 - [Documentation originale en anglais](README.en.md)

@@ -1,0 +1,8 @@
+---
+# Group defaults for all VPS hosts managed via Ansible
+vps_domain: example.net
+vps_acme_email: admin@example.net
+vps_external_dns_provider: cloudflare
+
+# Path to the encrypted secrets file handled by SOPS. Must exist in Git.
+vps_secrets_file: "{{ inventory_dir }}/group_vars/vps/secrets.sops.yaml"

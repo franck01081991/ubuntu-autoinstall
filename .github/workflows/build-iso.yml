@@ -51,8 +51,9 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pip xorriso p7zip-full make wget genisoimage
+          sudo apt-get install -y python3-pip xorriso p7zip-full make wget genisoimage sops age
           python3 -m pip install --user -r ansible/requirements.txt
+          $HOME/.local/bin/ansible-galaxy collection install -r ansible/collections/requirements.yml
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Download Ubuntu ISO
