@@ -5,9 +5,11 @@ UBUNTU_ISO ?= ubuntu-24.04-live-server-amd64.iso
 
 BAREMETAL_DIR ?= baremetal
 VPS_DIR ?= vps
+VPS_HOST ?= vps-sapinet
 TARGET := $(if $(PROFILE),$(PROFILE),$(HOST))
+VPS_TARGET := $(if $(PROFILE),$(PROFILE),$(VPS_HOST))
 
-.PHONY: baremetal/gen baremetal/seed baremetal/fulliso baremetal/clean vps/provision vps/lint lint
+.PHONY: baremetal/gen baremetal/seed baremetal/fulliso baremetal/clean vps/gen vps/clean vps/provision vps/lint lint
 
 baremetal/gen:
 	cd $(BAREMETAL_DIR)/ansible/playbooks && PROFILE=$(PROFILE) HOST=$(TARGET) $(ANSIBLE) generate_autoinstall.yml
@@ -21,6 +23,12 @@ baremetal/fulliso: baremetal/gen
 baremetal/clean:
 	rm -rf $(BAREMETAL_DIR)/autoinstall/generated/*
 
+vps/gen:
+	cd $(VPS_DIR)/ansible/playbooks && PROFILE=$(PROFILE) HOST=$(VPS_TARGET) $(ANSIBLE) generate_autoinstall.yml
+
+vps/clean:
+	rm -rf $(VPS_DIR)/autoinstall/generated/*
+
 vps/provision:
 	$(ANSIBLE) -i $(VPS_DIR)/inventory/hosts.yml $(VPS_DIR)/ansible/playbooks/provision.yml
 
@@ -30,6 +38,6 @@ vps/lint:
 
 lint:
 	yamllint ansible baremetal vps .github/workflows
-	ansible-lint baremetal/ansible/playbooks/generate_autoinstall.yml vps/ansible/playbooks/provision.yml
+	ansible-lint ansible/playbooks/common/generate_autoinstall.yml baremetal/ansible/playbooks/generate_autoinstall.yml vps/ansible/playbooks/generate_autoinstall.yml vps/ansible/playbooks/provision.yml
 	find scripts baremetal/scripts -type f -name '*.sh' -print0 | xargs -0 -r shellcheck
 	find README*.md docs -type f -name '*.md' -print0 | xargs -0 -r markdownlint
