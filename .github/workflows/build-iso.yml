@@ -1,6 +1,7 @@
+---
 name: Build Bare Metal ISOs
 
-on:
+"on":
   workflow_dispatch:
     inputs:
       UBUNTU_ISO_URL:
@@ -8,7 +9,7 @@ on:
         required: false
         default: "https://old-releases.ubuntu.com/releases/24.04/ubuntu-24.04-live-server-amd64.iso"
   push:
-    branches: [ main, master ]
+    branches: [main, master]
     paths:
       - 'baremetal/**'
       - 'ansible/**'
@@ -27,10 +28,10 @@ jobs:
       contents: read
       actions: write
     runs-on: ubuntu-latest
-      strategy:
-        fail-fast: false
-        matrix:
-          model: [ "lenovo-m710q", "dell-optiplex-3020m", "lenovo-90dq004yfr" ]
+    strategy:
+      fail-fast: false
+      matrix:
+        model: ["lenovo-m710q", "dell-optiplex-3020m", "lenovo-90dq004yfr"]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

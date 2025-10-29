@@ -1,0 +1,91 @@
+---
+name: Repository Integrity
+
+"on":
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python lint dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r ansible/requirements.txt
+          python -m pip install yamllint ansible-lint
+
+      - name: Install system tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck npm
+
+      - name: Install markdownlint-cli
+        run: |
+          sudo npm install -g markdownlint-cli
+
+      - name: Install Ansible collections
+        run: |
+          ansible-galaxy collection install -r ansible/collections/requirements.yml
+
+      - name: Run yamllint
+        run: |
+          yamllint ansible baremetal vps .github/workflows
+
+      - name: Run ansible-lint
+        run: |
+          ansible-lint baremetal/ansible/playbooks/generate_autoinstall.yml vps/ansible/playbooks/provision.yml
+
+      - name: Run ShellCheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find scripts baremetal/scripts -type f -name '*.sh' -print)
+          if [ "${#files[@]}" -gt 0 ]; then
+            shellcheck "${files[@]}"
+          else
+            echo "No shell scripts to lint."
+          fi
+
+      - name: Run markdownlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          files=(README*.md docs/**/*.md)
+          if [ "${#files[@]}" -gt 0 ]; then
+            markdownlint "${files[@]}"
+          else
+            echo "No markdown files to lint."
+          fi
+
+  security:
+    name: Trivy configuration scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          scan-type: fs
+          scanners: config,secret
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL

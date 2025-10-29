@@ -7,7 +7,7 @@ BAREMETAL_DIR ?= baremetal
 VPS_DIR ?= vps
 TARGET := $(if $(PROFILE),$(PROFILE),$(HOST))
 
-.PHONY: baremetal/gen baremetal/seed baremetal/fulliso baremetal/clean vps/provision vps/lint
+.PHONY: baremetal/gen baremetal/seed baremetal/fulliso baremetal/clean vps/provision vps/lint lint
 
 baremetal/gen:
 	cd $(BAREMETAL_DIR)/ansible/playbooks && PROFILE=$(PROFILE) HOST=$(TARGET) $(ANSIBLE) generate_autoinstall.yml
@@ -27,3 +27,9 @@ vps/provision:
 vps/lint:
 	yamllint $(VPS_DIR)/inventory $(VPS_DIR)/ansible
 	ansible-lint $(VPS_DIR)/ansible/playbooks/provision.yml
+
+lint:
+	yamllint ansible baremetal vps .github/workflows
+	ansible-lint baremetal/ansible/playbooks/generate_autoinstall.yml vps/ansible/playbooks/provision.yml
+	find scripts baremetal/scripts -type f -name '*.sh' -print0 | xargs -0 -r shellcheck
+	find README*.md docs -type f -name '*.md' -print0 | xargs -0 -r markdownlint
