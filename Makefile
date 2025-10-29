@@ -58,7 +58,7 @@ kubernetes/bootstrap:
 
 kubernetes/lint:
 	yamllint $(KUBERNETES_DIR)
-	ansible-lint $(KUBERNETES_DIR)/ansible/playbooks/site.yml
+	cd $(KUBERNETES_DIR)/ansible && ansible-lint playbooks/site.yml
 	for env in $(TF_ENVS); do terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env fmt -check; terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env validate; done
 	find $(KUBERNETES_DIR)/flux \( -name '*.yaml' -o -name '*.yml' \) -print0 | xargs -0 -r kubeconform -summary -strict
 
