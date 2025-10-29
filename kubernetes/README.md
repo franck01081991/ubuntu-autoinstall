@@ -48,6 +48,17 @@ make kubernetes/lint        # Lint Ansible/Terraform/YAML/Kustomize
 make kubernetes/security    # Scans sécurité (tfsec, kube-linter, Trivy)
 ```
 
+## Outils requis pour la CI locale
+
+```bash
+python -m pip install --upgrade pip ansible-core ansible-lint yamllint checkov
+curl -sSLO https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+tar -xf kubeconform-linux-amd64.tar.gz kubeconform && sudo mv kubeconform /usr/local/bin/
+curl -sSfL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install.sh | bash
+curl -sSfL https://github.com/stackrox/kube-linter/releases/download/v0.6.8/kube-linter-linux.tar.gz | tar xz -C /tmp && sudo mv /tmp/kube-linter /usr/local/bin/
+curl -sL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+```
+
 ## Hypothèses
 
 - Deux sites (`site-a`, `site-b`) disposant chacun de 1 nœud control-plane et
