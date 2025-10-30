@@ -22,7 +22,7 @@
 
 ## Statut
 
-Acceptée (2024-09-15).
+Supplantée par [ADR 2024-11-26](2024-11-26-independent-disks.md).
 
 ## Conséquences
 

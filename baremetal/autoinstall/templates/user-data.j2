@@ -44,7 +44,6 @@ autoinstall:
         wipe: superblock-recursive
         ptable: gpt
         grub_device: true
-{% set extra = namespace(pvs=[]) %}
 {% for extra_disk in additional_disk_devices | default([]) %}
       - id: disk{{ loop.index }}
         type: disk
@@ -52,12 +51,6 @@ autoinstall:
           path: "{{ extra_disk }}"
         wipe: superblock-recursive
         ptable: gpt
-      - type: partition
-        id: pv_extra{{ loop.index }}
-        device: disk{{ loop.index }}
-        size: -1
-        flag: lvm
-{%   set _ = extra.pvs.append('pv_extra' ~ loop.index) %}
 {% endfor %}
       - type: partition
         id: efi
@@ -69,10 +62,9 @@ autoinstall:
         device: disk0
         size: 1G
       - type: partition
-        id: pv1
+        id: root
         device: disk0
         size: -1
-        flag: lvm
       - type: format
         id: fmt-efi
         volume: efi
@@ -81,16 +73,9 @@ autoinstall:
         id: fmt-boot
         volume: boot
         fstype: ext4
-      - type: lvm_volgroup
-        id: vg0
-        devices: [ pv1{% for pv in extra.pvs %}, {{ pv }}{% endfor %} ]
-      - type: lvm_partition
-        id: lv_root
-        volgroup: vg0
-        size: -1
       - type: format
         id: fmt-root
-        volume: lv_root
+        volume: root
         fstype: ext4
       - type: mount
         id: mnt-efi
@@ -104,6 +89,20 @@ autoinstall:
         id: mnt-root
         path: /
         device: fmt-root
+{% for extra_disk in additional_disk_devices | default([]) %}
+      - type: partition
+        id: part-extra{{ loop.index }}
+        device: disk{{ loop.index }}
+        size: -1
+      - type: format
+        id: fmt-extra{{ loop.index }}
+        volume: part-extra{{ loop.index }}
+        fstype: ext4
+      - type: mount
+        id: mnt-extra{{ loop.index }}
+        path: /mnt/disk{{ loop.index }}
+        device: fmt-extra{{ loop.index }}
+{% endfor %}
 {% if netmode == 'static' %}
   network:
     version: 2
