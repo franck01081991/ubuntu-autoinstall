@@ -375,8 +375,8 @@ Le playbook `vps/ansible/playbooks/provision.yml` invoque le rôle
 `overlay_network` pour déployer un overlay L2 chiffré entre les VPS :
 
 - **WireGuard (`wg0`)** assure le transport chiffré. Les variables
-  `overlay_network_wireguard_*` pilotent l'interface tandis que les secrets sont gérés
-  via SOPS.
+  `overlay_network_wireguard_*` pilotent l'interface tandis que les secrets sont
+  gérés via SOPS.
 - **VXLAN (`vxlan<id>`)** fournit le domaine L2 au-dessus de WireGuard. Les VTEP
   distants sont listés dans `overlay_network_vxlan_remotes` et raccordés au pont
   `overlay_network_bridge_name`.
@@ -388,9 +388,9 @@ Le playbook `vps/ansible/playbooks/provision.yml` invoque le rôle
   `overlay_network_keepalived_*`.
 
 Renseignez `vps/inventory/host_vars/<hôte>.yml` avec les paramètres propres à
-chaque nœud (peers WireGuard, VTEP VXLAN, voisins BGP, priorité VRRP). Les
-valeurs communes se situent dans `vps/inventory/group_vars/vps/main.yml` et
-peuvent être adaptées par environnement.
+chaque nœud (peers WireGuard, VTEP VXLAN, voisins BGP, priorité VRRP).
+Les valeurs communes se situent dans `vps/inventory/group_vars/vps/main.yml`
+et peuvent être adaptées par environnement.
 
 > **Hypothèse** : Ubuntu utilise Netplan avec `systemd-networkd` comme backend
 > (configuration par défaut). Adapter les templates si un autre gestionnaire
@@ -405,5 +405,7 @@ d'exécuter Ansible.
 ## Ressources supplémentaires
 
 - [Documentation originale en anglais](README.en.md)
-- [Ubuntu Autoinstall Reference](https://ubuntu.com/server/docs/install/autoinstall)
-- [Cloud-init NoCloud Datasource](https://cloudinit.readthedocs.io/en/latest/topics/datasources/nocloud.html)
+- [Ubuntu Autoinstall Reference]
+  (<https://ubuntu.com/server/docs/install/autoinstall>)
+- [Cloud-init NoCloud Datasource]
+  (<https://cloudinit.readthedocs.io/en/latest/topics/datasources/nocloud.html>)

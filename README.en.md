@@ -340,16 +340,16 @@ an encrypted L2 overlay across VPS nodes. The automation delivers:
   VTEPs are enumerated via `overlay_network_vxlan_remotes` and bridged into
   `overlay_network_bridge_name`.
 - **FRRouting (BGP EVPN)** to exchange overlay reachability and coordinate VXLAN
-  flooding. Neighbours are described by `overlay_network_bgp_neighbors` with shared AS
-  numbers defined in `overlay_network_bgp_asn`.
+  flooding. Neighbours are described by `overlay_network_bgp_neighbors` with
+  shared AS numbers defined in `overlay_network_bgp_asn`.
 - **Keepalived (VRRP)** to expose a highly available virtual IP carried by the
   overlay bridge. Secrets and tuning flags rely on `overlay_network_keepalived_*`
   variables.
 
 Populate `vps/inventory/host_vars/<host>.yml` with the peer-specific parameters
-(WireGuard endpoints, VXLAN VTEPs, BGP neighbours, Keepalived priorities). Shared
-defaults live in `vps/inventory/group_vars/vps/main.yml` and can be tuned per
-environment.
+(WireGuard endpoints, VXLAN VTEPs, BGP neighbours, Keepalived priorities).
+Shared defaults live in `vps/inventory/group_vars/vps/main.yml` and can be tuned
+per environment.
 
 > **Assumption**: Ubuntu hosts are configured with Netplan using
 > `systemd-networkd` as the backend (default on fresh installations). Adjust the
