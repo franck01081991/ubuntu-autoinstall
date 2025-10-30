@@ -209,6 +209,14 @@ spécifiques via Ansible.
     `linux-tools-generic` sont installés par défaut. `powertop-autotune` et
     `thermald` sont activés automatiquement pour limiter le throttling dans le
     châssis ultra-compact et garantir le support du CPU Haswell.
+- `baieyu-p09` : Mini PC fanless Baieyu P09 (Intel Celeron 3865U, 4 Go de RAM,
+  SSD SATA 256 Go) destiné aux usages professionnels basse consommation. Le
+  profil privilégie l'ethernet filaire (multiples ports) tout en conservant le
+  HDMI pour les affichages de supervision.
+  - Optimisations : microcode Intel, `thermald`, `powertop`, `lm-sensors` et
+    `linux-tools-generic` sont intégrés avec activation automatique de
+    `powertop-autotune` et `thermald` pour maintenir les températures du châssis
+    passif.
 - `lenovo-90dq004yfr` : IdeaCentre 300S-11IBR (référence 90DQ004YFR) basé
   uniquement sur un disque SATA. Ce profil applique les optimisations
   d'alimentation et de microcode adaptées aux puces Intel de cette génération.
