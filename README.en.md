@@ -178,8 +178,8 @@ customize site-specific files via Ansible.
     `linux-tools-generic` are preinstalled; `powertop-autotune` and `thermald`
     are enabled automatically to mitigate throttling in the ultra-compact
     chassis.
-- `lenovo-90dq004yfr`: ThinkCentre M700 Tiny (90DQ004YFR) using SATA only, tuned
-  for that platform’s power/microcode characteristics.
+- `lenovo-90dq004yfr`: IdeaCentre 300S-11IBR (90DQ004YFR) using SATA only,
+  tuned for that platform’s power/microcode characteristics.
 
 ## Bare metal host variables
 
