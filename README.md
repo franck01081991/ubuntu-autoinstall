@@ -200,9 +200,15 @@ spécifiques via Ansible.
 - `lenovo-m710q` : ThinkCentre M710q Tiny équipé d'un NVMe et d'un emplacement
   SATA 2,5". Le profil assemble les deux disques dans le même volume LVM afin
   d'offrir une capacité unique.
-  - Optimisations : microcode Intel, `thermald`, `powertop` (service d'auto-
-    tune) et `lm-sensors` sont préinstallés pour stabiliser les températures et
-    l'efficacité énergétique du châssis compact.
+  - Matériel validé : Intel Core i7-7700T (4C/8T, turbo 3,8 GHz) et 16 Go de
+    DDR4-2400. Ces caractéristiques sont exposées via `hardware_specs` pour les
+    rapports d'infrastructure.
+  - Optimisations : microcode Intel, `thermald`, `powertop` (service
+    d'auto-tune), `lm-sensors` et `linux-tools-generic` sont préinstallés pour
+    stabiliser les températures et l'efficacité énergétique du châssis compact.
+  - Mémoire compressée : `systemd-zram-generator` est activé par défaut (50 %
+    de la RAM, plafond 8 Go, compression `zstd`) afin de disposer d'un swap en
+    RAM adapté aux workloads containerisés tout en préservant les SSD.
 - `dell-optiplex-3020m` : OptiPlex 3020M (Intel Core i5-4590T + chipset H81) à
   stockage SATA unique et carte réseau Intel I217-LM.
   - Optimisations : `intel-microcode`, `thermald`, `powertop`, `lm-sensors` et
@@ -241,6 +247,10 @@ paramètres suivants :
   `powertop-autotune`.
 - `enable_thermald` : active le service `thermald` après installation (pensez à
   ajouter le paquet dans `extra_packages`).
+- `enable_zram_generator` : provisionne `systemd-zram-generator` et active un
+  swap compressé en RAM.
+- `zram_generator_config` : dictionnaire décrivant la configuration ZRAM
+  (ex. `swap.zram-fraction: 0.5`, `swap.max-zram-size: 8192`).
 
 ## Gestion des variables et secrets partagés
 

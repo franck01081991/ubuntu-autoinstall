@@ -7,13 +7,33 @@ nic: enp1s0
 disk_device: /dev/nvme0n1
 additional_disk_devices:
   - /dev/sda
+hardware_specs:
+  cpu:
+    model: intel-core-i7-7700t
+    architecture: kaby-lake
+    cores: 4
+    threads: 8
+    turbo_mhz: 3800
+  memory:
+    total_gb: 16
+    type: ddr4
+    speed_mhz: 2400
 extra_packages:
   - intel-microcode
   - thermald
   - powertop
   - lm-sensors
   - linux-tools-generic
+  - systemd-zram-generator
 enable_powertop_autotune: true
+enable_thermald: true
+enable_zram_generator: true
+zram_generator_config:
+  swap:
+    zram-fraction: 0.5
+    max-zram-size: 8192
+    compression-algorithm: zstd
+    swap-priority: 100
 ssh_authorized_keys:
   - ssh-ed25519 AAAA...REPLACE_ME your_key@model
 password_hash: $y$j9T$REPLACE_ME_HASH

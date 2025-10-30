@@ -170,8 +170,14 @@ customize site-specific files via Ansible.
 
 - `lenovo-m710q`: ThinkCentre M710q Tiny with NVMe + 2.5" SATA; both disks join
   a single LVM volume for extra capacity.
+  - Validated hardware: Intel Core i7-7700T (4C/8T, 3.8 GHz turbo) and 16 GB of
+    DDR4-2400, exposed through `hardware_specs` for infrastructure reporting.
   - Optimisations: Intel microcode, `thermald`, `powertop` (auto-tune service),
-    and `lm-sensors` ship pre-installed to stabilise thermals and efficiency.
+    `lm-sensors`, and `linux-tools-generic` ship pre-installed to stabilise
+    thermals and efficiency.
+  - Compressed memory: `systemd-zram-generator` is enabled by default (50 % of
+    RAM, capped at 8 GB, `zstd` compression) to deliver RAM-backed swap suited to
+    container workloads while preserving SSD endurance.
 - `dell-optiplex-3020m`: OptiPlex 3020M (Intel Core i5-4590T + H81 chipset)
   running on a single SATA drive with an Intel I217-LM NIC.
   - Optimisations: `intel-microcode`, `thermald`, `powertop`, `lm-sensors`, and
@@ -199,6 +205,10 @@ Each `baremetal/inventory/host_vars/<host>.yml` may define:
 - `enable_powertop_autotune`: enables the `powertop-autotune` systemd service.
 - `enable_thermald`: enables the `thermald` service post-install (remember to
   add the package in `extra_packages`).
+- `enable_zram_generator`: provisions `systemd-zram-generator` and enables
+  compressed RAM-backed swap.
+- `zram_generator_config`: dictionary describing ZRAM settings (for example
+  `swap.zram-fraction: 0.5`, `swap.max-zram-size: 8192`).
 
 ## Shared variables and secrets management
 
