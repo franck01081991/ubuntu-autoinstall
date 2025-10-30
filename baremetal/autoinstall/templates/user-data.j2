@@ -145,3 +145,9 @@ EOF'
     - curtin in-target -- systemctl enable thermald
     - curtin in-target -- systemctl start thermald
 {% endif %}
+{% if enable_zram_generator | default(false) %}
+{%   set zram_cfg = (zram_generator_config | default({})).get('swap', {}) %}
+    - curtin in-target -- bash -lc 'cat >/etc/systemd/zram-generator.conf <<"EOF"\n[zram0]\n{% if zram_cfg['zram-fraction'] is defined %}zram-fraction = {{ zram_cfg['zram-fraction'] }}\n{% endif %}{% if zram_cfg['max-zram-size'] is defined %}max-zram-size = {{ zram_cfg['max-zram-size'] }}M\n{% endif %}{% if zram_cfg['compression-algorithm'] is defined %}compression-algorithm = {{ zram_cfg['compression-algorithm'] }}\n{% endif %}{% if zram_cfg['swap-priority'] is defined %}swap-priority = {{ zram_cfg['swap-priority'] }}\n{% endif %}EOF'
+    - curtin in-target -- systemctl enable systemd-zram-setup@zram0.service
+    - curtin in-target -- systemctl start systemd-zram-setup@zram0.service
+{% endif %}
