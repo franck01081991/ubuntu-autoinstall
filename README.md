@@ -75,7 +75,7 @@ baremetal/
 vps/
 ├── ansible/            # Rendu autoinstall + provisioning applicatif
 ├── autoinstall/        # Artefacts générés (templates partagés)
-└── inventory/          # Inventaire et secrets chiffrés SOPS
+└── inventory/          # Inventaire, secrets chiffrés SOPS et profils VPS
 ansible/                # Dépendances communes (collections, requirements)
 ansible/playbooks/common/ # Tâches partagées entre playbooks
 scripts/install-sops.sh # Installation SOPS (baremetal & vps)
@@ -83,11 +83,12 @@ scripts/install-sops.sh # Installation SOPS (baremetal & vps)
 
 ## Périmètre bare metal
 
-- **Infrastructure ciblée** : ce dépôt gère exclusivement le provisioning
-  **bare metal** (ISO seed ou complète) pour les hôtes Ubuntu Server.
-- **Pas d'IaC cloud** : aucune ressource distante (Terraform, Kubernetes,
-  secrets chiffrés) n'est gérée ici ; tout changement d'infrastructure cloud
-  doit être traité dans un dépôt dédié.
+- **Chaîne `baremetal/`** : se concentre sur la génération des fichiers
+  autoinstall NoCloud et des ISO seed/full pour les hôtes physiques Ubuntu
+  Server.
+- **Pas d'IaC cloud dans ce dépôt** : Terraform, Kubernetes ou la gestion de
+  secrets distants doivent être traités dans des référentiels dédiés. La chaîne
+  VPS décrite plus bas reste purement Ansible.
 - **Traçabilité GitOps** : chaque hôte ou profil matériel est décrit via
   Ansible/Jinja et suivi par la CI, ce qui assure une auditabilité complète sans
   scripts ad hoc.
@@ -96,8 +97,8 @@ scripts/install-sops.sh # Installation SOPS (baremetal & vps)
 
 - Ubuntu 24.04 Live Server ISO officiel (pour `make baremetal/fulliso`).
 - Python 3.10+ et Ansible installés dans l'environnement de build.
-- Outils systèmes : `mkpasswd`, `cloud-localds`, `xorriso`, `genisoimage` ou
-  équivalents selon la distribution.
+- Outils systèmes : `xorriso` (création d'ISO) et `mkpasswd` (génération de
+  hash de mot de passe).
 - [SOPS](https://github.com/getsops/sops) et une paire de clés
   [age](https://age-encryption.org/) pour chiffrer les variables sensibles. Le
   script `scripts/install-sops.sh` installe la version recommandée (Linux
@@ -228,7 +229,9 @@ paramètres suivants :
 ## Gestion des variables et secrets partagés
 
 - Les variables communes aux VPS vivent dans `vps/inventory/group_vars/vps/`
-  pour rester proches de l'inventaire GitOps.
+  pour rester proches de l'inventaire GitOps. Les profils mutualisés peuvent
+  être ajoutés sous `vps/inventory/profiles/hardware/` pour accélérer la
+  génération autoinstall côté VPS.
 - Les secrets sont versionnés sous forme **chiffrée** avec
   [SOPS](https://github.com/getsops/sops) :
   1. Copier le modèle :
@@ -265,6 +268,8 @@ lancé si ces valeurs manquent.
 
 ## Commandes Make disponibles
 
+- `make doctor` : vérifie les dépendances requises et suggère les outils de
+  linting optionnels pour coller à la CI.
 - `make baremetal/gen HOST=<nom>` : génère `user-data` et `meta-data` dans
   `baremetal/autoinstall/generated/<nom>/`.
 - `make baremetal/gen PROFILE=<profil>` : génère les artefacts pour un profil

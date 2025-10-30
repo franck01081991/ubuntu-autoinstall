@@ -40,15 +40,17 @@ Les commandes Make utilisent des outils standards. Vérifiez leur disponibilité
 make doctor
 ```
 
-Le `Makefile` déclenchera les vérifications suivantes :
+Le `Makefile` contrôle la présence :
 
-- Python 3.10+ et Ansible
-- `cloud-localds`, `xorriso`, `mkpasswd`
-- SOPS et une clé `age` valide
+- de `python3` et `ansible-playbook` ;
+- de `xorriso` (construction d'ISO) et `mkpasswd` (hash de mot de passe) ;
+- de `sops` et d'un binaire `age` dans le `PATH`.
 
-> ℹ️ Si `make doctor` échoue, installez les dépendances manquantes dans votre
-> environnement de développement **puis relancez la commande**. Le dépôt ne
-> contient aucun script qui contourne ces prérequis.
+Il signale également (sans échouer) l'absence des linters utilisés en CI :
+`yamllint`, `ansible-lint`, `shellcheck` et `markdownlint`.
+
+> ℹ️ Si `make doctor` échoue, installez les dépendances requises puis relancez
+> la commande. Aucun contournement n'est proposé dans le dépôt.
 
 ## 3. Préparer un fichier `host_vars`
 
@@ -60,15 +62,17 @@ cp baremetal/inventory/host_vars/example.yml \
   baremetal/inventory/host_vars/site-a-m710q1.yml
 ```
 
-Editez le fichier copié et personnalisez :
+Éditez le fichier copié et personnalisez :
 
-- `ansible_host` et `ansible_user` (accès SSH post-install).
-- `autoinstall.identity.hostname` pour le nom de la machine.
-- `autoinstall.storage.disks` pour refléter la topologie de disques réelle.
-- `ssh_authorized_keys` avec votre clé publique.
+- `hostname` : nom attribué à la machine pendant l'installation ;
+- `hardware_profile` : profil matériel (ex. `lenovo-m710q`) pour hériter des
+  paramètres standards ;
+- `netmode` : `dhcp` ou `static` selon votre réseau ;
+- `ssh_authorized_keys` : remplacez la clé de démonstration ;
+- `password_hash` : générez un hash yescrypt/SHA512 via `mkpasswd`.
 
-> 💡 Les champs optionnels sont commentés dans `example.yml`. Laissez-les tel quel
-> si vous débutez.
+> 💡 Ajoutez des champs comme `disk_device`, `ip`, `gw` ou `extra_packages` si
+> vous devez dépasser les valeurs fournies par le profil matériel choisi.
 
 ## 4. Générer les fichiers autoinstall
 

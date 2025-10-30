@@ -67,7 +67,7 @@ baremetal/
 vps/
 ├── ansible/            # Autoinstall rendering + post-install provisioning
 ├── autoinstall/        # Generated artefacts (templates shared with baremetal)
-└── inventory/          # Inventory and SOPS-encrypted secrets
+└── inventory/          # Inventory, SOPS secrets, and VPS profiles
 ansible/                # Shared dependencies (collections, requirements)
 ansible/playbooks/common/ # Shared task files between playbooks
 scripts/install-sops.sh # SOPS installer (baremetal & vps)
@@ -75,19 +75,20 @@ scripts/install-sops.sh # SOPS installer (baremetal & vps)
 
 ## Bare metal scope
 
-- **Target infrastructure**: only bare metal provisioning (seed or full ISO) for
-  Ubuntu Server hosts.
-- **No cloud IaC**: Terraform/Kubernetes/secrets are out of scope; manage them in
-  dedicated repositories.
-- **GitOps traceability**: hosts and profiles are described via Ansible/Jinja,
-  tracked by CI, ensuring auditability without ad-hoc scripts.
+- **`baremetal/` track**: focuses on rendering NoCloud autoinstall files and
+  building seed/full ISOs for physical Ubuntu Server hosts.
+- **No cloud IaC stored here**: Terraform, Kubernetes, and remote secret
+  management belong in dedicated repositories. The VPS track below remains pure
+  Ansible automation.
+- **GitOps traceability**: hosts and hardware profiles are defined via
+  Ansible/Jinja and validated by CI for auditability without ad-hoc scripts.
 
 ## Prerequisites
 
 - Official Ubuntu 24.04 Live Server ISO (for `make baremetal/fulliso`).
 - Python 3.10+ and Ansible available on the build workstation.
-- System utilities: `mkpasswd`, `cloud-localds`, `xorriso`, `genisoimage`, or
-  equivalents.
+- System utilities: `xorriso` (ISO authoring) and `mkpasswd` (password hash
+  generation).
 - [SOPS](https://github.com/getsops/sops) plus an
   [age](https://age-encryption.org/) key pair to encrypt sensitive vars.
   `scripts/install-sops.sh` installs the recommended release (Linux amd64) and
@@ -194,7 +195,8 @@ Each `baremetal/inventory/host_vars/<host>.yml` may define:
 ## Shared variables and secrets management
 
 - Shared VPS variables are kept in `vps/inventory/group_vars/vps/` close to the
-  inventory.
+  inventory. Reusable VPS autoinstall profiles can be stored under
+  `vps/inventory/profiles/hardware/`.
 - Secrets are versioned **encrypted** with [SOPS](https://github.com/getsops/sops):
   1. Copy the template:
 
@@ -229,6 +231,8 @@ playbook fails loudly when they are missing.
 
 ## Available Make targets
 
+- `make doctor`: verify required dependencies and suggest optional linters to
+  mirror CI tooling.
 - `make baremetal/gen HOST=<name>`: render `user-data`/`meta-data` into
   `baremetal/autoinstall/generated/<name>/`.
 - `make baremetal/gen PROFILE=<profile>`: render artefacts for a hardware
