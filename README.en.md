@@ -172,6 +172,12 @@ customize site-specific files via Ansible.
   a single LVM volume for extra capacity.
   - Optimisations: Intel microcode, `thermald`, `powertop` (auto-tune service),
     and `lm-sensors` ship pre-installed to stabilise thermals and efficiency.
+- `dell-optiplex-3020m`: OptiPlex 3020M (Intel Core i5-4590T + H81 chipset)
+  running on a single SATA drive with an Intel I217-LM NIC.
+  - Optimisations: `intel-microcode`, `thermald`, `powertop`, `lm-sensors`, and
+    `linux-tools-generic` are preinstalled; `powertop-autotune` and `thermald`
+    are enabled automatically to mitigate throttling in the ultra-compact
+    chassis.
 - `lenovo-90dq004yfr`: ThinkCentre M700 Tiny (90DQ004YFR) using SATA only, tuned
   for that platform’s power/microcode characteristics.
 
@@ -191,6 +197,8 @@ Each `baremetal/inventory/host_vars/<host>.yml` may define:
 - `extra_packages`: additional packages to install (for example hardware
   optimisations).
 - `enable_powertop_autotune`: enables the `powertop-autotune` systemd service.
+- `enable_thermald`: enables the `thermald` service post-install (remember to
+  add the package in `extra_packages`).
 
 ## Shared variables and secrets management
 
