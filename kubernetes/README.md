@@ -70,14 +70,21 @@ deactivate
 ## Schémas Flux pour kubeconform
 
 Les définitions CRD nécessaires à `kubeconform` sont versionnées dans
-`kubernetes/flux/crds` et proviennent des releases stables suivantes :
+`kubernetes/flux/crds` (manifests sources) et `kubernetes/flux/schemas`
+(extraction JSON OpenAPI) et proviennent des releases stables suivantes :
 
 - `fluxcd/kustomize-controller` v1.3.0
 - `fluxcd/helm-controller` v0.38.0
 - `fluxcd/source-controller` v1.4.0
 
 Lors d'une mise à niveau de Flux, mettre à jour ces fichiers via les URLs
-officielles avant d'exécuter `make kubernetes/lint`.
+officielles avant d'exécuter `make kubernetes/lint`, puis régénérer les
+schémas JSON avec `yq` :
+
+```bash
+~/.local/bin/yq '.spec.versions[] | select(.storage==true).schema.openAPIV3Schema' \
+  kubernetes/flux/crds/<crd>.yaml | python -m json.tool > kubernetes/flux/schemas/<Kind>.json
+```
 ```
 
 ## Hypothèses
