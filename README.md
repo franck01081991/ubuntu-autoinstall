@@ -209,7 +209,7 @@ spécifiques via Ansible.
     `linux-tools-generic` sont installés par défaut. `powertop-autotune` et
     `thermald` sont activés automatiquement pour limiter le throttling dans le
     châssis ultra-compact et garantir le support du CPU Haswell.
-- `lenovo-90dq004yfr` : ThinkCentre M700 Tiny (référence 90DQ004YFR) basé
+- `lenovo-90dq004yfr` : IdeaCentre 300S-11IBR (référence 90DQ004YFR) basé
   uniquement sur un disque SATA. Ce profil applique les optimisations
   d'alimentation et de microcode adaptées aux puces Intel de cette génération.
 
