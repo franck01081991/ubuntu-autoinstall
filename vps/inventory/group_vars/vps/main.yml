@@ -1,8 +1,19 @@
 ---
 # Group defaults for all VPS hosts managed via Ansible
-vps_domain: example.net
-vps_acme_email: admin@example.net
-vps_external_dns_provider: cloudflare
-
-# Path to the encrypted secrets file handled by SOPS. Must exist in Git.
 vps_secrets_file: "{{ inventory_dir }}/group_vars/vps/secrets.sops.yaml"
+
+# Overlay networking defaults shared across the fleet
+overlay_wireguard_interface: wg0
+overlay_wireguard_listen_port: 51820
+overlay_wireguard_post_up:
+  - "sysctl -w net.ipv4.ip_forward=1"
+overlay_wireguard_post_down: []
+
+overlay_vxlan_id: 42
+overlay_bridge_name: br-overlay
+overlay_bridge_addresses: []
+
+overlay_bgp_asn: 65042
+overlay_keepalived_virtual_ips:
+  - 192.168.200.254/32 dev br-overlay
+overlay_keepalived_unicast_peers: []

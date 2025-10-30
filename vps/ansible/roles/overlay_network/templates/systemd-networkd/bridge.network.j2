@@ -1,0 +1,7 @@
+[Match]
+Name={{ overlay_bridge_name }}
+
+[Network]
+{% if overlay_bridge_addresses %}{% for address in overlay_bridge_addresses %}Address={{ address }}
+{% endfor %}{% else %}LinkLocalAddressing=no
+{% endif %}

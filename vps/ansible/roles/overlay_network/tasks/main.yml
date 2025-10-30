@@ -1,0 +1,157 @@
+---
+- name: Install overlay networking packages
+  ansible.builtin.apt:
+    name:
+      - bridge-utils
+      - frr
+      - frr-pythontools
+      - iproute2
+      - keepalived
+      - wireguard
+      - wireguard-tools
+    state: present
+    update_cache: true
+
+- name: Ensure overlay sysctl settings
+  ansible.builtin.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_set: true
+    state: present
+    reload: true
+  loop:
+    - { name: "net.ipv4.ip_forward", value: "1" }
+    - { name: "net.ipv6.conf.all.forwarding", value: "1" }
+    - { name: "net.ipv4.conf.all.rp_filter", value: "0" }
+    - { name: "net.ipv4.conf.default.rp_filter", value: "0" }
+    - { name: "net.ipv4.conf.all.accept_redirects", value: "0" }
+    - { name: "net.ipv4.conf.default.accept_redirects", value: "0" }
+  notify: Reload sysctl
+
+- name: Ensure WireGuard configuration directory exists
+  ansible.builtin.file:
+    path: /etc/wireguard
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Deploy WireGuard configuration
+  ansible.builtin.template:
+    src: wireguard/wg.conf.j2
+    dest: "/etc/wireguard/{{ overlay_wireguard_interface }}.conf"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart wireguard
+
+- name: Ensure WireGuard service enabled
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ overlay_wireguard_interface }}"
+    enabled: true
+    state: started
+
+- name: Ensure systemd-networkd configuration directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/network
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy overlay bridge netdev
+  ansible.builtin.template:
+    src: systemd-networkd/bridge.netdev.j2
+    dest: "/etc/systemd/network/{{ overlay_bridge_name }}.netdev"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart systemd-networkd
+
+- name: Deploy overlay bridge network
+  ansible.builtin.template:
+    src: systemd-networkd/bridge.network.j2
+    dest: "/etc/systemd/network/{{ overlay_bridge_name }}.network"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart systemd-networkd
+
+- name: Deploy overlay VXLAN netdev
+  ansible.builtin.template:
+    src: systemd-networkd/vxlan.netdev.j2
+    dest: "/etc/systemd/network/{{ overlay_vxlan_interface }}.netdev"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart systemd-networkd
+
+- name: Deploy overlay VXLAN network
+  ansible.builtin.template:
+    src: systemd-networkd/vxlan.network.j2
+    dest: "/etc/systemd/network/{{ overlay_vxlan_interface }}.network"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart systemd-networkd
+
+- name: Ensure systemd-networkd service enabled
+  ansible.builtin.systemd:
+    name: systemd-networkd
+    enabled: true
+    state: started
+
+- name: Ensure FRR configuration directory exists
+  ansible.builtin.file:
+    path: /etc/frr
+    state: directory
+    owner: frr
+    group: frr
+    mode: "0755"
+
+- name: Deploy FRR daemons configuration
+  ansible.builtin.template:
+    src: frr/daemons.j2
+    dest: /etc/frr/daemons
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload frr
+
+- name: Deploy FRR configuration
+  ansible.builtin.template:
+    src: frr/frr.conf.j2
+    dest: /etc/frr/frr.conf
+    owner: frr
+    group: frr
+    mode: "0640"
+  notify: Reload frr
+
+- name: Ensure FRR service is enabled
+  ansible.builtin.systemd:
+    name: frr
+    enabled: true
+    state: started
+
+- name: Ensure keepalived configuration directory exists
+  ansible.builtin.file:
+    path: /etc/keepalived
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy keepalived configuration
+  ansible.builtin.template:
+    src: keepalived/keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Restart keepalived
+
+- name: Ensure keepalived service is enabled
+  ansible.builtin.systemd:
+    name: keepalived
+    enabled: true
+    state: started
