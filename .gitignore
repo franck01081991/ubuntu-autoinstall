@@ -2,6 +2,7 @@
 baremetal/autoinstall/generated/
 kubernetes/terraform/generated/
 .cache/
+checkov-venv/
 *.iso
 # editor / OS
 .DS_Store

@@ -66,6 +66,18 @@ source checkov-venv/bin/activate
 pip install --upgrade pip
 pip install "importlib-metadata<8.0.0,>=6.0.0" checkov
 deactivate
+
+## Schémas Flux pour kubeconform
+
+Les définitions CRD nécessaires à `kubeconform` sont versionnées dans
+`kubernetes/flux/crds` et proviennent des releases stables suivantes :
+
+- `fluxcd/kustomize-controller` v1.3.0
+- `fluxcd/helm-controller` v0.38.0
+- `fluxcd/source-controller` v1.4.0
+
+Lors d'une mise à niveau de Flux, mettre à jour ces fichiers via les URLs
+officielles avant d'exécuter `make kubernetes/lint`.
 ```
 
 ## Hypothèses
