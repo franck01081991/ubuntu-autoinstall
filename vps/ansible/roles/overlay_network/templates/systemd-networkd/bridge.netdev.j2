@@ -1,0 +1,7 @@
+[NetDev]
+Name={{ overlay_network_bridge_name }}
+Kind=bridge
+MTU={{ overlay_network_bridge_mtu }}
+
+[Bridge]
+STP={{ 'yes' if overlay_network_bridge_stp else 'no' }}

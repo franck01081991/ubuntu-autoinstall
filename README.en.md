@@ -225,9 +225,11 @@ Each `baremetal/inventory/host_vars/<host>.yml` may define:
      sops vps/inventory/group_vars/vps/secrets.sops.yaml
      ```
 
-The keys `vps_external_dns_api_token` and `vps_keycloak_admin_password` must
-exist in this file for `vps/ansible/playbooks/provision.yml` to succeed. The
-playbook fails loudly when they are missing.
+The keys `overlay_network_wireguard_private_key` and
+`overlay_network_keepalived_auth_passphrase` must exist in this file for
+`vps/ansible/playbooks/provision.yml` to succeed. Optional per-peer WireGuard
+preshared keys can be added under `overlay_network_wireguard_preshared_keys`. The
+playbook fails loudly when the mandatory secrets are missing.
 
 ## Available Make targets
 
@@ -327,9 +329,36 @@ Install the required Ansible collections before running the playbook:
 ansible-galaxy collection install -r ansible/collections/requirements.yml
 ```
 
-The `ansible/collections/requirements.yml` file pins `community.sops` (**1.6.0**),
-`community.kubernetes` (**2.0.3**), and `kubernetes.core` (**3.0.1**) to supply
-Helm/kubectl modules needed for GitOps deployments.
+### Overlay networking architecture
+
+`vps/ansible/playbooks/provision.yml` calls the `overlay_network` role to deploy
+an encrypted L2 overlay across VPS nodes. The automation delivers:
+
+- **WireGuard (`wg0`)** as the encrypted transport. Interface settings come from
+  `overlay_network_wireguard_*` variables; secrets live in the SOPS-encrypted file.
+- **VXLAN (`vxlan<id>`)** on top of WireGuard to provide the L2 domain. Remote
+  VTEPs are enumerated via `overlay_network_vxlan_remotes` and bridged into
+  `overlay_network_bridge_name`.
+- **FRRouting (BGP EVPN)** to exchange overlay reachability and coordinate VXLAN
+  flooding. Neighbours are described by `overlay_network_bgp_neighbors` with
+  shared AS numbers defined in `overlay_network_bgp_asn`.
+- **Keepalived (VRRP)** to expose a highly available virtual IP carried by the
+  overlay bridge. Secrets and tuning flags rely on `overlay_network_keepalived_*`
+  variables.
+
+Populate `vps/inventory/host_vars/<host>.yml` with the peer-specific parameters
+(WireGuard endpoints, VXLAN VTEPs, BGP neighbours, Keepalived priorities).
+Shared defaults live in `vps/inventory/group_vars/vps/main.yml` and can be tuned
+per environment.
+
+> **Assumption**: Ubuntu hosts are configured with Netplan using
+> `systemd-networkd` as the backend (default on fresh installations). Adjust the
+> templates if another networking stack is in use.
+
+The `ansible/collections/requirements.yml` file pins `community.general`
+(**8.5.0**) for network automation helpers. The playbook decrypts secrets via
+the SOPS CLI (`scripts/install-sops.sh` installs it), so ensure the binary is
+available before running Ansible.
 
 ## Additional resources
 

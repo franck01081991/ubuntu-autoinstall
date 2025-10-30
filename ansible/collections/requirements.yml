@@ -1,8 +1,4 @@
 ---
 collections:
-  - name: community.sops
-    version: "1.6.0"
-  - name: community.kubernetes
-    version: "2.0.3"
-  - name: kubernetes.core
-    version: "3.0.1"
+  - name: community.general
+    version: "8.5.0"

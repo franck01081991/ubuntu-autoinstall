@@ -261,10 +261,12 @@ paramètres suivants :
      sops vps/inventory/group_vars/vps/secrets.sops.yaml
      ```
 
-Les clés `vps_external_dns_api_token` et `vps_keycloak_admin_password` doivent
-être présentes dans ce fichier pour que le playbook
-`vps/ansible/playbooks/provision.yml` aboutisse. Un échec explicite est
-lancé si ces valeurs manquent.
+Les clés `overlay_network_wireguard_private_key` et
+`overlay_network_keepalived_auth_passphrase` doivent être présentes dans ce fichier
+pour que le playbook `vps/ansible/playbooks/provision.yml` aboutisse.
+D'éventuels pré-partages WireGuard peuvent être définis dans
+`overlay_network_wireguard_preshared_keys`. Un échec explicite est lancé si les
+secrets obligatoires manquent.
 
 ## Commandes Make disponibles
 
@@ -367,12 +369,43 @@ Avant exécution :
 ansible-galaxy collection install -r ansible/collections/requirements.yml
 ```
 
-Le fichier `ansible/collections/requirements.yml` épingle `community.sops`
-(**1.6.0**), `community.kubernetes` (**2.0.3**) et `kubernetes.core` (**3.0.1**)
-afin d'alimenter les modules Helm/kubectl nécessaires aux déploiements GitOps.
+### Architecture réseau overlay
+
+Le playbook `vps/ansible/playbooks/provision.yml` invoque le rôle
+`overlay_network` pour déployer un overlay L2 chiffré entre les VPS :
+
+- **WireGuard (`wg0`)** assure le transport chiffré. Les variables
+  `overlay_network_wireguard_*` pilotent l'interface tandis que les secrets sont
+  gérés via SOPS.
+- **VXLAN (`vxlan<id>`)** fournit le domaine L2 au-dessus de WireGuard. Les VTEP
+  distants sont listés dans `overlay_network_vxlan_remotes` et raccordés au pont
+  `overlay_network_bridge_name`.
+- **FRRouting (BGP EVPN)** distribue les routes et les informations VXLAN.
+  Décrivez les voisins dans `overlay_network_bgp_neighbors` et l'AS dans
+  `overlay_network_bgp_asn`.
+- **Keepalived (VRRP)** expose une IP virtuelle hautement disponible sur le pont
+  overlay. Les paramètres se trouvent dans les variables
+  `overlay_network_keepalived_*`.
+
+Renseignez `vps/inventory/host_vars/<hôte>.yml` avec les paramètres propres à
+chaque nœud (peers WireGuard, VTEP VXLAN, voisins BGP, priorité VRRP).
+Les valeurs communes se situent dans `vps/inventory/group_vars/vps/main.yml`
+et peuvent être adaptées par environnement.
+
+> **Hypothèse** : Ubuntu utilise Netplan avec `systemd-networkd` comme backend
+> (configuration par défaut). Adapter les templates si un autre gestionnaire
+> réseau est utilisé.
+
+Le fichier `ansible/collections/requirements.yml` épingle `community.general`
+(**8.5.0**) pour bénéficier des modules réseau complémentaires. Le playbook
+décrypte les secrets via l'outil en ligne de commande SOPS (installable avec
+`scripts/install-sops.sh`) ; assurez-vous que le binaire est présent avant
+d'exécuter Ansible.
 
 ## Ressources supplémentaires
 
 - [Documentation originale en anglais](README.en.md)
-- [Ubuntu Autoinstall Reference](https://ubuntu.com/server/docs/install/autoinstall)
-- [Cloud-init NoCloud Datasource](https://cloudinit.readthedocs.io/en/latest/topics/datasources/nocloud.html)
+- [Ubuntu Autoinstall Reference]
+  (<https://ubuntu.com/server/docs/install/autoinstall>)
+- [Cloud-init NoCloud Datasource]
+  (<https://cloudinit.readthedocs.io/en/latest/topics/datasources/nocloud.html>)

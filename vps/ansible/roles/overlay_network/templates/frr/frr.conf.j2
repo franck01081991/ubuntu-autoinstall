@@ -1,0 +1,59 @@
+frr version 8
+frr defaults traditional
+hostname {{ inventory_hostname }}
+log syslog informational
+service integrated-vtysh-config
+
+interface {{ overlay_network_wireguard_interface }}
+ description WireGuard transport for overlay network
+ ip address {{ overlay_network_wireguard_address }}
+ no shutdown
+!
+
+interface {{ overlay_network_vxlan_interface }}
+ description VXLAN overlay interface
+ no shutdown
+!
+
+evpn
+ vni {{ overlay_network_vxlan_id }} l2
+  rd {{ overlay_network_bgp_asn }}:{{ overlay_network_vxlan_id }}
+  route-target import {{ overlay_network_bgp_asn }}:{{ overlay_network_vxlan_id }}
+  route-target export {{ overlay_network_bgp_asn }}:{{ overlay_network_vxlan_id }}
+  bridge {{ overlay_network_bridge_name }}
+ exit-vni
+!
+
+router bgp {{ overlay_network_bgp_asn }}
+ bgp router-id {{ overlay_network_bgp_router_id }}
+ no bgp ebgp-requires-policy
+ timers bgp 3 9
+ neighbor OVERLAY peer-group
+ neighbor OVERLAY update-source {{ overlay_network_wireguard_interface }}
+{% if overlay_network_bgp_evpn_advertise_all_vni %} neighbor OVERLAY capability extended-nexthop
+{% endif %}
+{% for neighbor in overlay_network_bgp_neighbors %} neighbor {{ neighbor.address }} peer-group OVERLAY
+ neighbor {{ neighbor.address }} remote-as {{ neighbor.asn | default(overlay_network_bgp_asn) }}
+{% if neighbor.description is defined and neighbor.description %} neighbor {{ neighbor.address }} description {{ neighbor.description }}
+{% endif %}
+{% if neighbor.update_source is defined and neighbor.update_source %} neighbor {{ neighbor.address }} update-source {{ neighbor.update_source }}
+{% endif %}
+{% if neighbor.multihop is defined and neighbor.multihop %} neighbor {{ neighbor.address }} ebgp-multihop {{ neighbor.multihop }}
+{% endif %}
+{% endfor %}
+!
+ address-family ipv4 unicast
+{% if overlay_network_bgp_export_connected %}  redistribute connected
+{% endif %}
+{% for neighbor in overlay_network_bgp_neighbors %}  neighbor {{ neighbor.address }} activate
+{% endfor %}
+ exit-address-family
+!
+ address-family l2vpn evpn
+{% if overlay_network_bgp_evpn_advertise_all_vni %}  advertise-all-vni
+{% endif %}
+{% for neighbor in overlay_network_bgp_neighbors %}  neighbor {{ neighbor.address }} activate
+{% endfor %}
+ exit-address-family
+!
+line vty
