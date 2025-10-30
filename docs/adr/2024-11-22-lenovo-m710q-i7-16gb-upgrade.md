@@ -1,4 +1,4 @@
-# ADR: Valider le profil Lenovo M710q Tiny (Core i7 + 16 Go DDR4) et activer la mémoire compressée
+# ADR: Profil Lenovo M710q Tiny i7 + 16 Go et mémoire compressée
 
 ## Contexte
 
@@ -17,9 +17,9 @@
   (CPU, architecture, threads, mémoire totale/type/vitesse) pour faciliter les
   rapports d'inventaire GitOps.
 - Étendre le profil `lenovo-m710q` avec `systemd-zram-generator` activé par
-  défaut (`enable_zram_generator: true`) et une configuration (`zram_generator_config`)
-  dimensionnée à 50 % de la RAM avec une limite à 8 Go, compression `zstd` et
-  priorité de swap à 100.
+  défaut (`enable_zram_generator: true`) et une configuration
+  (`zram_generator_config`) dimensionnée à 50 % de la RAM avec une limite à
+  8 Go, compression `zstd` et priorité de swap à 100.
 - Activer systématiquement `thermald` (`enable_thermald: true`) afin de garantir
   que le démon soit lancé post-installation et tire parti des paquets déjà
   présents.
@@ -39,10 +39,13 @@ Acceptée (2024-11-22).
   locaux.
 - `thermald` est systématiquement démarré, alignant le comportement avec les
   autres profils matériels optimisés.
-- La pipeline CI reste inchangée : les nouveaux champs YAML n'impactent pas les
-  autres profils mais deviennent disponibles pour de futures validations.
+- La pipeline CI reste inchangée : les nouveaux champs YAML n'impactent pas
+  les autres profils mais deviennent disponibles pour de futures validations.
 
 ## Références
 
-- [systemd-zram-generator](https://github.com/systemd/zram-generator)
-- [Lenovo ThinkCentre M710q Tiny PSREF](https://psref.lenovo.com/Product/ThinkCentre/ThinkCentre_M710q_Tiny)
+- [systemd-zram-generator][systemd-zram-generator]
+- [Lenovo ThinkCentre M710q Tiny PSREF][psref]
+
+[systemd-zram-generator]: https://github.com/systemd/zram-generator
+[psref]: https://psref.lenovo.com/Product/ThinkCentre/ThinkCentre_M710q_Tiny
