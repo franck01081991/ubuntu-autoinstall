@@ -316,6 +316,8 @@ secrets obligatoires manquent.
 - `pip install -r ansible/requirements.txt` : garantit l'utilisation de
   `ansible-core` en version 2.16.13 (correctif CVE-2024-8775) avant d'exécuter
   les playbooks.
+- `npm install -g markdownlint-cli@0.39.0` : aligne la version locale sur celle
+  épinglée dans la CI pour éviter les divergences de règles.
 
 ## Intégration continue
 
@@ -325,6 +327,10 @@ secrets obligatoires manquent.
     et `markdownlint` (identique à `make lint`).
   - job **Trivy configuration scan** : `trivy fs` échoue en cas de
     vulnérabilités **HIGH/CRITICAL** ou de secrets révélés.
+- Les dépendances sont mises en cache (pip, Ansible collections, npm) avec des
+  clés dérivées de `ansible/requirements.txt`,
+  `ansible/collections/requirements.yml` et de la version de `markdownlint-cli`
+  pour accélérer la pipeline tout en conservant l'idempotence.
 - Le workflow `.github/workflows/build-iso.yml` rend les fichiers autoinstall
   **par modèle matériel** (`PROFILE`) et construit les ISO seed/full pour
   validation.

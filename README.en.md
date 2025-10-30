@@ -278,6 +278,8 @@ playbook fails loudly when the mandatory secrets are missing.
   configuration & secret scanning with the same thresholds as CI.
 - `pip install -r ansible/requirements.txt`: installs `ansible-core` 2.16.13
   (fixes CVE-2024-8775) before running the playbooks.
+- `npm install -g markdownlint-cli@0.39.0`: keeps the local rule-set aligned
+  with the CI-pinned version to avoid drift.
 
 ## Continuous integration
 
@@ -287,6 +289,10 @@ playbook fails loudly when the mandatory secrets are missing.
     `markdownlint` (same scope as `make lint`).
   - **Trivy configuration scan** job: `trivy fs` fails the run on
     **HIGH/CRITICAL** findings or exposed secrets.
+- Dependencies are cached (pip, Ansible collections, npm) using keys derived
+  from `ansible/requirements.txt`, `ansible/collections/requirements.yml`, and
+  the `markdownlint-cli` version to speed up the workflow without breaking
+  idempotency.
 - The workflow `.github/workflows/build-iso.yml` renders autoinstall files **per
   hardware model** (`PROFILE`), builds both seed and full ISOs, and uploads them
   as artifacts.
