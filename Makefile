@@ -60,17 +60,17 @@ kubernetes/lint:
 	yamllint $(KUBERNETES_DIR)
 	cd $(KUBERNETES_DIR)/ansible && ansible-lint playbooks/site.yml
 	for env in $(TF_ENVS); do \
-		terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env init -backend=false -input=false >/dev/null; \
-		terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env fmt -check; \
-		terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env validate; \
+	terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env init -backend=false -input=false >/dev/null; \
+	terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env fmt -check; \
+	terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env validate; \
 	done
-       find $(KUBERNETES_DIR)/flux \( -name '*.yaml' -o -name '*.yml' \) -print0 | xargs -0 -r kubeconform -summary -strict \
-               --schema-location default \
-               --schema-location "https://raw.githubusercontent.com/fluxcd/flux2/main/manifests/crds/{kind}.json" \
-               --schema-location "https://raw.githubusercontent.com/fluxcd/source-controller/main/config/crd/bases/{kind}.yaml" \
-               --schema-location "https://raw.githubusercontent.com/fluxcd/helm-controller/main/config/crd/bases/{kind}.yaml" \
-               --schema-location "https://raw.githubusercontent.com/fluxcd/kustomize-controller/main/config/crd/bases/{kind}.yaml" \
-               --schema-location "file://$(abspath $(KUBERNETES_DIR))/flux/crds"
+	find $(KUBERNETES_DIR)/flux \( -name '*.yaml' -o -name '*.yml' \) -print0 | xargs -0 -r kubeconform -summary -strict \
+	--schema-location default \
+	--schema-location "https://raw.githubusercontent.com/fluxcd/flux2/main/manifests/crds/{kind}.json" \
+	--schema-location "https://raw.githubusercontent.com/fluxcd/source-controller/main/config/crd/bases/{kind}.yaml" \
+	--schema-location "https://raw.githubusercontent.com/fluxcd/helm-controller/main/config/crd/bases/{kind}.yaml" \
+	--schema-location "https://raw.githubusercontent.com/fluxcd/kustomize-controller/main/config/crd/bases/{kind}.yaml" \
+	--schema-location "file://$(abspath $(KUBERNETES_DIR))/flux/crds"
 kubernetes/plan:
 	for env in $(TF_ENVS); do terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env init -upgrade && terraform -chdir=$(KUBERNETES_DIR)/terraform/envs/$$env plan; done
 
