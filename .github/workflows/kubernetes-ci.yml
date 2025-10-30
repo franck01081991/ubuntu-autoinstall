@@ -71,7 +71,6 @@ jobs:
           tar -xzf tfsec.tar.gz tfsec
           sudo install -m 0755 tfsec /usr/local/bin/tfsec
           rm -f tfsec tfsec.tar.gz
-          pip install checkov
           pip install --upgrade "importlib-metadata>=8.7.0" "packaging>=25.0"
       - name: Install Flux dependencies
         run: flux install --export > /tmp/flux-components.yaml
@@ -109,8 +108,14 @@ jobs:
           sudo install -m 0755 tfsec /usr/local/bin/tfsec
           rm -f tfsec tfsec.tar.gz
           python -m pip install --upgrade pip
-          pip install checkov
           pip install --upgrade "importlib-metadata>=8.7.0" "packaging>=25.0"
+      - name: Setup Checkov virtualenv
+        run: |
+          python -m venv checkov-venv
+          source checkov-venv/bin/activate
+          pip install --upgrade pip
+          pip install "importlib-metadata<8.0.0,>=6.0.0" checkov
+          echo "${PWD}/checkov-venv/bin" >> "$GITHUB_PATH"
       - name: Run security checks
         run: make kubernetes/security
 

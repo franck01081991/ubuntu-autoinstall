@@ -22,12 +22,12 @@ terraform {
 module "site" {
   source = "../../modules/k3s_site"
 
-  site_name            = "site-a"
-  site_id              = 1
-  pod_cidr             = "10.44.0.0/16"
-  service_cidr         = "10.96.0.0/16"
-  metallb_addresses    = ["203.0.113.10-203.0.113.30"]
-  cluster_mesh_domain  = "mesh.gitops.lan"
+  site_name           = "site-a"
+  site_id             = 1
+  pod_cidr            = "10.44.0.0/16"
+  service_cidr        = "10.96.0.0/16"
+  metallb_addresses   = ["203.0.113.10-203.0.113.30"]
+  cluster_mesh_domain = "mesh.gitops.lan"
   nodes = [
     {
       name       = "site-a-control-1"

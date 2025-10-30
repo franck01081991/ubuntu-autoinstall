@@ -51,7 +51,7 @@ make kubernetes/security    # Scans sécurité (tfsec, kube-linter, Trivy)
 ## Outils requis pour la CI locale
 
 ```bash
-python -m pip install --upgrade pip ansible-core ansible-lint yamllint checkov
+python -m pip install --upgrade pip ansible-core ansible-lint yamllint
 curl -sSLo kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
 tar -xzf kubeconform.tar.gz kubeconform && sudo install -m 0755 kubeconform /usr/local/bin/ && rm kubeconform kubeconform.tar.gz
 curl -sSLo flux.tar.gz https://github.com/fluxcd/flux2/releases/download/v2.7.3/flux_2.7.3_linux_amd64.tar.gz
@@ -61,6 +61,11 @@ tar -xzf tfsec.tar.gz tfsec && sudo install -m 0755 tfsec /usr/local/bin/ && rm 
 curl -sSLo kube-linter.tar.gz https://github.com/stackrox/kube-linter/releases/download/v0.6.8/kube-linter-linux.tar.gz
 tar -xzf kube-linter.tar.gz kube-linter && sudo install -m 0755 kube-linter /usr/local/bin/ && rm kube-linter kube-linter.tar.gz
 curl -sL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+python -m venv checkov-venv
+source checkov-venv/bin/activate
+pip install --upgrade pip
+pip install "importlib-metadata<8.0.0,>=6.0.0" checkov
+deactivate
 ```
 
 ## Hypothèses
