@@ -1,4 +1,6 @@
 extends: default
+ignore: |
+  kubernetes/flux/crds/*.yaml
 rules:
   line-length:
     max: 160
