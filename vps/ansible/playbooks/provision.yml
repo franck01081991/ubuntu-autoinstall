@@ -20,17 +20,26 @@
       delegate_to: localhost
 
     - name: Load encrypted VPS secrets
-      community.sops.load_vars:
-        file: "{{ vps_secrets_file }}"
+      ansible.builtin.set_fact:
+        overlay_network_secret_values: >-
+          {{ lookup('pipe', 'sops -d --output-type json ' ~ vps_secrets_file) | from_json }}
+      delegate_to: localhost
+      delegate_facts: true
+      no_log: true
+
+    - name: Merge decrypted VPS secrets into host vars
+      ansible.builtin.set_fact:
+        "{{ item.key }}": "{{ item.value }}"
+      loop: "{{ hostvars['localhost'].overlay_network_secret_values | dict2items }}"
       no_log: true
 
     - name: Assert required VPS secrets are defined
       ansible.builtin.assert:
         that:
-          - overlay_wireguard_private_key is defined
-          - overlay_wireguard_private_key | length > 0
-          - overlay_keepalived_auth_passphrase is defined
-          - overlay_keepalived_auth_passphrase | length > 0
+          - overlay_network_wireguard_private_key is defined
+          - overlay_network_wireguard_private_key | length > 0
+          - overlay_network_keepalived_auth_passphrase is defined
+          - overlay_network_keepalived_auth_passphrase | length > 0
         fail_msg: >-
           Populate vps/inventory/group_vars/vps/secrets.sops.yaml using SOPS (see README)
 

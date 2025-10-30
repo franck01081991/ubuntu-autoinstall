@@ -1,15 +1,15 @@
 [NetDev]
-Name={{ overlay_vxlan_interface }}
+Name={{ overlay_network_vxlan_interface }}
 Kind=vxlan
-MTU={{ overlay_vxlan_mtu }}
+MTU={{ overlay_network_vxlan_mtu }}
 
 [VXLAN]
-VNI={{ overlay_vxlan_id }}
-Port={{ overlay_vxlan_port }}
-BindToDevice={{ overlay_wireguard_interface }}
-Learning={{ 'yes' if overlay_vxlan_learning else 'no' }}
-L2MissNotification={{ 'yes' if overlay_vxlan_l2miss else 'no' }}
-L3MissNotification={{ 'yes' if overlay_vxlan_l3miss else 'no' }}
-Local={{ overlay_wireguard_tunnel_ip }}
-{% for remote in overlay_vxlan_remotes %}Remote={{ remote }}
+VNI={{ overlay_network_vxlan_id }}
+Port={{ overlay_network_vxlan_port }}
+BindToDevice={{ overlay_network_wireguard_interface }}
+Learning={{ 'yes' if overlay_network_vxlan_learning else 'no' }}
+L2MissNotification={{ 'yes' if overlay_network_vxlan_l2miss else 'no' }}
+L3MissNotification={{ 'yes' if overlay_network_vxlan_l3miss else 'no' }}
+Local={{ overlay_network_wireguard_tunnel_ip }}
+{% for remote in overlay_network_vxlan_remotes %}Remote={{ remote }}
 {% endfor %}

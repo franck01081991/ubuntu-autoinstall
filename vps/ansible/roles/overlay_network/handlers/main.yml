@@ -7,7 +7,7 @@
 
 - name: Restart wireguard
   ansible.builtin.systemd:
-    name: "wg-quick@{{ overlay_wireguard_interface }}"
+    name: "wg-quick@{{ overlay_network_wireguard_interface }}"
     state: restarted
     daemon_reload: true
 

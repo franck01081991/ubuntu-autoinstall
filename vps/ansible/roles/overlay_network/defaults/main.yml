@@ -1,40 +1,48 @@
 ---
-overlay_wireguard_interface: wg0
-overlay_wireguard_address: 10.200.0.1/32
-overlay_wireguard_listen_port: 51820
-overlay_wireguard_fwmark: 0x1
-overlay_wireguard_table: off
-overlay_wireguard_peers: []
-overlay_wireguard_preshared_keys: {}
-overlay_wireguard_post_up: []
-overlay_wireguard_post_down: []
-overlay_wireguard_tunnel_ip: "{{ overlay_wireguard_address.split('/')[0] }}"
+overlay_network_wireguard_interface: wg0
+overlay_network_wireguard_address: 10.200.0.1/32
+overlay_network_wireguard_listen_port: 51820
+overlay_network_wireguard_fwmark: 0x1
+overlay_network_wireguard_table: "off"
+overlay_network_wireguard_peers: []
+overlay_network_wireguard_preshared_keys: {}
+overlay_network_wireguard_post_up: []
+overlay_network_wireguard_post_down: []
+overlay_network_wireguard_tunnel_ip: "{{ overlay_network_wireguard_address.split('/')[0] }}"
 
-overlay_vxlan_id: 100
-overlay_vxlan_interface: "vxlan{{ overlay_vxlan_id }}"
-overlay_vxlan_port: 4789
-overlay_vxlan_mtu: 1400
-overlay_vxlan_learning: true
-overlay_vxlan_remotes: []
-overlay_vxlan_l2miss: true
-overlay_vxlan_l3miss: true
+overlay_network_sysctl_settings:
+  net.ipv4.ip_forward: "1"
+  net.ipv6.conf.all.forwarding: "1"
+  net.ipv4.conf.all.rp_filter: "0"
+  net.ipv4.conf.default.rp_filter: "0"
+  net.ipv4.conf.all.accept_redirects: "0"
+  net.ipv4.conf.default.accept_redirects: "0"
 
-overlay_bridge_name: br-overlay
-overlay_bridge_addresses: []
-overlay_bridge_mtu: 1500
-overlay_bridge_stp: true
+overlay_network_vxlan_id: 100
+overlay_network_vxlan_interface: "vxlan{{ overlay_network_vxlan_id }}"
+overlay_network_vxlan_port: 4789
+overlay_network_vxlan_mtu: 1400
+overlay_network_vxlan_learning: true
+overlay_network_vxlan_remotes: []
+overlay_network_vxlan_l2miss: true
+overlay_network_vxlan_l3miss: true
 
-overlay_bgp_asn: 65010
-overlay_bgp_router_id: "{{ overlay_wireguard_tunnel_ip }}"
-overlay_bgp_neighbors: []
-overlay_bgp_evpn_advertise_all_vni: true
-overlay_bgp_export_connected: true
+overlay_network_bridge_name: br-overlay
+overlay_network_bridge_addresses: []
+overlay_network_bridge_mtu: 1500
+overlay_network_bridge_stp: true
 
-overlay_keepalived_interface: "{{ overlay_bridge_name }}"
-overlay_keepalived_state: BACKUP
-overlay_keepalived_priority: 100
-overlay_keepalived_vrid: 10
-overlay_keepalived_virtual_ips: []
-overlay_keepalived_unicast_src_ip: "{{ overlay_wireguard_tunnel_ip }}"
-overlay_keepalived_unicast_peers: []
-overlay_keepalived_notify_script: ""
+overlay_network_bgp_asn: 65010
+overlay_network_bgp_router_id: "{{ overlay_network_wireguard_tunnel_ip }}"
+overlay_network_bgp_neighbors: []
+overlay_network_bgp_evpn_advertise_all_vni: true
+overlay_network_bgp_export_connected: true
+
+overlay_network_keepalived_interface: "{{ overlay_network_bridge_name }}"
+overlay_network_keepalived_state: BACKUP
+overlay_network_keepalived_priority: 100
+overlay_network_keepalived_vrid: 10
+overlay_network_keepalived_virtual_ips: []
+overlay_network_keepalived_unicast_src_ip: "{{ overlay_network_wireguard_tunnel_ip }}"
+overlay_network_keepalived_unicast_peers: []
+overlay_network_keepalived_notify_script: ""

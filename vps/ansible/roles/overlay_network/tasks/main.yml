@@ -12,20 +12,13 @@
     state: present
     update_cache: true
 
-- name: Ensure overlay sysctl settings
-  ansible.builtin.sysctl:
-    name: "{{ item.name }}"
-    value: "{{ item.value }}"
-    sysctl_set: true
-    state: present
-    reload: true
-  loop:
-    - { name: "net.ipv4.ip_forward", value: "1" }
-    - { name: "net.ipv6.conf.all.forwarding", value: "1" }
-    - { name: "net.ipv4.conf.all.rp_filter", value: "0" }
-    - { name: "net.ipv4.conf.default.rp_filter", value: "0" }
-    - { name: "net.ipv4.conf.all.accept_redirects", value: "0" }
-    - { name: "net.ipv4.conf.default.accept_redirects", value: "0" }
+- name: Deploy overlay sysctl configuration
+  ansible.builtin.template:
+    src: sysctl/overlay.conf.j2
+    dest: /etc/sysctl.d/99-overlay-network.conf
+    owner: root
+    group: root
+    mode: "0644"
   notify: Reload sysctl
 
 - name: Ensure WireGuard configuration directory exists
@@ -39,7 +32,7 @@
 - name: Deploy WireGuard configuration
   ansible.builtin.template:
     src: wireguard/wg.conf.j2
-    dest: "/etc/wireguard/{{ overlay_wireguard_interface }}.conf"
+    dest: "/etc/wireguard/{{ overlay_network_wireguard_interface }}.conf"
     owner: root
     group: root
     mode: "0600"
@@ -47,7 +40,7 @@
 
 - name: Ensure WireGuard service enabled
   ansible.builtin.systemd:
-    name: "wg-quick@{{ overlay_wireguard_interface }}"
+    name: "wg-quick@{{ overlay_network_wireguard_interface }}"
     enabled: true
     state: started
 
@@ -62,7 +55,7 @@
 - name: Deploy overlay bridge netdev
   ansible.builtin.template:
     src: systemd-networkd/bridge.netdev.j2
-    dest: "/etc/systemd/network/{{ overlay_bridge_name }}.netdev"
+    dest: "/etc/systemd/network/{{ overlay_network_bridge_name }}.netdev"
     owner: root
     group: root
     mode: "0644"
@@ -71,7 +64,7 @@
 - name: Deploy overlay bridge network
   ansible.builtin.template:
     src: systemd-networkd/bridge.network.j2
-    dest: "/etc/systemd/network/{{ overlay_bridge_name }}.network"
+    dest: "/etc/systemd/network/{{ overlay_network_bridge_name }}.network"
     owner: root
     group: root
     mode: "0644"
@@ -80,7 +73,7 @@
 - name: Deploy overlay VXLAN netdev
   ansible.builtin.template:
     src: systemd-networkd/vxlan.netdev.j2
-    dest: "/etc/systemd/network/{{ overlay_vxlan_interface }}.netdev"
+    dest: "/etc/systemd/network/{{ overlay_network_vxlan_interface }}.netdev"
     owner: root
     group: root
     mode: "0644"
@@ -89,7 +82,7 @@
 - name: Deploy overlay VXLAN network
   ansible.builtin.template:
     src: systemd-networkd/vxlan.network.j2
-    dest: "/etc/systemd/network/{{ overlay_vxlan_interface }}.network"
+    dest: "/etc/systemd/network/{{ overlay_network_vxlan_interface }}.network"
     owner: root
     group: root
     mode: "0644"

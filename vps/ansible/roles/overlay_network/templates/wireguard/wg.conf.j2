@@ -1,26 +1,26 @@
 [Interface]
-Address = {{ overlay_wireguard_address }}
-ListenPort = {{ overlay_wireguard_listen_port }}
-PrivateKey = {{ overlay_wireguard_private_key }}
-{% if overlay_wireguard_fwmark is defined and overlay_wireguard_fwmark %}
-FwMark = {{ overlay_wireguard_fwmark }}
+Address = {{ overlay_network_wireguard_address }}
+ListenPort = {{ overlay_network_wireguard_listen_port }}
+PrivateKey = {{ overlay_network_wireguard_private_key }}
+{% if overlay_network_wireguard_fwmark is defined and overlay_network_wireguard_fwmark %}
+FwMark = {{ overlay_network_wireguard_fwmark }}
 {% endif %}
-{% if overlay_wireguard_table is defined and overlay_wireguard_table %}
-Table = {{ overlay_wireguard_table }}
+{% if overlay_network_wireguard_table is defined and overlay_network_wireguard_table %}
+Table = {{ overlay_network_wireguard_table }}
 {% endif %}
-{% for command in overlay_wireguard_post_up %}
+{% for command in overlay_network_wireguard_post_up %}
 PostUp = {{ command }}
 {% endfor %}
-{% for command in overlay_wireguard_post_down %}
+{% for command in overlay_network_wireguard_post_down %}
 PostDown = {{ command }}
 {% endfor %}
 
-{% for peer in overlay_wireguard_peers %}
+{% for peer in overlay_network_wireguard_peers %}
 [Peer]
 PublicKey = {{ peer.public_key }}
 {% set preshared_key_lookup = peer.preshared_key_name | default(peer.name, true) %}
-{% if preshared_key_lookup and preshared_key_lookup in overlay_wireguard_preshared_keys %}
-PresharedKey = {{ overlay_wireguard_preshared_keys[preshared_key_lookup] }}
+{% if preshared_key_lookup and preshared_key_lookup in overlay_network_wireguard_preshared_keys %}
+PresharedKey = {{ overlay_network_wireguard_preshared_keys[preshared_key_lookup] }}
 {% endif %}
 {% set allowed_list = peer.allowed_ips if peer.allowed_ips is sequence and peer.allowed_ips is not string else [peer.allowed_ips] %}
 {% for network in allowed_list %}

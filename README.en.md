@@ -225,10 +225,10 @@ Each `baremetal/inventory/host_vars/<host>.yml` may define:
      sops vps/inventory/group_vars/vps/secrets.sops.yaml
      ```
 
-The keys `overlay_wireguard_private_key` and
-`overlay_keepalived_auth_passphrase` must exist in this file for
+The keys `overlay_network_wireguard_private_key` and
+`overlay_network_keepalived_auth_passphrase` must exist in this file for
 `vps/ansible/playbooks/provision.yml` to succeed. Optional per-peer WireGuard
-preshared keys can be added under `overlay_wireguard_preshared_keys`. The
+preshared keys can be added under `overlay_network_wireguard_preshared_keys`. The
 playbook fails loudly when the mandatory secrets are missing.
 
 ## Available Make targets
@@ -335,15 +335,15 @@ ansible-galaxy collection install -r ansible/collections/requirements.yml
 an encrypted L2 overlay across VPS nodes. The automation delivers:
 
 - **WireGuard (`wg0`)** as the encrypted transport. Interface settings come from
-  `overlay_wireguard_*` variables; secrets live in the SOPS-encrypted file.
+  `overlay_network_wireguard_*` variables; secrets live in the SOPS-encrypted file.
 - **VXLAN (`vxlan<id>`)** on top of WireGuard to provide the L2 domain. Remote
-  VTEPs are enumerated via `overlay_vxlan_remotes` and bridged into
-  `overlay_bridge_name`.
+  VTEPs are enumerated via `overlay_network_vxlan_remotes` and bridged into
+  `overlay_network_bridge_name`.
 - **FRRouting (BGP EVPN)** to exchange overlay reachability and coordinate VXLAN
-  flooding. Neighbours are described by `overlay_bgp_neighbors` with shared AS
-  numbers defined in `overlay_bgp_asn`.
+  flooding. Neighbours are described by `overlay_network_bgp_neighbors` with shared AS
+  numbers defined in `overlay_network_bgp_asn`.
 - **Keepalived (VRRP)** to expose a highly available virtual IP carried by the
-  overlay bridge. Secrets and tuning flags rely on `overlay_keepalived_*`
+  overlay bridge. Secrets and tuning flags rely on `overlay_network_keepalived_*`
   variables.
 
 Populate `vps/inventory/host_vars/<host>.yml` with the peer-specific parameters
@@ -355,9 +355,10 @@ environment.
 > `systemd-networkd` as the backend (default on fresh installations). Adjust the
 > templates if another networking stack is in use.
 
-The `ansible/collections/requirements.yml` file pins `community.sops` (**1.6.0**)
-and `community.general` (**8.5.0**), providing SOPS integration and network
-automation modules required for the overlay deployment.
+The `ansible/collections/requirements.yml` file pins `community.general`
+(**8.5.0**) for network automation helpers. The playbook decrypts secrets via
+the SOPS CLI (`scripts/install-sops.sh` installs it), so ensure the binary is
+available before running Ansible.
 
 ## Additional resources
 

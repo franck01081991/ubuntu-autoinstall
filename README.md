@@ -261,11 +261,11 @@ paramètres suivants :
      sops vps/inventory/group_vars/vps/secrets.sops.yaml
      ```
 
-Les clés `overlay_wireguard_private_key` et
-`overlay_keepalived_auth_passphrase` doivent être présentes dans ce fichier
+Les clés `overlay_network_wireguard_private_key` et
+`overlay_network_keepalived_auth_passphrase` doivent être présentes dans ce fichier
 pour que le playbook `vps/ansible/playbooks/provision.yml` aboutisse.
 D'éventuels pré-partages WireGuard peuvent être définis dans
-`overlay_wireguard_preshared_keys`. Un échec explicite est lancé si les
+`overlay_network_wireguard_preshared_keys`. Un échec explicite est lancé si les
 secrets obligatoires manquent.
 
 ## Commandes Make disponibles
@@ -375,17 +375,17 @@ Le playbook `vps/ansible/playbooks/provision.yml` invoque le rôle
 `overlay_network` pour déployer un overlay L2 chiffré entre les VPS :
 
 - **WireGuard (`wg0`)** assure le transport chiffré. Les variables
-  `overlay_wireguard_*` pilotent l'interface tandis que les secrets sont gérés
+  `overlay_network_wireguard_*` pilotent l'interface tandis que les secrets sont gérés
   via SOPS.
 - **VXLAN (`vxlan<id>`)** fournit le domaine L2 au-dessus de WireGuard. Les VTEP
-  distants sont listés dans `overlay_vxlan_remotes` et raccordés au pont
-  `overlay_bridge_name`.
+  distants sont listés dans `overlay_network_vxlan_remotes` et raccordés au pont
+  `overlay_network_bridge_name`.
 - **FRRouting (BGP EVPN)** distribue les routes et les informations VXLAN.
-  Décrivez les voisins dans `overlay_bgp_neighbors` et l'AS dans
-  `overlay_bgp_asn`.
+  Décrivez les voisins dans `overlay_network_bgp_neighbors` et l'AS dans
+  `overlay_network_bgp_asn`.
 - **Keepalived (VRRP)** expose une IP virtuelle hautement disponible sur le pont
   overlay. Les paramètres se trouvent dans les variables
-  `overlay_keepalived_*`.
+  `overlay_network_keepalived_*`.
 
 Renseignez `vps/inventory/host_vars/<hôte>.yml` avec les paramètres propres à
 chaque nœud (peers WireGuard, VTEP VXLAN, voisins BGP, priorité VRRP). Les
@@ -396,9 +396,11 @@ peuvent être adaptées par environnement.
 > (configuration par défaut). Adapter les templates si un autre gestionnaire
 > réseau est utilisé.
 
-Le fichier `ansible/collections/requirements.yml` épingle `community.sops`
-(**1.6.0**) et `community.general` (**8.5.0**) pour disposer des modules SOPS et
-réseau nécessaires au déploiement de l'overlay.
+Le fichier `ansible/collections/requirements.yml` épingle `community.general`
+(**8.5.0**) pour bénéficier des modules réseau complémentaires. Le playbook
+décrypte les secrets via l'outil en ligne de commande SOPS (installable avec
+`scripts/install-sops.sh`) ; assurez-vous que le binaire est présent avant
+d'exécuter Ansible.
 
 ## Ressources supplémentaires
 

@@ -5,8 +5,8 @@ netmode: dhcp
 ssh_authorized_keys:
   - ssh-ed25519 AAAA...REPLACE_ME your_key@host
 password_hash: $y$j9T$REPLACE_ME_HASH
-overlay_wireguard_address: 10.200.42.1/32
-overlay_wireguard_peers:
+overlay_network_wireguard_address: 10.200.42.1/32
+overlay_network_wireguard_peers:
   - name: edge-peer
     public_key: REPLACE_ME_PEER_PUBLIC_KEY
     allowed_ips:
@@ -15,18 +15,18 @@ overlay_wireguard_peers:
     endpoint: peer.example.net:51820
     persistent_keepalive: 25
     description: Remote gateway participating in the overlay
-overlay_vxlan_remotes:
+overlay_network_vxlan_remotes:
   - 10.200.42.2
-overlay_bridge_addresses:
+overlay_network_bridge_addresses:
   - 192.168.200.1/24
-overlay_bgp_router_id: 10.200.42.1
-overlay_bgp_neighbors:
+overlay_network_bgp_router_id: 10.200.42.1
+overlay_network_bgp_neighbors:
   - name: edge-peer
     address: 10.200.42.2
     asn: 65042
     description: Secondary overlay node
-overlay_keepalived_state: BACKUP
-overlay_keepalived_priority: 150
-overlay_keepalived_unicast_src_ip: 10.200.42.1
-overlay_keepalived_unicast_peers:
+overlay_network_keepalived_state: BACKUP
+overlay_network_keepalived_priority: 150
+overlay_network_keepalived_unicast_src_ip: 10.200.42.1
+overlay_network_keepalived_unicast_peers:
   - 10.200.42.2
