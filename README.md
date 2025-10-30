@@ -203,6 +203,12 @@ spécifiques via Ansible.
   - Optimisations : microcode Intel, `thermald`, `powertop` (service d'auto-
     tune) et `lm-sensors` sont préinstallés pour stabiliser les températures et
     l'efficacité énergétique du châssis compact.
+- `dell-optiplex-3020m` : OptiPlex 3020M (Intel Core i5-4590T + chipset H81) à
+  stockage SATA unique et carte réseau Intel I217-LM.
+  - Optimisations : `intel-microcode`, `thermald`, `powertop`, `lm-sensors` et
+    `linux-tools-generic` sont installés par défaut. `powertop-autotune` et
+    `thermald` sont activés automatiquement pour limiter le throttling dans le
+    châssis ultra-compact et garantir le support du CPU Haswell.
 - `lenovo-90dq004yfr` : ThinkCentre M700 Tiny (référence 90DQ004YFR) basé
   uniquement sur un disque SATA. Ce profil applique les optimisations
   d'alimentation et de microcode adaptées aux puces Intel de cette génération.
@@ -225,6 +231,8 @@ paramètres suivants :
   optimisations matérielles).
 - `enable_powertop_autotune` : active la création/activation du service systemd
   `powertop-autotune`.
+- `enable_thermald` : active le service `thermald` après installation (pensez à
+  ajouter le paquet dans `extra_packages`).
 
 ## Gestion des variables et secrets partagés
 

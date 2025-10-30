@@ -5,6 +5,14 @@ storage_profile: sata
 netmode: dhcp
 nic: enp2s0
 disk_device: /dev/sda
+extra_packages:
+  - intel-microcode
+  - thermald
+  - powertop
+  - lm-sensors
+  - linux-tools-generic
+enable_powertop_autotune: true
+enable_thermald: true
 ssh_authorized_keys:
   - ssh-ed25519 AAAA...REPLACE_ME your_key@model
 password_hash: $y$j9T$REPLACE_ME_HASH

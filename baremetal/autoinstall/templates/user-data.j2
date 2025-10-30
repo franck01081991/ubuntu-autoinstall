@@ -141,3 +141,7 @@ EOF'
     - curtin in-target -- systemctl enable powertop-autotune.service
     - curtin in-target -- systemctl start powertop-autotune.service
 {% endif %}
+{% if enable_thermald | default(false) %}
+    - curtin in-target -- systemctl enable thermald
+    - curtin in-target -- systemctl start thermald
+{% endif %}
