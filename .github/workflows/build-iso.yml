@@ -20,32 +20,50 @@ name: Validate Bare Metal Configurations
       - '.github/workflows/build-iso.yml'
 
 jobs:
+  plan:
+    name: Select validation targets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.targets.outputs.matrix }}
+      has_targets: ${{ steps.targets.outputs.has_targets }}
+      reason: ${{ steps.targets.outputs.reason }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine base commit
+        id: base
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "sha=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "sha=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=$(git rev-list --max-parents=0 HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Select bare metal validation targets
+        id: targets
+        env:
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+        run: |
+          python3 scripts/ci/select-baremetal-targets.py --base "${BASE_SHA}"
+
   validate:
+    needs: plan
+    if: needs.plan.outputs.has_targets == 'true'
     permissions:
       contents: read
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - scope: hardware
-            target: lenovo-m710q
-          - scope: hardware
-            target: dell-optiplex-3020m
-          - scope: hardware
-            target: lenovo-90dq004yfr
-          - scope: hardware
-            target: baieyu-p09
-          - scope: host
-            target: site-a-m710q1
-          - scope: host
-            target: site-b-m710q2
-          - scope: host
-            target: site-b-dell3020m
-          - scope: host
-            target: site-c-m710q3
-          - scope: host
-            target: site-d-baieyu-p09
+        include: ${{ fromJson(needs.plan.outputs.matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
