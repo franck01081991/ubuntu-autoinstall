@@ -2,9 +2,8 @@
 
 GitOps-first pipeline dedicated to building unattended **Ubuntu Server 24.04 LTS**
 ISOs with **Autoinstall + cloud-init (NoCloud)**. Every image is rendered from
-version-controlled files and then built manually (outside the repository
-workflows) from the artefacts validated by CI to guarantee reproducibility and
-auditability.
+version-controlled files and then built manually outside CI to guarantee
+reproducibility and auditability.
 
 > 👋 New to the project? Start with the
 > [beginner guide](docs/getting-started-beginner.md) to craft your first seed ISO
@@ -43,7 +42,7 @@ components can still be recovered from Git history if needed.
 - **Automated rendering**: Ansible + Jinja2 generate `user-data` and `meta-data`
   in `baremetal/autoinstall/generated/<target>/`.
 - **Reproducible builds**: idempotent scripts in `baremetal/scripts/` create seed
-  and full ISOs from the rendered artefacts.
+  and full ISOs from the rendered files.
 - **GitOps validation**: CI confirms that every hardware profile and declared
   host renders consistent `user-data` and `meta-data`. Teams can then assemble
   their ISO locally or through a dedicated image factory.
@@ -140,9 +139,9 @@ Generated ISOs live under `baremetal/autoinstall/generated/<target>/`.
 ## Validation and CI/CD
 
 - `.github/workflows/build-iso.yml`: renders Autoinstall artefacts for each
-  hardware profile and host, verifies the presence of both `user-data` and
-  `meta-data`, and publishes them as short-lived artefacts. No ISO gets built in
-  CI anymore, which keeps runtimes short and avoids storage pressure.
+  hardware profile and host, and verifies the presence of both `user-data` and
+  `meta-data`. No ISO or artefact is published anymore, which keeps runtimes
+  short and avoids storage pressure.
 - `.github/workflows/repository-integrity.yml`: runs `yamllint`, `ansible-lint`,
   `shellcheck`, `markdownlint`, and `trivy fs` (config + secrets) to keep the
   repository clean and secure.
@@ -164,11 +163,11 @@ CI only validates that every declared machine renders valid `user-data` and
 `meta-data`. To assemble a seed or full ISO on your workstation (or a dedicated
 image factory):
 
-1. **Fetch the artefacts**
+1. **Render the Autoinstall files**
 
-   - Download the GitHub Actions artefact archive named
-     `autoinstall-<host_name>` for your target host, or render locally with
-     `make baremetal/gen HOST=<host_name>`.
+   - Run the CI on your branch to validate the change set, then generate the
+     files locally with `make baremetal/gen HOST=<host_name>` or
+     `PROFILE=<hardware_profile>`.
 
 2. **Download the official Ubuntu ISO** (only for full installer builds)
 

@@ -2,9 +2,8 @@
 
 Chaîne **GitOps** dédiée à la création d'ISO Ubuntu Server 24.04 LTS entièrement
 automatisées grâce à **Autoinstall + cloud-init (NoCloud)**. Chaque image est
-rendue à partir de fichiers versionnés et produite manuellement à partir des
-artefacts générés par la CI pour garantir la reproductibilité et
-l'auditabilité.
+rendue à partir de fichiers versionnés et produite manuellement en dehors de la
+CI pour garantir la reproductibilité et l'auditabilité.
 
 > 👋 Nouveau ou nouvelle ? Commencez par le
 > [guide débutant](docs/getting-started-beginner.md) pour produire votre première
@@ -45,8 +44,8 @@ metal. Les composants supprimés restent disponibles dans l'historique Git.
 - **Rendu automatisé** : Ansible + Jinja2 produisent les fichiers `user-data` et
   `meta-data` dans `baremetal/autoinstall/generated/<cible>/`.
 - **Construction reproductible** : des scripts idempotents sous
-  `baremetal/scripts/` créent les ISO seed et complètes à partir des artefacts
-  générés.
+  `baremetal/scripts/` créent les ISO seed et complètes à partir des fichiers
+  rendus.
 - **Validation GitOps** : la CI vérifie que chaque profil matériel et chaque
   machine déclarée compilent correctement leur `user-data` et `meta-data`.
   Chaque équipe peut ensuite générer son ISO en local ou via une usine
@@ -144,9 +143,8 @@ Les ISO générées sont stockées sous
 ## Validation et CI/CD
 
 - Workflow `.github/workflows/build-iso.yml` : rend les fichiers Autoinstall
-  pour chaque profil matériel et chaque hôte, vérifie qu'ils sont complets et
-  met à disposition les `user-data/meta-data` générés en artefacts temporaires.
-  Aucun ISO n'est assemblé en CI : la génération s'effectue désormais en
+  pour chaque profil matériel et chaque hôte puis vérifie qu'ils sont complets.
+  Aucun ISO ni artefact n'est publié : la génération se fait désormais en
   dehors du dépôt pour limiter le temps d'exécution et les contraintes de
   stockage.
 - Workflow `.github/workflows/repository-integrity.yml` : exécute `yamllint`,
@@ -170,11 +168,11 @@ La CI s'assure uniquement que les fichiers `user-data` et `meta-data` se
 génèrent correctement pour tous les équipements déclarés. Pour créer une ISO
 seed ou complète sur votre poste ou dans une usine d'image dédiée :
 
-1. **Récupérer les artefacts**
+1. **Rendre les fichiers Autoinstall**
 
-   - Télécharger l'archive d'artefacts du workflow GitHub Actions correspondant
-     à votre hôte (suffixe `autoinstall-<nom_hote>`), ou bien rendre les
-     fichiers en local via `make baremetal/gen HOST=<nom_hote>`.
+   - Exécuter la CI sur votre branche pour vérifier la cohérence, puis générer
+     localement les fichiers via `make baremetal/gen HOST=<nom_hote>` ou
+     `PROFILE=<profil_matériel>`.
 
 2. **Préparer l'ISO Ubuntu officielle** (uniquement pour l'ISO complète)
 

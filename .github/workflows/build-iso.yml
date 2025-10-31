@@ -76,13 +76,3 @@ jobs:
           test -f baremetal/autoinstall/generated/${TARGET}/user-data
           test -f baremetal/autoinstall/generated/${TARGET}/meta-data
 
-      - name: Upload generated files for ${{ matrix.scope }} ${{ matrix.target }}
-        if: matrix.scope == 'host'
-        uses: actions/upload-artifact@v4
-        with:
-          name: autoinstall-${{ matrix.target }}
-          path: |
-            baremetal/autoinstall/generated/${{ matrix.target }}/user-data
-            baremetal/autoinstall/generated/${{ matrix.target }}/meta-data
-          if-no-files-found: error
-          retention-days: 1

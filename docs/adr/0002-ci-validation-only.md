@@ -29,8 +29,8 @@ versionnés.
   - Alignement renforcé avec la philosophie GitOps (CI = validation, build
     final contrôlé par les équipes).
 - **Négatives**
-  - Les équipes doivent télécharger ou régénérer les artefacts pour produire
-    elles-mêmes les ISO.
+  - Les équipes doivent régénérer localement les fichiers Autoinstall pour
+    produire elles-mêmes les ISO.
   - Perte de la distribution automatique des images dans GitHub Actions.
 - **Neutres/Mitigations**
   - La documentation fournit un guide détaillé pour générer les ISO hors CI.
