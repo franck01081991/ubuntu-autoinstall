@@ -163,8 +163,14 @@ Les ISO générées sont stockées sous
      ansible.builtin.template:
        src: baremetal/autoinstall/secure-ubuntu-22.04.yaml
        dest: "{{ workspace }}/secure-ubuntu-22.04.rendered.yaml"
-     vars:
-       SOPS_DECRYPTED_DISK_PASSPHRASE: "{{ lookup('community.sops.sops', 'docs/secrets/baremetal-luks.sops.yaml')['disk_luks_passphrase'] }}"
+       vars:
+        SOPS_DECRYPTED_DISK_PASSPHRASE: >-
+          {{
+            lookup(
+              'community.sops.sops',
+              'docs/secrets/baremetal-luks.sops.yaml'
+            )['disk_luks_passphrase']
+          }}
    ```
 
 2. **Génération de l'ISO**
