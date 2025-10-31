@@ -30,7 +30,14 @@ def git_diff(base: str | None) -> list[str]:
 
 
 def list_hardware_targets(directory: Path) -> list[str]:
-    return sorted(p.stem for p in directory.glob("*.yml") if p.is_file())
+    suffixes = ("*.yml", "*.yaml")
+    targets = {
+        profile.stem
+        for suffix in suffixes
+        for profile in directory.glob(suffix)
+        if profile.is_file()
+    }
+    return sorted(targets)
 
 
 def list_host_targets(directory: Path) -> list[str]:
@@ -65,7 +72,13 @@ def determine_targets(changed_files: Iterable[str]) -> tuple[list[dict[str, str]
     hardware_targets = list_hardware_targets(hardware_dir)
     host_targets = list_host_targets(host_dir)
 
-    hardware_map = {f"baremetal/inventory/profiles/hardware/{name}.yml": name for name in hardware_targets}
+    hardware_map = {
+        str(Path("baremetal/inventory/profiles/hardware") / f"{name}{suffix}"):
+            name
+        for name in hardware_targets
+        for suffix in (".yml", ".yaml")
+        if (hardware_dir / f"{name}{suffix}").is_file()
+    }
     host_map = {}
     for name in host_targets:
         host_map[f"baremetal/inventory/host_vars/{name}/main.yml"] = name
@@ -102,7 +115,8 @@ def determine_targets(changed_files: Iterable[str]) -> tuple[list[dict[str, str]
         if path in hardware_map:
             touched_hardware.add(hardware_map[path])
         elif path.startswith("baremetal/inventory/profiles/hardware/"):
-            touched_hardware.add(Path(path).stem)
+            if Path(path).suffix in {".yml", ".yaml"}:
+                touched_hardware.add(Path(path).stem)
         elif path in host_map:
             touched_hosts.add(host_map[path])
         elif path.startswith("baremetal/inventory/host_vars/"):
