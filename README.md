@@ -189,12 +189,16 @@ Les ISO générées sont stockées sous
 - Workflow `.github/workflows/build-iso.yml` : rend les fichiers Autoinstall
   pour les profils matériels ou hôtes impactés par un changement (détection
   Git native). Les modifications globales déclenchent automatiquement la
-  validation complète. Aucun ISO ni artefact n'est publié : la génération se
-  fait désormais en dehors du dépôt pour limiter le temps d'exécution et les
-  contraintes de stockage.
-- Workflow `.github/workflows/repository-integrity.yml` : exécute `yamllint`,
-  `ansible-lint`, `shellcheck`, `markdownlint` et `trivy fs` (config + secrets)
-  pour conserver un dépôt propre et sécurisé.
+  validation complète. Les exécutions redondantes sont annulées via
+  `concurrency` pour éviter de surconsommer les minutes CI. Aucun ISO ni
+  artefact n'est publié : la génération se fait désormais en dehors du dépôt
+  pour limiter le temps d'exécution et les contraintes de stockage.
+- Workflow `.github/workflows/repository-integrity.yml` : exécute
+  `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint` et `trivy fs`
+  (config + secrets) uniquement si des fichiers pertinents changent.
+  Le scan Trivy ne s'exécute plus sur les pull requests : il se déclenche sur
+  les pushes vers `main/master`, la planification hebdomadaire (lundi 04:00
+  UTC) et via `workflow_dispatch`.
 - Les caches pip/npm/collections s'appuient sur des clés dérivées du contenu pour
   garantir l'idempotence.
 
@@ -257,5 +261,6 @@ seed ou complète sur votre poste ou dans une usine d'image dédiée :
 - [Guide débutant](docs/getting-started-beginner.md)
 - [ADR 0001 — recentrage bare metal](docs/adr/0001-focus-baremetal.md)
 - [Documentation originale en anglais](README.en.md)
+- [ADR 0006 — rationalisation CI GitHub Actions](docs/adr/0006-ci-rationalization.md)
 - [Ubuntu Autoinstall Reference](https://ubuntu.com/server/docs/install/autoinstall)
 - [Cloud-init NoCloud Datasource](https://cloudinit.readthedocs.io/en/latest/topics/datasources/nocloud.html)

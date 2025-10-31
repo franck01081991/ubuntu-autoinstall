@@ -4,8 +4,38 @@ name: Repository Integrity
 "on":
   push:
     branches: [main, master]
+    paths:
+      - '.github/**'
+      - 'ansible/**'
+      - 'ansible.cfg'
+      - 'baremetal/**'
+      - 'docs/**'
+      - 'files/**'
+      - 'scripts/**'
+      - 'Makefile'
+      - 'README*.md'
+      - '.yamllint'
+      - '.sops.yaml'
   pull_request:
+    paths:
+      - '.github/**'
+      - 'ansible/**'
+      - 'ansible.cfg'
+      - 'baremetal/**'
+      - 'docs/**'
+      - 'files/**'
+      - 'scripts/**'
+      - 'Makefile'
+      - 'README*.md'
+      - '.yamllint'
+      - '.sops.yaml'
   workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 1'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
@@ -36,10 +66,12 @@ jobs:
           python -m pip install -r ansible/requirements.txt
           python -m pip install yamllint ansible-lint
 
-      - name: Install system tools
+      - name: Ensure ShellCheck availability
         run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck npm
+          if ! command -v shellcheck >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y shellcheck
+          fi
 
       - name: Cache npm packages
         uses: actions/cache@v4
@@ -101,6 +133,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    if: github.event_name != 'pull_request'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
