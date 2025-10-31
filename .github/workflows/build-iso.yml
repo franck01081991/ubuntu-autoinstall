@@ -75,4 +75,3 @@ jobs:
           ls -al baremetal/autoinstall/generated/${TARGET}
           test -f baremetal/autoinstall/generated/${TARGET}/user-data
           test -f baremetal/autoinstall/generated/${TARGET}/meta-data
-
