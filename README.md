@@ -76,6 +76,11 @@ Chaque dossier listé est nécessaire à la production GitOps des ISO bare metal
   les identifiants, périphériques et paramètres réseau propres à un nœud.
 - **Templates** (`baremetal/autoinstall/templates/`) : décrivent le `user-data`
   et `meta-data` communs. Ne modifiez qu'en cas d'évolution produit.
+- **Profils durcis prêts à l'emploi** :
+  - `baremetal/autoinstall/secure-ubuntu-22.04.yaml` : Ubuntu Server 22.04 LTS
+    avec chiffrement LUKS+LVM, pare-feu UFW, durcissement SSH et services de
+    sécurité activés. Le champ `SOPS_DECRYPTED_DISK_PASSPHRASE` doit être
+    remplacé par la passphrase LUKS déchiffrée via la CI (voir ci-dessous).
 
 ## Prérequis
 
@@ -143,6 +148,41 @@ Les ISO générées sont stockées sous
   autonome.
 - `make baremetal/clean` : nettoyage des artefacts générés.
 - `make lint` : agrégat des linters utilisés par la CI.
+
+## Utilisation du profil sécurisé Ubuntu 22.04
+
+1. **Déchiffrement GitOps de la passphrase LUKS**
+
+   Stockez la valeur chiffrée dans `docs/secrets/baremetal-luks.sops.yaml` (voir
+   ADR-0005) puis utilisez la CI pour rendre un fichier temporaire où la clé
+   `SOPS_DECRYPTED_DISK_PASSPHRASE` est remplacée par la valeur déchiffrée.
+   Exemple de tâche Ansible (exécutée par la pipeline) :
+
+   ```yaml
+   - name: Injecter la passphrase LUKS dans l'autoinstall sécurisé
+     ansible.builtin.template:
+       src: baremetal/autoinstall/secure-ubuntu-22.04.yaml
+       dest: "{{ workspace }}/secure-ubuntu-22.04.rendered.yaml"
+       vars:
+        SOPS_DECRYPTED_DISK_PASSPHRASE: >-
+          {{
+            lookup(
+              'community.sops.sops',
+              'docs/secrets/baremetal-luks.sops.yaml'
+            )['disk_luks_passphrase']
+          }}
+   ```
+
+2. **Génération de l'ISO**
+
+   Réutilisez les commandes `make baremetal/seed` ou `make baremetal/fulliso`
+   en pointant vers le fichier rendu précédemment.
+
+3. **Vérifications post-installation**
+
+   Vérifiez que l'accès SSH est limité à la clé publique, que le disque est
+   chiffré (`lsblk --fs`) et que les services `ufw`, `fail2ban` et
+   `unattended-upgrades` sont actifs.
 
 ## Validation et CI/CD
 
