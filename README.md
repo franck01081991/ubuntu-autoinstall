@@ -2,8 +2,8 @@
 
 Chaîne **GitOps** dédiée à la création d'ISO Ubuntu Server 24.04 LTS entièrement
 automatisées grâce à **Autoinstall + cloud-init (NoCloud)**. Chaque image est
-rendue à partir de fichiers versionnés et générée par la CI pour garantir la
-reproductibilité et l'auditabilité.
+rendue à partir de fichiers versionnés et produite manuellement en dehors de la
+CI pour garantir la reproductibilité et l'auditabilité.
 
 > 👋 Nouveau ou nouvelle ? Commencez par le
 > [guide débutant](docs/getting-started-beginner.md) pour produire votre première
@@ -44,10 +44,12 @@ metal. Les composants supprimés restent disponibles dans l'historique Git.
 - **Rendu automatisé** : Ansible + Jinja2 produisent les fichiers `user-data` et
   `meta-data` dans `baremetal/autoinstall/generated/<cible>/`.
 - **Construction reproductible** : des scripts idempotents sous
-  `baremetal/scripts/` créent les ISO seed et complètes à partir des artefacts
-  générés.
-- **Distribution contrôlée** : la CI publie les ISO en artefacts et sert de
-  référence unique pour les déploiements.
+  `baremetal/scripts/` créent les ISO seed et complètes à partir des fichiers
+  rendus.
+- **Validation GitOps** : la CI vérifie que chaque profil matériel et chaque
+  machine déclarée compilent correctement leur `user-data` et `meta-data`.
+  Chaque équipe peut ensuite générer son ISO en local ou via une usine
+  externe.
 
 ## Structure du dépôt
 
@@ -140,9 +142,11 @@ Les ISO générées sont stockées sous
 
 ## Validation et CI/CD
 
-- Workflow `.github/workflows/build-iso.yml` : génère les artefacts Autoinstall
-  par profil matériel, construit les ISO seed et complètes, publie les artefacts
-  et purge les versions précédentes pour rester dans les quotas GitHub Actions.
+- Workflow `.github/workflows/build-iso.yml` : rend les fichiers Autoinstall
+  pour chaque profil matériel et chaque hôte puis vérifie qu'ils sont complets.
+  Aucun ISO ni artefact n'est publié : la génération se fait désormais en
+  dehors du dépôt pour limiter le temps d'exécution et les contraintes de
+  stockage.
 - Workflow `.github/workflows/repository-integrity.yml` : exécute `yamllint`,
   `ansible-lint`, `shellcheck`, `markdownlint` et `trivy fs` (config + secrets)
   pour conserver un dépôt propre et sécurisé.
@@ -157,6 +161,42 @@ Les ISO générées sont stockées sous
   redirections ICMP sortantes.
 - Conservez les ISO produites dans un stockage contrôlé (artefacts CI, dépôt
   interne, etc.).
+
+## Générer une ISO hors CI
+
+La CI s'assure uniquement que les fichiers `user-data` et `meta-data` se
+génèrent correctement pour tous les équipements déclarés. Pour créer une ISO
+seed ou complète sur votre poste ou dans une usine d'image dédiée :
+
+1. **Rendre les fichiers Autoinstall**
+
+   - Exécuter la CI sur votre branche pour vérifier la cohérence, puis générer
+     localement les fichiers via `make baremetal/gen HOST=<nom_hote>` ou
+     `PROFILE=<profil_matériel>`.
+
+2. **Préparer l'ISO Ubuntu officielle** (uniquement pour l'ISO complète)
+
+   - Télécharger `ubuntu-24.04-live-server-amd64.iso` depuis un miroir
+     officiel et vérifier son empreinte.
+
+3. **Assembler l'ISO seed**
+
+   ```bash
+   make baremetal/seed HOST=<nom_hote>
+   ```
+
+4. **Assembler l'ISO complète (optionnel)**
+
+   ```bash
+   make baremetal/fulliso HOST=<nom_hote> \
+     UBUNTU_ISO=/chemin/vers/ubuntu-24.04-live-server-amd64.iso
+   ```
+
+5. **Contrôler la sortie**
+
+   - Les fichiers générés se trouvent sous
+     `baremetal/autoinstall/generated/<nom_hote>/`.
+   - Vérifiez les signatures/empreintes avant toute diffusion.
 
 ## Ressources supplémentaires
 
