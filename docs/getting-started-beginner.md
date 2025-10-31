@@ -152,13 +152,17 @@ make baremetal/fulliso HOST=site-a-m710q1 \
 La CI exécutera automatiquement :
 
 - `make lint` pour contrôler YAML, Ansible, Shell et Markdown ;
-- `make baremetal/gen` pour reconstruire les artefacts ;
-- `make baremetal/seed` et `make baremetal/fulliso` selon les profils suivis.
+- `make baremetal/gen` pour reconstruire les artefacts.
+
+> ℹ️ Les images ISO ne sont plus construites en CI : elles sont générées et
+> publiées par les pipelines internes après validation GitOps.
 
 ## 7. Déploiement GitOps
 
-Une fois la PR fusionnée, votre plateforme GitOps (Argo CD, Flux, etc.) récupère
-les ISO publiées par la CI. Aucun accès manuel aux hôtes n'est requis.
+Une fois la PR fusionnée, la responsabilité de générer et de distribuer les ISO
+incombe aux pipelines internes (usine d'image, orchestrateur interne, etc.).
+Votre plateforme GitOps (Argo CD, Flux, etc.) consomme ensuite ces artefacts
+validés. Aucun accès manuel aux hôtes n'est requis.
 
 ## Check-list de sortie
 
