@@ -2,7 +2,8 @@
 
 GitOps-first pipeline dedicated to building unattended **Ubuntu Server 24.04 LTS**
 ISOs with **Autoinstall + cloud-init (NoCloud)**. Every image is rendered from
-version-controlled files and produced by CI to guarantee reproducibility and
+version-controlled files and then built manually (outside the repository
+workflows) from the artefacts validated by CI to guarantee reproducibility and
 auditability.
 
 > 👋 New to the project? Start with the
@@ -43,8 +44,9 @@ components can still be recovered from Git history if needed.
   in `baremetal/autoinstall/generated/<target>/`.
 - **Reproducible builds**: idempotent scripts in `baremetal/scripts/` create seed
   and full ISOs from the rendered artefacts.
-- **Controlled distribution**: CI publishes the images as artefacts and acts as
-  the single source of truth for deployments.
+- **GitOps validation**: CI confirms that every hardware profile and declared
+  host renders consistent `user-data` and `meta-data`. Teams can then assemble
+  their ISO locally or through a dedicated image factory.
 
 ## Repository layout
 
@@ -137,9 +139,10 @@ Generated ISOs live under `baremetal/autoinstall/generated/<target>/`.
 
 ## Validation and CI/CD
 
-- `.github/workflows/build-iso.yml`: renders Autoinstall artefacts per hardware
-  profile, builds both ISO flavours, publishes artefacts, and prunes older runs
-  to stay within GitHub Actions quotas.
+- `.github/workflows/build-iso.yml`: renders Autoinstall artefacts for each
+  hardware profile and host, verifies the presence of both `user-data` and
+  `meta-data`, and publishes them as short-lived artefacts. No ISO gets built in
+  CI anymore, which keeps runtimes short and avoids storage pressure.
 - `.github/workflows/repository-integrity.yml`: runs `yamllint`, `ansible-lint`,
   `shellcheck`, `markdownlint`, and `trivy fs` (config + secrets) to keep the
   repository clean and secure.
@@ -154,6 +157,42 @@ Generated ISOs live under `baremetal/autoinstall/generated/<target>/`.
   redirects.
 - Store produced ISOs in controlled locations (CI artefacts, internal registry,
   etc.).
+
+## Build an ISO outside CI
+
+CI only validates that every declared machine renders valid `user-data` and
+`meta-data`. To assemble a seed or full ISO on your workstation (or a dedicated
+image factory):
+
+1. **Fetch the artefacts**
+
+   - Download the GitHub Actions artefact archive named
+     `autoinstall-<host_name>` for your target host, or render locally with
+     `make baremetal/gen HOST=<host_name>`.
+
+2. **Download the official Ubuntu ISO** (only for full installer builds)
+
+   - Grab `ubuntu-24.04-live-server-amd64.iso` from an official mirror and
+     validate its checksum/signature.
+
+3. **Build the seed ISO**
+
+   ```bash
+   make baremetal/seed HOST=<host_name>
+   ```
+
+4. **Build the full ISO (optional)**
+
+   ```bash
+   make baremetal/fulliso HOST=<host_name> \
+     UBUNTU_ISO=/path/to/ubuntu-24.04-live-server-amd64.iso
+   ```
+
+5. **Inspect the output**
+
+   - Generated artefacts reside under
+     `baremetal/autoinstall/generated/<host_name>/`.
+   - Validate signatures/hashes before any distribution.
 
 ## Additional resources
 

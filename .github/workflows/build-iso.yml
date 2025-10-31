@@ -1,13 +1,8 @@
 ---
-name: Build Bare Metal ISOs
+name: Validate Bare Metal Configurations
 
 "on":
   workflow_dispatch:
-    inputs:
-      UBUNTU_ISO_URL:
-        description: "URL of Ubuntu 24.04 live-server ISO"
-        required: false
-        default: "https://old-releases.ubuntu.com/releases/24.04/ubuntu-24.04-live-server-amd64.iso"
   push:
     branches: [main, master]
     paths:
@@ -15,23 +10,42 @@ name: Build Bare Metal ISOs
       - 'ansible/**'
       - 'scripts/install-sops.sh'
       - 'Makefile'
+      - '.github/workflows/build-iso.yml'
   pull_request:
     paths:
       - 'baremetal/**'
       - 'ansible/**'
       - 'scripts/install-sops.sh'
       - 'Makefile'
+      - '.github/workflows/build-iso.yml'
 
 jobs:
-  build:
+  validate:
     permissions:
       contents: read
-      actions: write
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        model: ["lenovo-m710q", "dell-optiplex-3020m", "lenovo-90dq004yfr"]
+        include:
+          - scope: hardware
+            target: lenovo-m710q
+          - scope: hardware
+            target: dell-optiplex-3020m
+          - scope: hardware
+            target: lenovo-90dq004yfr
+          - scope: hardware
+            target: baieyu-p09
+          - scope: host
+            target: site-a-m710q1
+          - scope: host
+            target: site-b-m710q2
+          - scope: host
+            target: site-b-dell3020m
+          - scope: host
+            target: site-c-m710q3
+          - scope: host
+            target: site-d-baieyu-p09
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,87 +56,33 @@ jobs:
           path: ~/.cache/pip
           key: pip-${{ runner.os }}-${{ hashFiles('ansible/requirements.txt') }}
 
-      - name: Cache Ubuntu ISO downloads
-        uses: actions/cache@v4
-        with:
-          path: .cache
-          key: iso-${{ runner.os }}-ubuntu-24-04
-          restore-keys: |
-            iso-${{ runner.os }}-
-
-      - name: Delete existing artifacts for ${{ matrix.model }}
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/github-script@v7
-        continue-on-error: true
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const model = `${{ matrix.model }}`;
-            const artifactName = `autoinstall-${model}`;
-            const artifacts = await github.paginate(github.rest.actions.listArtifactsForRepo, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              per_page: 100,
-            });
-            for (const artifact of artifacts) {
-              if (artifact.name === artifactName) {
-                core.info(`Deleting artifact ${artifact.id} (${artifact.name})`);
-                await github.rest.actions.deleteArtifact({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  artifact_id: artifact.id,
-                });
-              }
-            }
-
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pip xorriso p7zip-full make wget genisoimage age curl
+          sudo apt-get install -y python3-pip make age curl
           bash scripts/install-sops.sh /usr/local/bin
           python3 -m pip install --user -r ansible/requirements.txt
           $HOME/.local/bin/ansible-galaxy collection install -r ansible/collections/requirements.yml
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Download Ubuntu ISO
-        id: iso
+      - name: Render autoinstall for ${{ matrix.scope }} ${{ matrix.target }}
+        env:
+          PROFILE: ${{ matrix.scope == 'hardware' && matrix.target || '' }}
+          HOST: ${{ matrix.scope == 'host' && matrix.target || '' }}
+          TARGET: ${{ matrix.target }}
         run: |
-          ISO_URL="${{ github.event.inputs.UBUNTU_ISO_URL }}"
-          if [ -z "$ISO_URL" ]; then
-            ISO_URL="https://old-releases.ubuntu.com/releases/24.04/ubuntu-24.04-live-server-amd64.iso"
-          fi
-          mkdir -p .cache
-          FILE=".cache/$(basename $ISO_URL)"
-          wget -c "$ISO_URL" -O "$FILE"
-          echo "file=$FILE" >> $GITHUB_OUTPUT
+          make baremetal/gen
+          ls -al baremetal/autoinstall/generated/${TARGET}
+          test -f baremetal/autoinstall/generated/${TARGET}/user-data
+          test -f baremetal/autoinstall/generated/${TARGET}/meta-data
 
-      - name: Generate autoinstall for ${{ matrix.model }}
-        run: |
-          make baremetal/gen PROFILE="${{ matrix.model }}"
-
-      - name: Build seed ISO (CIDATA) for ${{ matrix.model }}
-        run: |
-          make baremetal/seed PROFILE="${{ matrix.model }}"
-
-      - name: Build full installer ISO for ${{ matrix.model }}
-        run: |
-          make baremetal/fulliso PROFILE="${{ matrix.model }}" UBUNTU_ISO="${{ steps.iso.outputs.file }}"
-
-      - name: Upload artifacts for ${{ matrix.model }}
-        id: upload
+      - name: Upload generated files for ${{ matrix.scope }} ${{ matrix.target }}
+        if: matrix.scope == 'host'
         uses: actions/upload-artifact@v4
-        continue-on-error: true
         with:
-          name: autoinstall-${{ matrix.model }}
+          name: autoinstall-${{ matrix.target }}
           path: |
-            baremetal/autoinstall/generated/${{ matrix.model }}/user-data
-            baremetal/autoinstall/generated/${{ matrix.model }}/meta-data
-            baremetal/autoinstall/generated/${{ matrix.model }}/seed-${{ matrix.model }}.iso
-            baremetal/autoinstall/generated/${{ matrix.model }}/ubuntu-autoinstall-${{ matrix.model }}.iso
+            baremetal/autoinstall/generated/${{ matrix.target }}/user-data
+            baremetal/autoinstall/generated/${{ matrix.target }}/meta-data
           if-no-files-found: error
           retention-days: 1
-
-      - name: Report artifact upload issues
-        if: steps.upload.outcome == 'failure'
-        run: |
-          echo "::warning::Artifact upload failed (likely due to storage quota or permissions). Build completed without artifacts."
