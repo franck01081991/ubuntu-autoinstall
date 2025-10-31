@@ -25,16 +25,16 @@ reproductibilité et l'auditabilité.
 ## Vue d'ensemble
 
 Le dépôt concentre tous les éléments nécessaires pour construire deux variantes
-principales d'ISO Autoinstall :
+principales d'ISO Autoinstall pour serveurs **bare metal** :
 
 - **ISO seed (`CIDATA`)** : embarque uniquement `user-data` et `meta-data` à
   monter aux côtés de l'ISO officielle.
 - **ISO complète** : intègre les fichiers NoCloud directement dans l'image
   Ubuntu Live Server.
 
-Aucun autre périmètre (provisioning applicatif, overlay réseau, etc.) n'est
-couvert ici ; les répertoires hérités demeurent dans l'historique Git mais ne
-sont plus documentés.
+Les périmètres historiques (provisioning applicatif, overlay réseau, VPS, etc.)
+ont été purgés du dépôt pour ne conserver que la chaîne de génération bare
+metal. Les composants supprimés restent disponibles dans l'historique Git.
 
 ## Approche GitOps pour les ISO
 
@@ -58,11 +58,11 @@ baremetal/
 ├── inventory/          # Host vars et profils matériels
 └── scripts/            # Génération ISO seed/full
 ansible/                # Dépendances et tâches partagées
+docs/                   # Guides utilisateurs et décisions d'architecture
 scripts/install-sops.sh # Installation SOPS (Linux amd64)
 ```
 
-Les dossiers non listés sont conservés pour compatibilité mais ne font pas
-partie du flux ISO documenté.
+Chaque dossier listé est nécessaire à la production GitOps des ISO bare metal.
 
 ## Inventaire et templates
 
@@ -161,6 +161,7 @@ Les ISO générées sont stockées sous
 ## Ressources supplémentaires
 
 - [Guide débutant](docs/getting-started-beginner.md)
+- [ADR 0001 — recentrage bare metal](docs/adr/0001-focus-baremetal.md)
 - [Documentation originale en anglais](README.en.md)
 - [Ubuntu Autoinstall Reference](https://ubuntu.com/server/docs/install/autoinstall)
 - [Cloud-init NoCloud Datasource](https://cloudinit.readthedocs.io/en/latest/topics/datasources/nocloud.html)
