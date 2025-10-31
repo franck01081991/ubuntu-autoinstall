@@ -1,113 +1,95 @@
 # Ubuntu Autoinstall
 
-Provision individual **Ubuntu Server 24.04 LTS** hosts (ThinkCentre M710q,
-Dell OptiPlex 3020M) with **Autoinstall + cloud-init (NoCloud)** using a GitOps
-workflow driven by Git, CI/CD, and code review.
+GitOps-first pipeline dedicated to building unattended **Ubuntu Server 24.04 LTS**
+ISOs with **Autoinstall + cloud-init (NoCloud)**. Every image is rendered from
+version-controlled files and produced by CI to guarantee reproducibility and
+auditability.
+
+> 👋 New to the project? Start with the
+> [beginner guide](docs/getting-started-beginner.md) to craft your first seed ISO
+> locally before validating the GitOps pipeline.
 
 ## Table of contents
 
 - [Overview](#overview)
-- [GitOps architecture](#gitops-architecture)
+- [GitOps approach for ISO builds](#gitops-approach-for-iso-builds)
 - [Repository layout](#repository-layout)
-- [Bare metal scope](#bare-metal-scope)
+- [Inventory and templates](#inventory-and-templates)
 - [Prerequisites](#prerequisites)
-- [Quick start (bare metal)](#quick-start-bare-metal)
-- [Hardware profiles](#hardware-profiles)
-- [Bare metal host variables](#bare-metal-host-variables)
-- [Shared variables and secrets management](#shared-variables-and-secrets-management)
-- [Available Make targets](#available-make-targets)
-- [Validation and testing](#validation-and-testing)
-- [Continuous integration](#continuous-integration)
+- [Quick start](#quick-start)
+- [Key Make targets](#key-make-targets)
+- [Validation and CI/CD](#validation-and-cicd)
 - [Security and compliance](#security-and-compliance)
-- [VPS provisioning with Ansible (no ISO)](#vps-provisioning-with-ansible-no-iso)
 - [Additional resources](#additional-resources)
 
 ## Overview
 
-This repository provides two separate GitOps tracks:
+This repository focuses exclusively on two Autoinstall ISO variants:
 
-- **`baremetal/`**: renders autoinstall assets and builds both seed/full ISOs for
-  Ubuntu Server 24.04 bare metal hosts.
-- **`vps/`**: runs post-install automation for VPS targets using Ansible only—no
-  ISOs are produced.
+- **Seed ISO (`CIDATA`)**: ships `user-data` and `meta-data` alongside the
+  official installer image.
+- **Full ISO**: embeds the NoCloud payload directly inside Ubuntu Live Server.
 
-Each bare metal host has its own inventoried variables, guaranteeing
-reproducible, idempotent deployments. Generated ISOs (seed and full) are
-published as pipeline artifacts for traceability. A library of **hardware
-profiles** under `baremetal/inventory/profiles/hardware/` allows the CI to
-validate autoinstall generation per model.
+Other historical scopes (application provisioning, overlay networking, etc.) are
+no longer documented even if legacy directories remain in Git history.
 
-## GitOps architecture
+## GitOps approach for ISO builds
 
-- **Declarative definition**:
-  - host-specific parameters live in `baremetal/inventory/host_vars/<host>.yml`;
-  - shared hardware profiles reside in
-    `baremetal/inventory/profiles/hardware/<profile>.yml` for reuse.
-- **Automated rendering**: Ansible + Jinja2 produce `user-data`/`meta-data` in
-  `<track>/autoinstall/generated/<host>/` for both bare metal and VPS
-  inventories.
-  - the playbooks `baremetal/ansible/playbooks/generate_autoinstall.yml` and
-    `vps/ansible/playbooks/generate_autoinstall.yml` import the shared task list
-    under `ansible/playbooks/common/`, guaranteeing identical behaviour
-    regardless of the execution path (for example `make baremetal/gen` or
-    `make vps/gen`).
-- **Controlled distribution**: CI builds the installer ISOs, stores them as
-  artifacts, and feeds them into deployments.
-- **No manual steps**: Git, CI/CD, and documented commands drive the entire
-  lifecycle.
+- **Declarative inputs**: hosts and profiles are described as YAML under
+  `baremetal/inventory/` and reviewed through pull requests.
+- **Automated rendering**: Ansible + Jinja2 generate `user-data` and `meta-data`
+  in `baremetal/autoinstall/generated/<target>/`.
+- **Reproducible builds**: idempotent scripts in `baremetal/scripts/` create seed
+  and full ISOs from the rendered artefacts.
+- **Controlled distribution**: CI publishes the images as artefacts and acts as
+  the single source of truth for deployments.
 
 ## Repository layout
 
 ```text
 baremetal/
-├── ansible/            # Autoinstall rendering playbook (NoCloud)
+├── ansible/            # Autoinstall rendering playbooks (NoCloud)
 ├── autoinstall/        # Jinja2 templates + generated artefacts
-├── inventory/          # Host vars and bare-metal hardware profiles
+├── inventory/          # Host vars and hardware profiles
 └── scripts/            # Seed/full ISO build scripts
-vps/
-├── ansible/            # Autoinstall rendering + post-install provisioning
-├── autoinstall/        # Generated artefacts (templates shared with baremetal)
-└── inventory/          # Inventory, SOPS secrets, and VPS profiles
-ansible/                # Shared dependencies (collections, requirements)
-ansible/playbooks/common/ # Shared task files between playbooks
-scripts/install-sops.sh # SOPS installer (baremetal & vps)
+ansible/                # Shared dependencies and task files
+scripts/install-sops.sh # SOPS installer (Linux amd64)
 ```
 
-## Bare metal scope
+Directories not listed above are preserved for compatibility but fall outside
+this ISO-focused workflow.
 
-- **`baremetal/` track**: focuses on rendering NoCloud autoinstall files and
-  building seed/full ISOs for physical Ubuntu Server hosts.
-- **No cloud IaC stored here**: Terraform, Kubernetes, and remote secret
-  management belong in dedicated repositories. The VPS track below remains pure
-  Ansible automation.
-- **GitOps traceability**: hosts and hardware profiles are defined via
-  Ansible/Jinja and validated by CI for auditability without ad-hoc scripts.
+## Inventory and templates
+
+- **Hardware profiles** (`baremetal/inventory/profiles/hardware/`): minimal
+  defaults per model (disk layout, NIC, tuned packages). Use them as a starting
+  point.
+- **Host variables** (`baremetal/inventory/host_vars/<host>.yml`): define
+  hostname, devices, and network parameters for each node.
+- **Templates** (`baremetal/autoinstall/templates/`): shared `user-data` and
+  `meta-data` definitions. Only adjust them when the product evolves.
 
 ## Prerequisites
 
-- Official Ubuntu 24.04 Live Server ISO (for `make baremetal/fulliso`).
-- Python 3.10+ and Ansible available on the build workstation.
-- System utilities: `xorriso` (ISO authoring) and `mkpasswd` (password hash
-  generation).
-- [SOPS](https://github.com/getsops/sops) plus an
-  [age](https://age-encryption.org/) key pair to encrypt sensitive vars.
-  `scripts/install-sops.sh` installs the recommended release (Linux amd64) and
-  verifies SHA-256.
-- Valid SSH keys and a hashed password (YESCRYPT recommended) per host.
+- Official **Ubuntu 24.04 Live Server** ISO for full builds.
+- Python 3.10+, `ansible-core`, `xorriso`, `mkpasswd`.
+- [SOPS](https://github.com/getsops/sops) and an
+  [age](https://age-encryption.org/) key pair whenever sensitive variables must
+  be encrypted.
+- Git access with code review. Never mutate production systems manually.
 
-## Quick start (bare metal)
+## Quick start
 
-1. **Select a hardware profile (optional)**
+1. **Check local dependencies**
 
    ```bash
-   ls baremetal/inventory/profiles/hardware
-   make baremetal/gen PROFILE=lenovo-m710q
+   make doctor
    ```
 
-   Artefacts are generated under
-   `baremetal/autoinstall/generated/lenovo-m710q/`.
+   The target confirms required binaries and highlights the CI linters
+   (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`).
 
-2. **Define the host variables**
+2. **Prepare host variables**
 
    ```bash
    cp baremetal/inventory/host_vars/example.yml \
@@ -115,278 +97,64 @@ scripts/install-sops.sh # SOPS installer (baremetal & vps)
    $EDITOR baremetal/inventory/host_vars/site-a-m710q1.yml
    ```
 
-3. **Render autoinstall files for the host**
+   Customize `hostname`, `hardware_profile`, the system disk, and optional
+   static networking or extra packages.
+
+3. **Render the Autoinstall payload**
 
    ```bash
    make baremetal/gen HOST=site-a-m710q1
    ```
 
-4. **Build the seed ISO (`CIDATA`)**
+4. **Build the seed ISO**
 
    ```bash
    make baremetal/seed HOST=site-a-m710q1
    ```
 
-   The ISO is exported to
-   `baremetal/autoinstall/generated/site-a-m710q1/seed-site-a-m710q1.iso`.
+5. **Produce a full installer ISO (optional)**
 
-5. **Start installation**
+   ```bash
+   make baremetal/fulliso HOST=site-a-m710q1 \
+     UBUNTU_ISO=/path/ubuntu-24.04-live-server-amd64.iso
+   ```
 
-   - Flash the official Ubuntu installer onto USB #1.
-   - Mount the seed ISO onto USB #2 (or a dedicated USB stick).
-   - Boot the installer, press `e` in GRUB, and append `autoinstall` to the
-     Linux line.
-   - The installation proceeds unattended through cloud-init (NoCloud).
+Generated ISOs live under `baremetal/autoinstall/generated/<target>/`.
 
-6. **(Optional) Build a fully integrated installer ISO**
+## Key Make targets
 
- ```bash
-  make baremetal/fulliso HOST=site-a-m710q1 \
-    UBUNTU_ISO=/path/ubuntu-24.04-live-server-amd64.iso
-  ```
-
-  `baremetal/scripts/make_full_iso.sh` replays the source ISO boot
-  configuration via `xorriso` to add the `nocloud/` directory without depending
-  on `isolinux/` (`-boot_image any replay`).
-
-### VPS autoinstall quickstart
-
-The VPS inventory reuses the exact same rendering logic:
-
-```bash
-make vps/gen VPS_HOST=vps-sapinet
-```
-
-Artefacts are created under `vps/autoinstall/generated/vps-sapinet/`. The VPS
-playbook consumes the same host variables (`hostname`, `disk_device`, network
-parameters, SSH keys, passwords) as the bare metal workflow.
-
-## Hardware profiles
-
-Profiles under `baremetal/inventory/profiles/hardware/` capture minimal
-per-model settings to validate autoinstall generation (disks, NICs, test SSH
-keys, etc.). Reference them with `make baremetal/gen PROFILE=<profile>` and
-customize site-specific files via Ansible.
-
-- `lenovo-m710q`: ThinkCentre M710q Tiny with NVMe + 2.5" SATA. The OS is
-  installed strictly on the NVMe while extra disks remain free for distributed
-  storage layers (Ceph, Gluster, etc.).
-  - Validated hardware: Intel Core i7-7700T (4C/8T, 3.8 GHz turbo) and 16 GB of
-    DDR4-2400, exposed through `hardware_specs` for infrastructure reporting.
-  - Optimisations: Intel microcode, `thermald`, `powertop` (auto-tune service),
-    `lm-sensors`, and `linux-tools-generic` ship pre-installed to stabilise
-    thermals and efficiency.
-  - Compressed memory: `systemd-zram-generator` is enabled by default (50 % of
-    RAM, capped at 8 GB, `zstd` compression) to deliver RAM-backed swap suited to
-    container workloads while preserving SSD endurance.
-- `dell-optiplex-3020m`: OptiPlex 3020M (Intel Core i5-4590T + H81 chipset)
-  running on a single SATA drive with an Intel I217-LM NIC.
-  - Optimisations: `intel-microcode`, `thermald`, `powertop`, `lm-sensors`, and
-    `linux-tools-generic` are preinstalled; `powertop-autotune` and `thermald`
-    are enabled automatically to mitigate throttling in the ultra-compact
-    chassis.
-- `lenovo-90dq004yfr`: IdeaCentre 300S-11IBR (90DQ004YFR) using SATA only,
-  tuned for that platform’s power/microcode characteristics.
-
-## Bare metal host variables
-
-Each `baremetal/inventory/host_vars/<host>.yml` may define:
-
-- `hostname`: hostname applied during installation.
-- `disk_device`: main system disk (for example `/dev/nvme0n1`).
-- `additional_disk_devices`: extra disks detected by the installer but preserved
-  untouched for external uses (distributed storage, RAID, etc.).
-- `netmode`: `dhcp` or `static`.
-- `nic`: network interface (for example `enp1s0`) for static addressing.
-- `ip`, `cidr`, `gw`, `dns`: static network parameters.
-- `ssh_authorized_keys`: list of allowed public keys.
-- `password_hash`: password hash (YESCRYPT or SHA512).
-- `extra_packages`: additional packages to install (for example hardware
-  optimisations).
-- `enable_powertop_autotune`: enables the `powertop-autotune` systemd service.
-- `enable_thermald`: enables the `thermald` service post-install (remember to
-  add the package in `extra_packages`).
-- `enable_zram_generator`: provisions `systemd-zram-generator` and enables
-  compressed RAM-backed swap.
-- `zram_generator_config`: dictionary describing ZRAM settings (for example
-  `swap.zram-fraction: 0.5`, `swap.max-zram-size: 8192`).
-
-## Shared variables and secrets management
-
-- Shared VPS variables are kept in `vps/inventory/group_vars/vps/` close to the
-  inventory. Reusable VPS autoinstall profiles can be stored under
-  `vps/inventory/profiles/hardware/`.
-- Secrets are versioned **encrypted** with [SOPS](https://github.com/getsops/sops):
-  1. Copy the template:
-
-     ```bash
-     cp vps/inventory/group_vars/vps/secrets.sops.yaml.example \
-       vps/inventory/group_vars/vps/secrets.sops.yaml
-     ```
-
-  2. Install SOPS if required:
-
-     ```bash
-     sudo bash scripts/install-sops.sh /usr/local/bin
-     ```
-
-  3. Add your age public key to `.sops.yaml` (`age1...`).
-  4. Encrypt the file:
-
-     ```bash
-     sops --encrypt --in-place \
-       vps/inventory/group_vars/vps/secrets.sops.yaml
-     ```
-
-  5. Edit securely:
-
-     ```bash
-     sops vps/inventory/group_vars/vps/secrets.sops.yaml
-     ```
-
-The keys `overlay_network_wireguard_private_key` and
-`overlay_network_keepalived_auth_passphrase` must exist in this file for
-`vps/ansible/playbooks/provision.yml` to succeed. Optional per-peer WireGuard
-preshared keys can be added under `overlay_network_wireguard_preshared_keys`. The
-playbook fails loudly when the mandatory secrets are missing.
-
-## Available Make targets
-
-- `make doctor`: verify required dependencies and suggest optional linters to
-  mirror CI tooling.
-- `make baremetal/gen HOST=<name>`: render `user-data`/`meta-data` into
-  `baremetal/autoinstall/generated/<name>/`.
-- `make baremetal/gen PROFILE=<profile>`: render artefacts for a hardware
-  profile into `baremetal/autoinstall/generated/<profile>/`.
-- `make vps/gen VPS_HOST=<name>` or `make vps/gen PROFILE=<profile>`: render
-  autoinstall artefacts into `vps/autoinstall/generated/<name or profile>/`
-  while reusing the same templates as the bare metal track.
-- `make baremetal/seed HOST=<name>`: build `seed-<name>.iso` (NoCloud
-  `CIDATA`).
-- `make baremetal/fulliso HOST=<name> UBUNTU_ISO=<path>`: build a full
-  installer ISO with autoinstall and boot flags.
+- `make doctor`: dependency checks.
+- `make baremetal/gen HOST=<name>` or `PROFILE=<profile>`: render Autoinstall
+  files.
+- `make baremetal/seed HOST=<name>`: create a seed ISO.
+- `make baremetal/fulliso HOST=<name> UBUNTU_ISO=<path>`: produce a standalone
+  installer ISO.
 - `make baremetal/clean`: remove generated artefacts.
-- `make vps/clean`: remove generated VPS artefacts.
-- `make vps/provision`: execute the VPS playbook (post-install, no ISO
-  involved).
-- `make vps/lint`: run `yamllint` and `ansible-lint` on the VPS track.
-- `make lint`: aggregates `yamllint`, `ansible-lint`, `shellcheck`, and
-  `markdownlint` across the repository (mirrors the “Repository Integrity” CI
-  workflow).
+- `make lint`: run the CI linter suite locally.
 
-## Validation and testing
+## Validation and CI/CD
 
-- `make lint`: runs the full syntax and style suite (`yamllint`, `ansible-lint`,
-  `shellcheck`, `markdownlint`). Requires `shellcheck` and `markdownlint` to be
-  present locally.
-- `make vps/lint`: focused linting for the VPS track (`yamllint` +
-  `ansible-lint`).
-- `ansible-lint`: re-run deep validation locally when debugging specific
-  playbooks.
-- `yamllint baremetal/inventory baremetal/ansible vps/inventory vps/ansible`:
-  run YAML-only checks.
-- `trivy fs --security-checks config,secret --severity HIGH,CRITICAL .`: local
-  configuration & secret scanning with the same thresholds as CI.
-- `pip install -r ansible/requirements.txt`: installs `ansible-core` 2.16.13
-  (fixes CVE-2024-8775) before running the playbooks.
-- `npm install -g markdownlint-cli@0.39.0`: keeps the local rule-set aligned
-  with the CI-pinned version to avoid drift.
-
-## Continuous integration
-
-- The workflow `.github/workflows/repository-integrity.yml` enforces repository
-  hygiene:
-  - **Static analysis** job: runs `yamllint`, `ansible-lint`, `shellcheck`, and
-    `markdownlint` (same scope as `make lint`).
-  - **Trivy configuration scan** job: `trivy fs` fails the run on
-    **HIGH/CRITICAL** findings or exposed secrets.
-- Dependencies are cached (pip, Ansible collections, npm) using keys derived
-  from `ansible/requirements.txt`, `ansible/collections/requirements.yml`, and
-  the `markdownlint-cli` version to speed up the workflow without breaking
-  idempotency.
-- The workflow `.github/workflows/build-iso.yml` renders autoinstall files **per
-  hardware model** (`PROFILE`), builds both seed and full ISOs, and uploads them
-  as artifacts.
-- To trigger manually: **Actions → Build Bare Metal ISOs → Run workflow**,
-  optionally overriding `UBUNTU_ISO_URL`.
-  - by default the CI pulls the image from
-    `https://old-releases.ubuntu.com/releases/24.04/ubuntu-24.04-live-server-amd64.iso`
-    to ensure long-term availability. The ISO download is cached in `.cache/` to
-    avoid repeated transfers.
-- Artefacts are grouped per hardware profile for straightforward traceability
-  and retained for **1 day** (`retention-days: 1`).
-- Before uploading, the workflow deletes existing GitHub Actions artifacts for
-  the same profile (`autoinstall-<profile>`) to stay within the storage quota
-  whenever the run originates from the main repository (local branches or manual
-  dispatches).
-- When the GitHub Actions quota is exceeded or the token lacks permissions,
-  artifact uploads fail with a warning but the workflow continues (best-effort
-  mode, artifacts must be recovered manually if needed).
+- `.github/workflows/build-iso.yml`: renders Autoinstall artefacts per hardware
+  profile, builds both ISO flavours, publishes artefacts, and prunes older runs
+  to stay within GitHub Actions quotas.
+- `.github/workflows/repository-integrity.yml`: runs `yamllint`, `ansible-lint`,
+  `shellcheck`, `markdownlint`, and `trivy fs` (config + secrets) to keep the
+  repository clean and secure.
+- pip/npm/collection caches derive their keys from file hashes to remain
+  idempotent.
 
 ## Security and compliance
 
-- Replace example SSH keys with production-grade host/user keys.
-- Generate passwords using `mkpasswd -m yescrypt` (from the `whois` package) or
-  `openssl passwd -6` for SHA512.
-- Network configuration enables BBR, sets `rp_filter=2`, disables ICMP redirects,
-  and enables `irqbalance`.
-- Store ISO artifacts produced by CI in controlled storage (for example GitHub
-  Actions artifacts).
-
-## VPS provisioning with Ansible (no ISO)
-
-VPS instances are provisioned **exclusively** via Ansible. No ISO is ever
-mounted or installed for these hosts.
-
-After installing Ubuntu on the VPS, run:
-
-```bash
-ansible-playbook -i vps/inventory/hosts.yml \
-  vps/ansible/playbooks/provision.yml -u ubuntu --become
-```
-
-Define variables via `vps/inventory/group_vars/vps/` (see previous section) or
-use `-e` flags for temporary overrides.
-
-Install the required Ansible collections before running the playbook:
-
-```bash
-ansible-galaxy collection install -r ansible/collections/requirements.yml
-```
-
-### Overlay networking architecture
-
-`vps/ansible/playbooks/provision.yml` calls the `overlay_network` role to deploy
-an encrypted L2 overlay across VPS nodes. The automation delivers:
-
-- **WireGuard (`wg0`)** as the encrypted transport. Interface settings come from
-  `overlay_network_wireguard_*` variables; secrets live in the SOPS-encrypted file.
-- **VXLAN (`vxlan<id>`)** on top of WireGuard to provide the L2 domain. Remote
-  VTEPs are enumerated via `overlay_network_vxlan_remotes` and bridged into
-  `overlay_network_bridge_name`.
-- **FRRouting (BGP EVPN)** to exchange overlay reachability and coordinate VXLAN
-  flooding. Neighbours are described by `overlay_network_bgp_neighbors` with
-  shared AS numbers defined in `overlay_network_bgp_asn`.
-- **Keepalived (VRRP)** to expose a highly available virtual IP carried by the
-  overlay bridge. Secrets and tuning flags rely on `overlay_network_keepalived_*`
-  variables.
-
-Populate `vps/inventory/host_vars/<host>.yml` with the peer-specific parameters
-(WireGuard endpoints, VXLAN VTEPs, BGP neighbours, Keepalived priorities).
-Shared defaults live in `vps/inventory/group_vars/vps/main.yml` and can be tuned
-per environment.
-
-> **Assumption**: Ubuntu hosts are configured with Netplan using
-> `systemd-networkd` as the backend (default on fresh installations). Adjust the
-> templates if another networking stack is in use.
-
-The `ansible/collections/requirements.yml` file pins `community.general`
-(**8.5.0**) for network automation helpers. The playbook decrypts secrets via
-the SOPS CLI (`scripts/install-sops.sh` installs it), so ensure the binary is
-available before running Ansible.
+- Replace demo SSH keys with project-specific keys.
+- Generate password hashes via `mkpasswd -m yescrypt` or `openssl passwd -6`.
+- Templates enable BBR, `irqbalance`, `rp_filter=2`, and disable outgoing ICMP
+  redirects.
+- Store produced ISOs in controlled locations (CI artefacts, internal registry,
+  etc.).
 
 ## Additional resources
 
-- [Documentation en français](README.md)
+- [Beginner guide](docs/getting-started-beginner.md)
+- [French README](README.md)
 - [Ubuntu Autoinstall Reference](https://ubuntu.com/server/docs/install/autoinstall)
 - [Cloud-init NoCloud Datasource](https://cloudinit.readthedocs.io/en/latest/topics/datasources/nocloud.html)

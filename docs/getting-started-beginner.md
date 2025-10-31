@@ -1,17 +1,16 @@
-# Guide débutant : générer sa première ISO autoinstall
+# Guide débutant : générer sa première ISO Autoinstall
 
-Ce guide explique comment passer du clonage du dépôt à la génération d'une ISO
-seed **sans connaissances préalables** sur Autoinstall ou GitOps. Chaque étape
-est idempotente : vous pouvez relancer les commandes sans risque, la CI
-reproduira exactement les mêmes artefacts.
+Ce guide vous accompagne du clonage du dépôt à la production d'une ISO seed,
+sans prérequis sur Autoinstall ou GitOps. Chaque étape est idempotente : vous
+pouvez relancer les commandes, la CI reproduira exactement les mêmes artefacts.
 
 ## Objectifs
 
-1. Comprendre la structure minimale du dépôt.
+1. Comprendre la structure minimale du dépôt centrée sur les ISO.
 2. Installer les dépendances locales nécessaires.
-3. Générer les fichiers `user-data`/`meta-data` pour un hôte.
-4. Produire une ISO seed prête à être injectée dans l'installateur Ubuntu.
-5. Vérifier que vos changements seront validés par la CI/CD.
+3. Générer les fichiers `user-data`/`meta-data` pour un hôte ou un profil.
+4. Construire une ISO seed prête pour l'installateur Ubuntu.
+5. Préparer une contribution conforme (branche, commit, PR).
 
 ## 1. Cloner le dépôt et explorer l'arborescence
 
@@ -22,39 +21,39 @@ cd ubuntu-autoinstall
 
 # Visualiser les dossiers clés
 ls baremetal
-ls vps
 ```
 
-- `baremetal/` : tout ce qui concerne la génération autoinstall.
-- `vps/` : rôles Ansible pour le provisioning post-installation.
-- `docs/` : ADR, guides et documentation d'architecture.
+- `baremetal/` : templates, inventaire et scripts pour générer les ISO.
+- `ansible/` : dépendances partagées (`collections`, requirements Python, tâches
+  communes).
+- `docs/` : guides utilisateurs (dont ce document).
 
-> 🔁 Chaque modification doit être versionnée dans une branche dédiée, puis
-> intégrée via PR. Aucun ajustement manuel en production.
+> 🔁 Toute modification doit transiter par Git (branche dédiée + PR). Aucun
+> ajustement manuel n'est toléré sur les environnements cibles.
 
 ## 2. Installer les dépendances locales
 
-Les commandes Make utilisent des outils standards. Vérifiez leur disponibilité :
+Les cibles `make` reposent sur des outils standards. Vérifiez leur présence :
 
 ```bash
 make doctor
 ```
 
-Le `Makefile` contrôle la présence :
+La commande contrôle :
 
-- de `python3` et `ansible-playbook` ;
-- de `xorriso` (construction d'ISO) et `mkpasswd` (hash de mot de passe) ;
-- de `sops` et d'un binaire `age` dans le `PATH`.
+- `python3` et `ansible-playbook` ;
+- `xorriso` (construction d'ISO) et `mkpasswd` (hash yescrypt/SHA512) ;
+- `sops` et un binaire `age` dans le `PATH`.
 
-Il signale également (sans échouer) l'absence des linters utilisés en CI :
+Elle signale également (sans échouer) l'absence des linters utilisés en CI :
 `yamllint`, `ansible-lint`, `shellcheck` et `markdownlint`.
 
-> ℹ️ Si `make doctor` échoue, installez les dépendances requises puis relancez
-> la commande. Aucun contournement n'est proposé dans le dépôt.
+> ℹ️ Corrigez toute dépendance manquante avant de poursuivre. Les scripts ne
+> fournissent pas de contournement local.
 
 ## 3. Préparer un fichier `host_vars`
 
-Chaque hôte bare metal possède un fichier `YAML` dédié sous
+Chaque hôte possède un fichier YAML dédié sous
 `baremetal/inventory/host_vars/`.
 
 ```bash
@@ -62,25 +61,27 @@ cp baremetal/inventory/host_vars/example.yml \
   baremetal/inventory/host_vars/site-a-m710q1.yml
 ```
 
-Éditez le fichier copié et personnalisez :
+Éditez le fichier copié et personnalisez notamment :
 
-- `hostname` : nom attribué à la machine pendant l'installation ;
+- `hostname` : nom attribué durant l'installation ;
 - `hardware_profile` : profil matériel (ex. `lenovo-m710q`) pour hériter des
-  paramètres standards ;
-- `netmode` : `dhcp` ou `static` selon votre réseau ;
-- `ssh_authorized_keys` : remplacez la clé de démonstration ;
-- `password_hash` : générez un hash yescrypt/SHA512 via `mkpasswd`.
+  valeurs par défaut ;
+- `disk_device` : disque système principal ;
+- `netmode`, `nic`, `ip`, `gw`, `dns` si vous utilisez une configuration
+  statique ;
+- `ssh_authorized_keys` et `password_hash` (YESCRYPT recommandé).
 
-> 💡 Ajoutez des champs comme `disk_device`, `ip`, `gw` ou `extra_packages` si
-> vous devez dépasser les valeurs fournies par le profil matériel choisi.
+> 💡 Les profils matériels (`baremetal/inventory/profiles/hardware/`) contiennent
+> des valeurs de référence. Inspirez-vous-en pour créer vos propres fichiers
+> `host_vars`.
 
-## 4. Générer les fichiers autoinstall
+## 4. Générer les fichiers Autoinstall
 
 ```bash
 make baremetal/gen HOST=site-a-m710q1
 ```
 
-La commande rendra :
+La commande produit :
 
 ```text
 baremetal/autoinstall/generated/site-a-m710q1/
@@ -88,8 +89,7 @@ baremetal/autoinstall/generated/site-a-m710q1/
 └── user-data
 ```
 
-Vous pouvez relire `user-data` pour confirmer que les variables attendues sont
-présentes.
+Relisez `user-data` pour valider le rendu des variables critiques.
 
 ## 5. Construire l'ISO seed
 
@@ -104,8 +104,12 @@ baremetal/autoinstall/generated/site-a-m710q1/
 └── seed-site-a-m710q1.iso
 ```
 
-Enregistrez l'ISO dans votre gestionnaire d'artefacts ou attendez la génération
-CI pour récupérer une copie officielle.
+Pour produire une ISO complète intégrant l'installateur Ubuntu :
+
+```bash
+make baremetal/fulliso HOST=site-a-m710q1 \
+  UBUNTU_ISO=/chemin/ubuntu-24.04-live-server-amd64.iso
+```
 
 ## 6. Préparer la Pull Request
 
@@ -115,17 +119,16 @@ CI pour récupérer une copie officielle.
    git checkout -b feat/site-a-m710q1
    ```
 
-2. Validez vos changements :
+2. Vérifiez et validez vos changements :
 
    ```bash
    git status
    git diff
    git add baremetal/inventory/host_vars/site-a-m710q1.yml
-   # suivez le format Conventional Commits pour vos messages de commit
    git commit -m "feat: add site-a-m710q1 host"
    ```
 
-3. Poussez et ouvrez une PR :
+3. Poussez et ouvrez la PR :
 
    ```bash
    git push origin feat/site-a-m710q1
@@ -133,22 +136,22 @@ CI pour récupérer une copie officielle.
 
 La CI exécutera automatiquement :
 
-- `make lint` pour vérifier les linting YAML et Ansible.
-- `make baremetal/gen` sur chaque hôte pour garantir la reproductibilité.
-- `make baremetal/seed` afin de publier les ISO en artefact.
+- `make lint` pour contrôler YAML, Ansible, Shell et Markdown ;
+- `make baremetal/gen` pour reconstruire les artefacts ;
+- `make baremetal/seed` et `make baremetal/fulliso` selon les profils suivis.
 
 ## 7. Déploiement GitOps
 
-Une fois la PR fusionnée, Argo CD détectera la nouvelle version et appliquera
-les changements décrits dans Git. Aucun accès manuel aux hôtes n'est requis.
+Une fois la PR fusionnée, votre plateforme GitOps (Argo CD, Flux, etc.) récupère
+les ISO publiées par la CI. Aucun accès manuel aux hôtes n'est requis.
 
 ## Check-list de sortie
 
-- [ ] `make doctor` passe en local.
-- [ ] Les fichiers `host_vars` sont validés par `yamllint` / `ansible-lint`.
-- [ ] La génération autoinstall fonctionne (`make baremetal/gen`).
-- [ ] L'ISO seed est produite (`make baremetal/seed`).
-- [ ] Une PR documente clairement l'objectif et les tests réalisés.
+- [ ] `make doctor` est au vert.
+- [ ] Les fichiers `host_vars` passent `yamllint` / `ansible-lint`.
+- [ ] `make baremetal/gen` produit les artefacts attendus.
+- [ ] `make baremetal/seed` (et éventuellement `make baremetal/fulliso`) réussit.
+- [ ] La PR décrit l'objectif et les tests réalisés.
 
-> ✅ Une fois cette check-list remplie, vos changements sont prêts pour revue de
-> code et déploiement automatisé.
+> ✅ Une fois cette check-list validée, vos changements sont prêts pour revue de
+> code et intégration continue.
