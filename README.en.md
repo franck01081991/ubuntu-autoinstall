@@ -24,7 +24,8 @@ auditability.
 
 ## Overview
 
-This repository focuses exclusively on two Autoinstall ISO variants for **bare metal servers**:
+This repository focuses exclusively on two Autoinstall ISO variants for
+**bare metal servers**:
 
 - **Seed ISO (`CIDATA`)**: ships `user-data` and `meta-data` alongside the
   official installer image.
