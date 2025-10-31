@@ -6,3 +6,8 @@ creation_rules:
     key_groups:
       - age:
           - age1examplemanagevariables0000000000000000000000000000000000000000000000000000
+  - path_regex: baremetal/inventory/group_vars/.+\.sops\.ya?ml$
+    encrypted_regex: '^(disk_encryption_passphrase|.*_secret)$'
+    key_groups:
+      - age:
+          - age1examplemanagevariables0000000000000000000000000000000000000000000000000000

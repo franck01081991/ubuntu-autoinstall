@@ -33,6 +33,8 @@ autoinstall:
 {% for pkg in extra_packages | default([]) %}
     - {{ pkg }}
 {% endfor %}
+{% set encryption = disk_encryption | default({}) %}
+{% set luks_enabled = encryption.enabled | default(false) %}
   storage:
     swap:
       size: 0
@@ -60,11 +62,38 @@ autoinstall:
         id: boot
         device: disk0
         size: 1G
+{% if luks_enabled %}
+      - type: partition
+        id: luks-root-partition
+        device: disk0
+        size: -1
+      - type: dm_crypt
+        id: luks-root
+        volume: luks-root-partition
+        dm_name: {{ encryption.device_name | default('cryptroot') }}
+        key: "{{ encryption.passphrase | mandatory('disk_encryption.passphrase must be provided when disk encryption is enabled') }}"
+{%   if encryption.cipher is defined %}
+        cipher: {{ encryption.cipher }}
+{%   endif %}
+{%   if encryption.keysize is defined %}
+        keysize: {{ encryption.keysize }}
+{%   endif %}
+{%   if encryption.hash is defined %}
+        hash: {{ encryption.hash }}
+{%   endif %}
+{%   if encryption.pbkdf is defined %}
+        pbkdf:
+{%     for pbkdf_key, pbkdf_value in encryption.pbkdf.items() %}
+          {{ pbkdf_key }}: {{ pbkdf_value | to_json }}
+{%     endfor %}
+{%   endif %}
+{% else %}
       - type: partition
         id: pv1
         device: disk0
         size: -1
         flag: lvm
+{% endif %}
       - type: format
         id: fmt-efi
         volume: efi
@@ -75,7 +104,7 @@ autoinstall:
         fstype: ext4
       - type: lvm_volgroup
         id: vg0
-        devices: [ pv1 ]
+        devices: [ {{ 'luks-root' if luks_enabled else 'pv1' }} ]
       - type: lvm_partition
         id: lv_root
         volgroup: vg0
