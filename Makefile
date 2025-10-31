@@ -6,10 +6,10 @@ UBUNTU_ISO ?= ubuntu-24.04-live-server-amd64.iso
 BAREMETAL_DIR ?= baremetal
 TARGET := $(if $(PROFILE),$(PROFILE),$(HOST))
 
-.PHONY: baremetal/gen baremetal/seed baremetal/fulliso baremetal/clean lint doctor
+.PHONY: baremetal/gen baremetal/seed baremetal/fulliso baremetal/clean lint doctor secrets-scan
 
 REQUIRED_CMDS := python3 ansible-playbook xorriso mkpasswd sops age
-OPTIONAL_CMDS := yamllint ansible-lint shellcheck markdownlint
+OPTIONAL_CMDS := yamllint ansible-lint shellcheck markdownlint gitleaks
 
 baremetal/gen:
 	cd $(BAREMETAL_DIR)/ansible/playbooks && PROFILE=$(PROFILE) HOST=$(TARGET) $(ANSIBLE) generate_autoinstall.yml
@@ -30,6 +30,10 @@ lint:
 	  baremetal/ansible/playbooks/generate_autoinstall.yml
 	find scripts baremetal/scripts -type f -name '*.sh' -print0 | xargs -0 -r shellcheck
 	find README*.md docs -type f -name '*.md' -print0 | xargs -0 -r markdownlint
+
+secrets-scan:
+	@gitleaks detect --config gitleaks.toml --report-format sarif --report-path gitleaks.sarif --redact
+	@echo 'gitleaks report generated at gitleaks.sarif'
 
 doctor:
 	@missing=0; \
