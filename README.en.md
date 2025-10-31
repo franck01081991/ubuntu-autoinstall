@@ -166,7 +166,9 @@ Generated ISOs live under `baremetal/autoinstall/generated/<target>/`.
 - CI runs `scripts/ci/check-no-plaintext-secrets.py` to ensure inventories
   contain no plaintext secrets and `trivy fs` for accidental secret detection.
 - Configure the GitHub secret `SOPS_AGE_KEY` (age private key) so CI can
-  decrypt SOPS files.
+  decrypt SOPS files. While the secret stays empty, the *Validate Bare Metal
+  Configurations* workflow will be skipped automatically and no autoinstall
+  render will run in CI.
 - Store produced ISOs in controlled locations (CI artefacts, internal registry,
   etc.).
 

@@ -218,7 +218,9 @@ Les ISO générées sont stockées sous
   les inventaires ne contiennent aucun secret en clair et `trivy fs` pour la
   détection de secrets accidentels.
 - Configurez le secret GitHub `SOPS_AGE_KEY` (clé privée `age`) pour permettre à
-  la CI de déchiffrer les fichiers SOPS.
+  la CI de déchiffrer les fichiers SOPS. Tant que le secret reste vide, le
+  workflow *Validate Bare Metal Configurations* sera automatiquement ignoré et
+  aucun rendu autoinstall ne sera effectué en CI.
 - Conservez les ISO produites dans un stockage contrôlé (artefacts CI, dépôt
   interne, etc.).
 

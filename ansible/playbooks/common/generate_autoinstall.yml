@@ -29,6 +29,19 @@
   ansible.builtin.include_vars:
     file: "{{ primary_vars_file }}"
 
+- name: Check if host secrets file exists
+  when: profile | length == 0
+  ansible.builtin.stat:
+    path: "{{ host_secrets_file }}"
+  register: host_secrets_file_stat
+
+- name: Load host secrets
+  when:
+    - profile | length == 0
+    - host_secrets_file_stat.stat.exists
+  ansible.builtin.include_vars:
+    file: "{{ host_secrets_file }}"
+
 - name: Ensure output dir exists for target {{ config_name }}
   ansible.builtin.file:
     path: "{{ autoinstall_dir }}/generated/{{ config_name }}"
