@@ -1,4 +1,7 @@
 #cloud-config
+# yamllint disable rule:comments
+---
+# yamllint enable rule:comments
 autoinstall:
   version: 1
   locale: fr_FR.UTF-8
@@ -116,35 +119,38 @@ autoinstall:
     - curtin in-target --target=/target ufw allow OpenSSH
     - curtin in-target --target=/target ufw --force enable
     - curtin in-target --target=/target systemctl enable ufw
-    - curtin in-target --target=/target bash -lc 'cat <<"SSHD" >/etc/ssh/sshd_config.d/99-hardening.conf
-# Managed via GitOps - do not edit manually
-PermitRootLogin no
-PasswordAuthentication no
-KbdInteractiveAuthentication no
-ChallengeResponseAuthentication no
-X11Forwarding no
-AllowUsers admin
-PubkeyAuthentication yes
-Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
-MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
-HostKeyAlgorithms ssh-ed25519,ssh-ed25519-cert-v01@openssh.com
-SSHD'
+    - |
+      curtin in-target --target=/target bash -lc "cat <<'SSHD' >/etc/ssh/sshd_config.d/99-hardening.conf
+      # Managed via GitOps - do not edit manually
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      ChallengeResponseAuthentication no
+      X11Forwarding no
+      AllowUsers admin
+      PubkeyAuthentication yes
+      Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
+      MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+      HostKeyAlgorithms ssh-ed25519,ssh-ed25519-cert-v01@openssh.com
+      SSHD"
     - curtin in-target --target=/target systemctl restart ssh
-    - curtin in-target --target=/target bash -lc 'cat <<"F2B" >/etc/fail2ban/jail.d/sshd-local.conf
-[sshd]
-enabled = true
-mode = aggressive
-maxretry = 5
-findtime = 10m
-bantime = 1h
-F2B'
+    - |
+      curtin in-target --target=/target bash -lc "cat <<'F2B' >/etc/fail2ban/jail.d/sshd-local.conf
+      [sshd]
+      enabled = true
+      mode = aggressive
+      maxretry = 5
+      findtime = 10m
+      bantime = 1h
+      F2B"
     - curtin in-target --target=/target systemctl enable --now fail2ban
     - curtin in-target --target=/target systemctl reload fail2ban
-    - curtin in-target --target=/target bash -lc 'cat <<"UNATTENDED" >/etc/apt/apt.conf.d/51unattended-upgrades-hardening
-Unattended-Upgrade::Automatic-Reboot "true";
-Unattended-Upgrade::Automatic-Reboot-Time "03:30";
-Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
-Unattended-Upgrade::Remove-Unused-Dependencies "true";
-Unattended-Upgrade::Automatic-Reboot-WithUsers "false";
-UNATTENDED'
+    - |
+      curtin in-target --target=/target bash -lc "cat <<'UNATTENDED' >/etc/apt/apt.conf.d/51unattended-upgrades-hardening
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "03:30";
+      Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+      Unattended-Upgrade::Automatic-Reboot-WithUsers "false";
+      UNATTENDED"
     - curtin in-target --target=/target systemctl enable --now unattended-upgrades
