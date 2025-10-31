@@ -72,6 +72,9 @@ the GitOps pipeline.
 - **Host variables** (`baremetal/inventory/host_vars/<host>/`): each host owns a
   directory with `main.yml` (non-sensitive values) and `secrets.sops.yaml`
   (password hashes, SSH keys, tokens encrypted with SOPS).
+- **Host inventory** (`baremetal/inventory/hosts.yml`): empty by design so the
+  repository stays environment-agnostic. Declare only the machines you want to
+  render locally or through the GitOps CI.
 - **Templates** (`baremetal/autoinstall/templates/`): shared `user-data` and
   `meta-data` definitions. Only adjust them when the product evolves.
 
@@ -110,6 +113,16 @@ the GitOps pipeline.
    `ssh_authorized_keys`, tokens). Enable LUKS by adding
    `disk_encryption.enabled: true` and referencing the SOPS-managed passphrase
    as documented in the [disk encryption guide](docs/baremetal-disk-encryption.md).
+   Finally, declare the host in `baremetal/inventory/hosts.yml`. The file starts
+   empty so each contributor tracks only their local targets:
+
+   ```yaml
+   all:
+     children:
+       baremetal:
+         hosts:
+           site-a-m710q1: {}
+   ```
 
 3. **Render the Autoinstall payload**
 

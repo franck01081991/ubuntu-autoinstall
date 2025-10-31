@@ -76,6 +76,9 @@ Chaque dossier listé est nécessaire à la production GitOps des ISO bare metal
   possède un répertoire contenant `main.yml` (valeurs non sensibles) et
   `secrets.sops.yaml` (hash de mot de passe, clés SSH, tokens spécifiques
   chiffrés via SOPS).
+- **Inventaire des hôtes** (`baremetal/inventory/hosts.yml`) : vide par défaut
+  pour éviter tout état couplé à un environnement. Ajoutez-y uniquement les
+  machines que vous souhaitez générer en local ou via la CI GitOps.
 - **Templates** (`baremetal/autoinstall/templates/`) : décrivent le `user-data`
   et `meta-data` communs. Ne modifiez qu'en cas d'évolution produit.
 - **Profils durcis prêts à l'emploi** :
