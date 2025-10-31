@@ -24,14 +24,16 @@ auditability.
 
 ## Overview
 
-This repository focuses exclusively on two Autoinstall ISO variants:
+This repository focuses exclusively on two Autoinstall ISO variants for
+**bare metal servers**:
 
 - **Seed ISO (`CIDATA`)**: ships `user-data` and `meta-data` alongside the
   official installer image.
 - **Full ISO**: embeds the NoCloud payload directly inside Ubuntu Live Server.
 
-Other historical scopes (application provisioning, overlay networking, etc.) are
-no longer documented even if legacy directories remain in Git history.
+Legacy scopes (application provisioning, overlay networking, VPS, etc.) have
+been removed so that only the bare metal ISO toolchain remains. Deleted
+components can still be recovered from Git history if needed.
 
 ## GitOps approach for ISO builds
 
@@ -53,11 +55,12 @@ baremetal/
 ├── inventory/          # Host vars and hardware profiles
 └── scripts/            # Seed/full ISO build scripts
 ansible/                # Shared dependencies and task files
+docs/                   # Guides and Architecture Decision Records
 scripts/install-sops.sh # SOPS installer (Linux amd64)
 ```
 
-Directories not listed above are preserved for compatibility but fall outside
-this ISO-focused workflow.
+Every directory shown above is required to produce the bare metal ISOs through
+the GitOps pipeline.
 
 ## Inventory and templates
 
@@ -155,6 +158,7 @@ Generated ISOs live under `baremetal/autoinstall/generated/<target>/`.
 ## Additional resources
 
 - [Beginner guide](docs/getting-started-beginner.md)
+- [ADR 0001 — bare metal focus](docs/adr/0001-focus-baremetal.md)
 - [French README](README.md)
 - [Ubuntu Autoinstall Reference](https://ubuntu.com/server/docs/install/autoinstall)
 - [Cloud-init NoCloud Datasource](https://cloudinit.readthedocs.io/en/latest/topics/datasources/nocloud.html)

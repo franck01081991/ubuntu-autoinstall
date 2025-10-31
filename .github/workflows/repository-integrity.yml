@@ -67,11 +67,11 @@ jobs:
 
       - name: Run yamllint
         run: |
-          yamllint ansible baremetal vps .github/workflows
+          yamllint ansible baremetal .github/workflows
 
       - name: Run ansible-lint
         run: |
-          ansible-lint baremetal/ansible/playbooks/generate_autoinstall.yml vps/ansible/playbooks/provision.yml
+          ansible-lint ansible/playbooks/common/generate_autoinstall.yml baremetal/ansible/playbooks/generate_autoinstall.yml
 
       - name: Run ShellCheck
         shell: bash

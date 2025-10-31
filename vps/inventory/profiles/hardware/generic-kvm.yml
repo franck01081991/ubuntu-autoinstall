@@ -1,9 +1,0 @@
----
-# Profil générique pour un VPS KVM mono-disque
-hostname: generic-kvm
-hardware_model: generic-vps
-netmode: dhcp
-disk_device: /dev/vda
-ssh_authorized_keys:
-  - ssh-ed25519 AAAA...REPLACE_ME your_key@vps
-password_hash: $y$j9T$REPLACE_ME_HASH
