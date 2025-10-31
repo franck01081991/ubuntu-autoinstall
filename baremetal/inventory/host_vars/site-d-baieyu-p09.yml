@@ -1,9 +1,0 @@
----
-hostname: site-d-baieyu-p09
-hardware_profile: baieyu-p09
-disk_device: /dev/sda
-netmode: dhcp
-nic: enp1s0
-ssh_authorized_keys:
-  - ssh-ed25519 AAAA...REPLACE_ME your_key@host
-password_hash: $y$j9T$REPLACE_ME_HASH

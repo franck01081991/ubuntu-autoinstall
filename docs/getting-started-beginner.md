@@ -51,34 +51,33 @@ Elle signale également (sans échouer) l'absence des linters utilisés en CI :
 > ℹ️ Corrigez toute dépendance manquante avant de poursuivre. Les scripts ne
 > fournissent pas de contournement local.
 
-## 3. Préparer un fichier `host_vars`
+## 3. Préparer un répertoire `host_vars`
 
-Chaque hôte possède un fichier YAML dédié sous
-`baremetal/inventory/host_vars/`.
+Chaque hôte dispose désormais d'un **répertoire** contenant :
+
+- `main.yml` : variables non sensibles ;
+- `secrets.sops.yaml` : secrets chiffrés (hash du mot de passe, clés SSH,
+  tokens). Ce fichier doit toujours rester chiffré dans Git.
 
 ```bash
-cp baremetal/inventory/host_vars/example.yml \
-  baremetal/inventory/host_vars/site-a-m710q1.yml
+cp -R baremetal/inventory/host_vars/example \
+  baremetal/inventory/host_vars/site-a-m710q1
+$EDITOR baremetal/inventory/host_vars/site-a-m710q1/main.yml
+SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt \
+  sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
 ```
 
-Éditez le fichier copié et personnalisez notamment :
-
-- `hostname` : nom attribué durant l'installation ;
-- `hardware_profile` : profil matériel (ex. `lenovo-m710q`) pour hériter des
-  valeurs par défaut ;
-- `disk_device` : disque système principal ;
-- `netmode`, `nic`, `ip`, `gw`, `dns` si vous utilisez une configuration
-  statique ;
-- `ssh_authorized_keys` et `password_hash` (YESCRYPT recommandé).
+Personnalisez `main.yml` (hostname, profil matériel `lenovo-m710q`, disque
+principal, configuration réseau). Dans `secrets.sops.yaml`, remplacez les
+valeurs de démonstration par vos propres clés/hashe de mot de passe via SOPS.
 
 > 🔐 Pour activer le chiffrement OS, ajoutez `disk_encryption.enabled: true`
 > et référençez la passphrase fournie par SOPS
 > (`passphrase: "{{ disk_encryption_passphrase }}"`). Suivez le guide
 > [Chiffrement du disque système](baremetal-disk-encryption.md) pour créer
 > le secret `SOPS` requis.
-> 💡 Les profils matériels (`baremetal/inventory/profiles/hardware/`) contiennent
-> des valeurs de référence. Inspirez-vous-en pour créer vos propres fichiers
-> `host_vars`.
+> 💡 Les profils matériels (`baremetal/inventory/profiles/hardware/`) fournissent
+> des valeurs de référence. Inspirez-vous-en pour compléter `main.yml`.
 
 ## 4. Générer les fichiers Autoinstall
 
@@ -129,7 +128,7 @@ make baremetal/fulliso HOST=site-a-m710q1 \
    ```bash
    git status
    git diff
-   git add baremetal/inventory/host_vars/site-a-m710q1.yml
+   git add baremetal/inventory/host_vars/site-a-m710q1
    git commit -m "feat: add site-a-m710q1 host"
    ```
 

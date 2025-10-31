@@ -29,8 +29,16 @@ def git_diff(base: str | None) -> list[str]:
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
-def list_targets(directory: Path) -> list[str]:
+def list_hardware_targets(directory: Path) -> list[str]:
     return sorted(p.stem for p in directory.glob("*.yml") if p.is_file())
+
+
+def list_host_targets(directory: Path) -> list[str]:
+    hosts: list[str] = []
+    for candidate in directory.iterdir():
+        if candidate.is_dir() and (candidate / "main.yml").exists():
+            hosts.append(candidate.name)
+    return sorted(hosts)
 
 
 def write_output(name: str, value: str) -> None:
@@ -54,11 +62,14 @@ def determine_targets(changed_files: Iterable[str]) -> tuple[list[dict[str, str]
     hardware_dir = REPO_ROOT / "baremetal" / "inventory" / "profiles" / "hardware"
     host_dir = REPO_ROOT / "baremetal" / "inventory" / "host_vars"
 
-    hardware_targets = list_targets(hardware_dir)
-    host_targets = list_targets(host_dir)
+    hardware_targets = list_hardware_targets(hardware_dir)
+    host_targets = list_host_targets(host_dir)
 
     hardware_map = {f"baremetal/inventory/profiles/hardware/{name}.yml": name for name in hardware_targets}
-    host_map = {f"baremetal/inventory/host_vars/{name}.yml": name for name in host_targets}
+    host_map = {}
+    for name in host_targets:
+        host_map[f"baremetal/inventory/host_vars/{name}/main.yml"] = name
+        host_map[f"baremetal/inventory/host_vars/{name}/secrets.sops.yaml"] = name
 
     always_all_prefixes = (
         "ansible/",
@@ -95,7 +106,13 @@ def determine_targets(changed_files: Iterable[str]) -> tuple[list[dict[str, str]
         elif path in host_map:
             touched_hosts.add(host_map[path])
         elif path.startswith("baremetal/inventory/host_vars/"):
-            touched_hosts.add(Path(path).stem)
+            parts = Path(path).parts
+            try:
+                host_index = parts.index("host_vars") + 1
+                host_name = parts[host_index]
+                touched_hosts.add(host_name)
+            except ValueError:
+                continue
         elif path.startswith("baremetal/inventory/profiles/"):
             reasons.append(f"Changement inventaire partagé ({path}) → validation complète")
             return (

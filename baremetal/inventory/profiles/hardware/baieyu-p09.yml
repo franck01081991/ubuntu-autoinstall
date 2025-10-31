@@ -13,6 +13,5 @@ extra_packages:
   - linux-tools-generic
 enable_powertop_autotune: true
 enable_thermald: true
-ssh_authorized_keys:
-  - ssh-ed25519 AAAA...REPLACE_ME your_key@model
-password_hash: $y$j9T$REPLACE_ME_HASH
+# Secrets spécifiques à l'hôte (clé SSH, hash) doivent provenir des fichiers
+# `host_vars/<host>/secrets.sops.yaml`.
