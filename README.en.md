@@ -168,8 +168,9 @@ per-model settings to validate autoinstall generation (disks, NICs, test SSH
 keys, etc.). Reference them with `make baremetal/gen PROFILE=<profile>` and
 customize site-specific files via Ansible.
 
-- `lenovo-m710q`: ThinkCentre M710q Tiny with NVMe + 2.5" SATA; both disks join
-  a single LVM volume for extra capacity.
+- `lenovo-m710q`: ThinkCentre M710q Tiny with NVMe + 2.5" SATA. The OS is
+  installed strictly on the NVMe while extra disks remain free for distributed
+  storage layers (Ceph, Gluster, etc.).
   - Validated hardware: Intel Core i7-7700T (4C/8T, 3.8 GHz turbo) and 16 GB of
     DDR4-2400, exposed through `hardware_specs` for infrastructure reporting.
   - Optimisations: Intel microcode, `thermald`, `powertop` (auto-tune service),
@@ -193,8 +194,8 @@ Each `baremetal/inventory/host_vars/<host>.yml` may define:
 
 - `hostname`: hostname applied during installation.
 - `disk_device`: main system disk (for example `/dev/nvme0n1`).
-- `additional_disk_devices`: extra disks to add to the LVM VG (for example
-  `['/dev/sda']`).
+- `additional_disk_devices`: extra disks detected by the installer but preserved
+  untouched for external uses (distributed storage, RAID, etc.).
 - `netmode`: `dhcp` or `static`.
 - `nic`: network interface (for example `enp1s0`) for static addressing.
 - `ip`, `cidr`, `gw`, `dns`: static network parameters.
