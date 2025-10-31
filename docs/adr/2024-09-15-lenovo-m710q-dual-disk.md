@@ -22,7 +22,8 @@
 
 ## Statut
 
-Acceptée (2024-09-15).
+Superseded par l'ADR 2024-11-24 (« Réserver les disques supplémentaires pour le
+stockage distribué »).
 
 ## Conséquences
 

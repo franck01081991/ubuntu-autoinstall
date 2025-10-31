@@ -44,20 +44,12 @@ autoinstall:
         wipe: superblock-recursive
         ptable: gpt
         grub_device: true
-{% set extra = namespace(pvs=[]) %}
 {% for extra_disk in additional_disk_devices | default([]) %}
       - id: disk{{ loop.index }}
         type: disk
         match:
           path: "{{ extra_disk }}"
-        wipe: superblock-recursive
-        ptable: gpt
-      - type: partition
-        id: pv_extra{{ loop.index }}
-        device: disk{{ loop.index }}
-        size: -1
-        flag: lvm
-{%   set _ = extra.pvs.append('pv_extra' ~ loop.index) %}
+        preserve: true
 {% endfor %}
       - type: partition
         id: efi
@@ -83,7 +75,7 @@ autoinstall:
         fstype: ext4
       - type: lvm_volgroup
         id: vg0
-        devices: [ pv1{% for pv in extra.pvs %}, {{ pv }}{% endfor %} ]
+        devices: [ pv1 ]
       - type: lvm_partition
         id: lv_root
         volgroup: vg0

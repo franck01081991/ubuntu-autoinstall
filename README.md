@@ -198,8 +198,9 @@ réseau, clés SSH de test, etc.). Chaque fichier peut être référencé via
 spécifiques via Ansible.
 
 - `lenovo-m710q` : ThinkCentre M710q Tiny équipé d'un NVMe et d'un emplacement
-  SATA 2,5". Le profil assemble les deux disques dans le même volume LVM afin
-  d'offrir une capacité unique.
+  SATA 2,5". Le profil installe l'OS exclusivement sur le NVMe et réserve le(s)
+  disque(s) supplémentaire(s) pour les solutions de stockage distribué (Ceph,
+  Gluster, etc.).
   - Matériel validé : Intel Core i7-7700T (4C/8T, turbo 3,8 GHz) et 16 Go de
     DDR4-2400. Ces caractéristiques sont exposées via `hardware_specs` pour les
     rapports d'infrastructure.
@@ -234,8 +235,8 @@ paramètres suivants :
 
 - `hostname` : nom d'hôte configuré pendant l'installation.
 - `disk_device` : disque système principal (ex. `/dev/nvme0n1`).
-- `additional_disk_devices` : liste de disques supplémentaires à intégrer au VG
-  LVM (ex. `['/dev/sda']`).
+- `additional_disk_devices` : liste de disques supplémentaires détectés mais
+  conservés intacts pour des usages externes (stockage distribué, RAID, etc.).
 - `netmode` : `dhcp` ou `static`.
 - `nic` : interface réseau (ex. `enp1s0`) pour IP statique.
 - `ip`, `cidr`, `gw`, `dns` : paramètres réseau statiques.
