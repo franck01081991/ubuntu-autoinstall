@@ -69,8 +69,9 @@ the GitOps pipeline.
 - **Hardware profiles** (`baremetal/inventory/profiles/hardware/`): minimal
   defaults per model (disk layout, NIC, tuned packages). Use them as a starting
   point.
-- **Host variables** (`baremetal/inventory/host_vars/<host>.yml`): define
-  hostname, devices, and network parameters for each node.
+- **Host variables** (`baremetal/inventory/host_vars/<host>/`): each host owns a
+  directory with `main.yml` (non-sensitive values) and `secrets.sops.yaml`
+  (password hashes, SSH keys, tokens encrypted with SOPS).
 - **Templates** (`baremetal/autoinstall/templates/`): shared `user-data` and
   `meta-data` definitions. Only adjust them when the product evolves.
 
@@ -97,13 +98,16 @@ the GitOps pipeline.
 2. **Prepare host variables**
 
    ```bash
-   cp baremetal/inventory/host_vars/example.yml \
-     baremetal/inventory/host_vars/site-a-m710q1.yml
-   $EDITOR baremetal/inventory/host_vars/site-a-m710q1.yml
+   cp -R baremetal/inventory/host_vars/example \
+     baremetal/inventory/host_vars/site-a-m710q1
+   $EDITOR baremetal/inventory/host_vars/site-a-m710q1/main.yml
+   SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt \
+     sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
    ```
 
-   Customize `hostname`, `hardware_profile`, the system disk, and optional
-   static networking or extra packages. Enable LUKS by adding
+   Customize `main.yml` (hostname, hardware profile, disk, networking) and use
+   SOPS to encrypt secrets in `secrets.sops.yaml` (`password_hash`,
+   `ssh_authorized_keys`, tokens). Enable LUKS by adding
    `disk_encryption.enabled: true` and referencing the SOPS-managed passphrase
    as documented in the [disk encryption guide](docs/baremetal-disk-encryption.md).
 
@@ -153,10 +157,18 @@ Generated ISOs live under `baremetal/autoinstall/generated/<target>/`.
 
 ## Security and compliance
 
-- Replace demo SSH keys with project-specific keys.
-- Generate password hashes via `mkpasswd -m yescrypt` or `openssl passwd -6`.
+- Replace demo SSH keys with project-specific keys encrypted through
+  `secrets.sops.yaml`.
+- Generate password hashes via `mkpasswd -m yescrypt` or `openssl passwd -6`
+  and keep the hash encrypted in SOPS only.
 - Templates enable BBR, `irqbalance`, `rp_filter=2`, and disable outgoing ICMP
   redirects.
+- CI runs `scripts/ci/check-no-plaintext-secrets.py` to ensure inventories
+  contain no plaintext secrets and `trivy fs` for accidental secret detection.
+- Configure the GitHub secret `SOPS_AGE_KEY` (age private key) so CI can
+  decrypt SOPS files. While the secret stays empty, the *Validate Bare Metal
+  Configurations* workflow will be skipped automatically and no autoinstall
+  render will run in CI.
 - Store produced ISOs in controlled locations (CI artefacts, internal registry,
   etc.).
 

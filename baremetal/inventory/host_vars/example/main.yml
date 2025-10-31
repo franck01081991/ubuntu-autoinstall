@@ -1,0 +1,10 @@
+---
+# Exemple de variables pour un hôte bare metal Ubuntu autoinstall
+hostname: site-a-m710q1
+hardware_profile: lenovo-m710q
+netmode: dhcp
+# Secrets (password_hash, ssh_authorized_keys, etc.) sont désormais gérés via
+# `secrets.sops.yaml` dans ce dossier. Voir README pour les instructions.
+disk_encryption:
+  enabled: false
+  # passphrase: "{{ disk_encryption_passphrase }}"

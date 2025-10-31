@@ -72,8 +72,10 @@ Chaque dossier listé est nécessaire à la production GitOps des ISO bare metal
 - **Profils matériels** (`baremetal/inventory/profiles/hardware/`) : valeurs
   minimales par modèle (disque, interface réseau, paquets optimisés). Servez-vous
   en comme point de départ.
-- **Variables hôte** (`baremetal/inventory/host_vars/<hôte>.yml`) : définissent
-  les identifiants, périphériques et paramètres réseau propres à un nœud.
+- **Variables hôte** (`baremetal/inventory/host_vars/<hôte>/`) : chaque hôte
+  possède un répertoire contenant `main.yml` (valeurs non sensibles) et
+  `secrets.sops.yaml` (hash de mot de passe, clés SSH, tokens spécifiques
+  chiffrés via SOPS).
 - **Templates** (`baremetal/autoinstall/templates/`) : décrivent le `user-data`
   et `meta-data` communs. Ne modifiez qu'en cas d'évolution produit.
 - **Profils durcis prêts à l'emploi** :
@@ -106,16 +108,18 @@ Chaque dossier listé est nécessaire à la production GitOps des ISO bare metal
 2. **Préparer les variables**
 
    ```bash
-   cp baremetal/inventory/host_vars/example.yml \
-     baremetal/inventory/host_vars/site-a-m710q1.yml
-   $EDITOR baremetal/inventory/host_vars/site-a-m710q1.yml
+   cp -R baremetal/inventory/host_vars/example \
+     baremetal/inventory/host_vars/site-a-m710q1
+   $EDITOR baremetal/inventory/host_vars/site-a-m710q1/main.yml
+   SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt \
+     sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
    ```
 
-   Personnalisez `hostname`, `hardware_profile`, le disque cible et, le cas
-   échéant, l'adressage réseau statique ou les paquets supplémentaires.
-   Activez le chiffrement LUKS en ajoutant `disk_encryption.enabled: true` et
-   en référencant la passphrase chiffrée via `SOPS` (voir
-   [guide dédié](docs/baremetal-disk-encryption.md)).
+   Personnalisez `main.yml` (hostname, profil matériel, disque, réseau) et
+   chiffrez les secrets (`password_hash`, `ssh_authorized_keys`, tokens) dans
+   `secrets.sops.yaml`. Activez le chiffrement LUKS en ajoutant
+   `disk_encryption.enabled: true` et en référencant la passphrase chiffrée via
+   `SOPS` (voir [guide dédié](docs/baremetal-disk-encryption.md)).
 
 3. **Générer les fichiers Autoinstall**
 
@@ -204,10 +208,19 @@ Les ISO générées sont stockées sous
 
 ## Sécurité et conformité
 
-- Remplacez les clés SSH de démonstration par vos propres clés.
-- Générez les mots de passe via `mkpasswd -m yescrypt` ou `openssl passwd -6`.
+- Remplacez les clés SSH de démonstration par vos propres clés chiffrées via
+  `secrets.sops.yaml`.
+- Générez les mots de passe via `mkpasswd -m yescrypt` ou `openssl passwd -6`,
+  puis stockez le hash uniquement dans SOPS (`password_hash`).
 - Les templates appliquent BBR, `irqbalance`, `rp_filter=2` et désactivent les
   redirections ICMP sortantes.
+- La CI exécute `scripts/ci/check-no-plaintext-secrets.py` pour s'assurer que
+  les inventaires ne contiennent aucun secret en clair et `trivy fs` pour la
+  détection de secrets accidentels.
+- Configurez le secret GitHub `SOPS_AGE_KEY` (clé privée `age`) pour permettre à
+  la CI de déchiffrer les fichiers SOPS. Tant que le secret reste vide, le
+  workflow *Validate Bare Metal Configurations* sera automatiquement ignoré et
+  aucun rendu autoinstall ne sera effectué en CI.
 - Conservez les ISO produites dans un stockage contrôlé (artefacts CI, dépôt
   interne, etc.).
 

@@ -34,6 +34,5 @@ zram_generator_config:
     max-zram-size: 8192
     compression-algorithm: zstd
     swap-priority: 100
-ssh_authorized_keys:
-  - ssh-ed25519 AAAA...REPLACE_ME your_key@model
-password_hash: $y$j9T$REPLACE_ME_HASH
+# Secrets spécifiques à l'hôte (clé SSH, hash) doivent provenir des fichiers
+# `host_vars/<host>/secrets.sops.yaml`.
