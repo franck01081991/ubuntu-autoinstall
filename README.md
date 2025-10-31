@@ -147,10 +147,11 @@ Les ISO générées sont stockées sous
 ## Validation et CI/CD
 
 - Workflow `.github/workflows/build-iso.yml` : rend les fichiers Autoinstall
-  pour chaque profil matériel et chaque hôte puis vérifie qu'ils sont complets.
-  Aucun ISO ni artefact n'est publié : la génération se fait désormais en
-  dehors du dépôt pour limiter le temps d'exécution et les contraintes de
-  stockage.
+  pour les profils matériels ou hôtes impactés par un changement (détection
+  Git native). Les modifications globales déclenchent automatiquement la
+  validation complète. Aucun ISO ni artefact n'est publié : la génération se
+  fait désormais en dehors du dépôt pour limiter le temps d'exécution et les
+  contraintes de stockage.
 - Workflow `.github/workflows/repository-integrity.yml` : exécute `yamllint`,
   `ansible-lint`, `shellcheck`, `markdownlint` et `trivy fs` (config + secrets)
   pour conserver un dépôt propre et sécurisé.
