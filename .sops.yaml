@@ -1,7 +1,12 @@
 ---
 # SOPS configuration to ensure secrets remain encrypted at rest.
 creation_rules:
-  - path_regex: inventory/group_vars/.+\.sops\.ya?ml$
+  - path_regex: ^baremetal/inventory/group_vars/.+\.sops\.ya?ml$
+    encrypted_regex: '^(disk_encryption_passphrase|.*_secret)$'
+    key_groups:
+      - age:
+          - age1examplemanagevariables0000000000000000000000000000000000000000000000000000
+  - path_regex: ^inventory/group_vars/.+\.sops\.ya?ml$
     encrypted_regex: '^(vps_external_dns_api_token|vps_keycloak_admin_password)$'
     key_groups:
       - age:

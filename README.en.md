@@ -20,6 +20,7 @@ reproducibility and auditability.
 - [Key Make targets](#key-make-targets)
 - [Validation and CI/CD](#validation-and-cicd)
 - [Security and compliance](#security-and-compliance)
+- [Disk encryption](#disk-encryption)
 - [Additional resources](#additional-resources)
 
 ## Overview
@@ -102,7 +103,9 @@ the GitOps pipeline.
    ```
 
    Customize `hostname`, `hardware_profile`, the system disk, and optional
-   static networking or extra packages.
+   static networking or extra packages. Enable LUKS by adding
+   `disk_encryption.enabled: true` and referencing the SOPS-managed passphrase
+   as documented in the [disk encryption guide](docs/baremetal-disk-encryption.md).
 
 3. **Render the Autoinstall payload**
 
@@ -156,6 +159,15 @@ Generated ISOs live under `baremetal/autoinstall/generated/<target>/`.
   redirects.
 - Store produced ISOs in controlled locations (CI artefacts, internal registry,
   etc.).
+
+## Disk encryption
+
+- The template now supports LUKS + LVM through the `disk_encryption` structure.
+- Store passphrases encrypted with SOPS in
+  `baremetal/inventory/group_vars/all/disk_encryption.sops.yaml`.
+- Refer to the [system disk encryption guide](docs/baremetal-disk-encryption.md)
+  for SOPS provisioning, host activation, validation steps, and rotation best
+  practices.
 
 ## Build an ISO outside CI
 

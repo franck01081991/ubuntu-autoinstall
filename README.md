@@ -20,6 +20,7 @@ CI pour garantir la reproductibilité et l'auditabilité.
 - [Commandes Make clés](#commandes-make-clés)
 - [Validation et CI/CD](#validation-et-cicd)
 - [Sécurité et conformité](#sécurité-et-conformité)
+- [Chiffrement du disque](#chiffrement-du-disque)
 - [Ressources supplémentaires](#ressources-supplémentaires)
 
 ## Vue d'ensemble
@@ -107,6 +108,9 @@ Chaque dossier listé est nécessaire à la production GitOps des ISO bare metal
 
    Personnalisez `hostname`, `hardware_profile`, le disque cible et, le cas
    échéant, l'adressage réseau statique ou les paquets supplémentaires.
+   Activez le chiffrement LUKS en ajoutant `disk_encryption.enabled: true` et
+   en référencant la passphrase chiffrée via `SOPS` (voir
+   [guide dédié](docs/baremetal-disk-encryption.md)).
 
 3. **Générer les fichiers Autoinstall**
 
@@ -161,6 +165,15 @@ Les ISO générées sont stockées sous
   redirections ICMP sortantes.
 - Conservez les ISO produites dans un stockage contrôlé (artefacts CI, dépôt
   interne, etc.).
+
+## Chiffrement du disque
+
+- Le template supporte LUKS + LVM via la variable `disk_encryption`.
+- Les passphrases doivent être stockées chiffrées dans
+  `baremetal/inventory/group_vars/all/disk_encryption.sops.yaml`.
+- Suivez le guide [Chiffrement du disque système](docs/baremetal-disk-encryption.md)
+  pour la procédure complète (création du secret SOPS, activation par hôte,
+  tests et rotation).
 
 ## Générer une ISO hors CI
 
