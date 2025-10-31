@@ -70,6 +70,17 @@ SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt \
 Personnalisez `main.yml` (hostname, profil matériel `lenovo-m710q`, disque
 principal, configuration réseau). Dans `secrets.sops.yaml`, remplacez les
 valeurs de démonstration par vos propres clés/hashe de mot de passe via SOPS.
+Ajoutez ensuite le nom de l'hôte dans `baremetal/inventory/hosts.yml` : le
+fichier est volontairement vide pour que chaque utilisateur ne suive que ses
+propres machines.
+
+```yaml
+all:
+  children:
+    baremetal:
+      hosts:
+        site-a-m710q1: {}
+```
 
 > 🔐 Pour activer le chiffrement OS, ajoutez `disk_encryption.enabled: true`
 > et référençez la passphrase fournie par SOPS
