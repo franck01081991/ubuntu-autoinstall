@@ -140,8 +140,9 @@ Ensuite, lancez `make baremetal/seed` ou `make baremetal/fulliso` en pointant ve
 
 - **Workflows GitHub Actions**
   - `.github/workflows/build-iso.yml` : rend automatiquement les fichiers Autoinstall impactés par une PR. Les exécutions redondantes sont annulées (`concurrency`).
-  - `.github/workflows/repository-integrity.yml` : exécute `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint` et `trivy fs`. Le scan Trivy tourne sur `main`, le cron hebdomadaire (lundi 04:00 UTC) et `workflow_dispatch`.
-- **Détection de secrets** : `scripts/ci/check-no-plaintext-secrets.py` vérifie qu'aucun secret ne fuit dans l'inventaire. `trivy fs` complète le contrôle.
+  - `.github/workflows/repository-integrity.yml` : exécute `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint` et `trivy fs`. Le scan Trivy échoue sur toute branche (PR incluses) en cas de faille `HIGH`/`CRITICAL`.
+  - `.github/workflows/secret-scanning.yml` : lance `gitleaks` à chaque push/PR, sur déclenchement manuel ou via le cron hebdomadaire (lundi 05:00 UTC). Les rapports SARIF sont importés dans Code Scanning hors PR.
+- **Détection de secrets** : `scripts/ci/check-no-plaintext-secrets.py` vérifie qu'aucun secret ne fuit dans l'inventaire. `trivy fs` et `gitleaks` complètent le contrôle.
 - **Clé `SOPS_AGE_KEY`** : ajoutez-la dans les secrets GitHub pour que la CI puisse déchiffrer. Sans elle, le workflow *Validate Bare Metal Configurations* est ignoré.
 - **Stockage des ISO** : exportez-les vers un stockage maîtrisé (dépôt interne, artefacts chiffrés, etc.).
 
@@ -155,6 +156,7 @@ Ensuite, lancez `make baremetal/seed` ou `make baremetal/fulliso` en pointant ve
 | `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>` | Construit une ISO autonome. |
 | `make baremetal/clean` | Supprime les artefacts générés. |
 | `make lint` | Lance tous les linters (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`). |
+| `make secrets-scan` | Exécute `gitleaks` avec la configuration du dépôt et génère un rapport SARIF (`gitleaks.sarif`). |
 
 ## Chiffrement disque
 

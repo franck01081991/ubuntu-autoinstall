@@ -83,7 +83,11 @@ jobs:
         run: |
           echo "::warning::SOPS_AGE_KEY secret is not configured; decrypting SOPS files is skipped."
           if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-            printf '### SOPS\nAucune clé privée `age` (`SOPS_AGE_KEY`) n\'est configurée pour la CI. Les fichiers SOPS ne seront pas déchiffrés.\n' >>"${GITHUB_STEP_SUMMARY}"
+            cat <<'SUMMARY' >>"${GITHUB_STEP_SUMMARY}"
+            ### SOPS
+            Aucune clé privée `age` (`SOPS_AGE_KEY`) n'est configurée pour la CI.
+            Les fichiers SOPS ne seront pas déchiffrés.
+            SUMMARY
           fi
 
       - name: Ensure ShellCheck availability
@@ -157,7 +161,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    if: github.event_name != 'pull_request'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
