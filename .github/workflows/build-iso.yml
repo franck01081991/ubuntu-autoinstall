@@ -19,6 +19,10 @@ name: Validate Bare Metal Configurations
       - 'Makefile'
       - '.github/workflows/build-iso.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   plan:
     name: Select validation targets
