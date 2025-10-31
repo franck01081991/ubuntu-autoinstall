@@ -98,11 +98,18 @@ Gardez ce découpage : il garantit la reproductibilité et l'idempotence.
 
 ### Inventaire et templates
 
-- **Profils matériels** : `baremetal/inventory/profiles/hardware/` fournit des bases par type de machine (disques, NIC, paquets). Dupliquez puis adaptez.
+- **Profils matériels** : `baremetal/inventory/profiles/hardware/` fournit des bases par type de machine (disques, NIC, paquets). Dupliquez puis adaptez :
+  - `lenovo-m710q` : ThinkCentre M710q (NVMe principal + SATA secondaire).
+  - `raspberry-pi-4b-sd` : Raspberry Pi 4 Model B ARM64 sur carte SD (`/dev/mmcblk0`, miroir `ports.ubuntu.com`).
 - **Variables d'hôte** : chaque serveur possède un dossier `baremetal/inventory/host_vars/<hote>/` avec `main.yml` (clair) + `secrets.sops.yaml` (chiffré).
 - **Inventaire Ansible** : `baremetal/inventory/hosts.yml` est volontairement vide. Ajoutez uniquement les hôtes que vous voulez rendre.
 - **Templates** : `baremetal/autoinstall/templates/` décrit la structure commune de `user-data`/`meta-data`. Modifiez-les uniquement si le produit évolue.
 - **Profil sécurisé** : `baremetal/autoinstall/secure-ubuntu-22.04.yaml` propose un système durci (LUKS+LVM, UFW, durcissement SSH). La passphrase LUKS est injectée dynamiquement par la CI via `SOPS_DECRYPTED_DISK_PASSPHRASE`.
+- **Paramètres avancés** :
+  - `apt_primary_arches` ajuste l'architecture APT rendue par `user-data` (par défaut `['amd64']`).
+  - `apt_primary_uri` pointe vers le miroir Ubuntu (par défaut `http://archive.ubuntu.com/ubuntu`).
+  - `storage_swap_size` personnalise la taille du swap (par défaut `0`).
+  - `storage_config_override` remplace entièrement la configuration disque générée par défaut (utile pour ARM/Raspberry Pi).
 
 ### Exemple d'injection GitOps d'une passphrase LUKS
 

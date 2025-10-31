@@ -89,6 +89,8 @@ all:
 > le secret `SOPS` requis.
 > 💡 Les profils matériels (`baremetal/inventory/profiles/hardware/`) fournissent
 > des valeurs de référence. Inspirez-vous-en pour compléter `main.yml`.
+> 🧩 Exemple : pour un Raspberry Pi 4B sur carte SD, rendez directement le profil matériel `raspberry-pi-4b-sd` avec :
+> `make baremetal/gen PROFILE=raspberry-pi-4b-sd`.
 
 ## 4. Générer les fichiers Autoinstall
 

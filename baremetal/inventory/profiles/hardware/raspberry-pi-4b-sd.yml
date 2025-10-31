@@ -1,0 +1,56 @@
+---
+hostname: raspberry-pi-4b
+hardware_model: raspberry-pi-4-model-b
+storage_profile: sd-card
+netmode: dhcp
+nic: eth0
+disk_device: /dev/mmcblk0
+apt_primary_uri: http://ports.ubuntu.com/ubuntu-ports
+apt_primary_arches:
+  - arm64
+storage_swap_size: 0
+storage_config_override:
+  - id: sdcard
+    type: disk
+    match:
+      path: /dev/mmcblk0
+    wipe: superblock-recursive
+    ptable: gpt
+  - type: partition
+    id: firmware
+    device: sdcard
+    size: 512M
+    flag: boot
+  - type: partition
+    id: root
+    device: sdcard
+    size: -1
+  - type: format
+    id: fmt-firmware
+    volume: firmware
+    fstype: fat32
+  - type: mount
+    id: mnt-firmware
+    path: /boot/firmware
+    device: fmt-firmware
+  - type: format
+    id: fmt-root
+    volume: root
+    fstype: ext4
+  - type: mount
+    id: mnt-root
+    path: /
+    device: fmt-root
+hardware_specs:
+  cpu:
+    model: broadcom-bcm2711
+    architecture: armv8
+    cores: 4
+    threads: 4
+    turbo_mhz: 1500
+  memory:
+    total_gb: 4
+    type: lpddr4
+    speed_mhz: 3200
+# Secrets spécifiques à l'hôte (clé SSH, hash) doivent provenir des fichiers
+# `host_vars/<host>/secrets.sops.yaml`.

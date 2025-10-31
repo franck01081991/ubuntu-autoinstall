@@ -19,7 +19,7 @@ autoinstall:
   apt:
     geoip: false
     primary:
-      - arches: [amd64]
+      - arches: {{ apt_primary_arches | default(['amd64']) | to_json }}
         uri: {{ apt_primary_uri | default('http://archive.ubuntu.com/ubuntu') }}
         suites: ['noble','noble-updates','noble-security']
   packages:
@@ -35,9 +35,15 @@ autoinstall:
 {% endfor %}
 {% set encryption = disk_encryption | default({}) %}
 {% set luks_enabled = encryption.enabled | default(false) %}
+{% set storage_override = storage_config_override | default([]) %}
+{% set storage_swap = storage_swap_size | default(0) %}
   storage:
     swap:
-      size: 0
+      size: {{ storage_swap }}
+{% if storage_override %}
+    config:
+{{ storage_override | to_nice_yaml | indent(6, true) }}
+{% else %}
     config:
       - id: disk0
         type: disk
@@ -125,6 +131,7 @@ autoinstall:
         id: mnt-root
         path: /
         device: fmt-root
+{% endif %}
 {% if netmode == 'static' %}
   network:
     version: 2
