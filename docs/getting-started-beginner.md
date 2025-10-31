@@ -71,11 +71,11 @@ cp baremetal/inventory/host_vars/example.yml \
   statique ;
 - `ssh_authorized_keys` et `password_hash` (YESCRYPT recommandé).
 
-> 🔐 Pour activer le chiffrement OS, ajoutez `disk_encryption.enabled: true` et
-> référençez la passphrase fournie par SOPS (`passphrase: "{{ disk_encryption_passphrase }}"`).
-> Suivez le guide [Chiffrement du disque système](baremetal-disk-encryption.md)
-> pour créer le secret `SOPS` requis.
-
+> 🔐 Pour activer le chiffrement OS, ajoutez `disk_encryption.enabled: true`
+> et référençez la passphrase fournie par SOPS
+> (`passphrase: "{{ disk_encryption_passphrase }}"`). Suivez le guide
+> [Chiffrement du disque système](baremetal-disk-encryption.md) pour créer
+> le secret `SOPS` requis.
 > 💡 Les profils matériels (`baremetal/inventory/profiles/hardware/`) contiennent
 > des valeurs de référence. Inspirez-vous-en pour créer vos propres fichiers
 > `host_vars`.
