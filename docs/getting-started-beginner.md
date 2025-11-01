@@ -11,6 +11,20 @@ commande sans risque pour retrouver un état cohérent.
 
 ## Vue d'ensemble
 
+Avant de lancer la moindre commande, validez ces prérequis :
+
+- ✅ Poste Linux (ou VM) avec accès Internet.
+- ✅ Accès Git SSH au dépôt.
+- ✅ Outils disponibles : `python3`, `ansible-core`, `xorriso`, `mkpasswd`,
+  `sops`, `age`, `cloud-init`.
+- ✅ Une clé `age` importée dans `~/.config/sops/age/keys.txt` (clé de démo ou
+  clé d'équipe).
+
+> 📌 Besoin d'un rappel express sur les termes ? Consultez le
+> [glossaire du README](../README.md#glossaire-rapide).
+
+### Parcours résumé
+
 | Étape | Résultat obtenu | Commandes principales |
 |-------|-----------------|-----------------------|
 | 1. Préparer l'environnement | Dépôt cloné et dépendances vérifiées | `git clone`, `make doctor` |
@@ -28,6 +42,15 @@ pour résoudre les anomalies courantes.
 
 ## 1. Préparer l'environnement
 
+### Check-list matérielle & accès
+
+- Ports USB disponibles pour monter les ISO (seed + ISO Ubuntu officielle si
+  besoin).
+- Téléchargement de l'ISO Ubuntu Live Server correspondant à votre version
+  cible.
+- Accès réseau depuis la station de travail vers l'hôte à découvrir si vous
+  exécutez `make baremetal/discover` à distance.
+
 1. **Cloner le dépôt et entrer dans le dossier** :
    ```bash
    git clone git@github.com:example/ubuntu-autoinstall.git
@@ -40,7 +63,8 @@ pour résoudre les anomalies courantes.
    Cette commande vérifie la présence de `python3`, `ansible-core`, `xorriso`,
    `mkpasswd`, `sops`, `age` et `cloud-init`. Corrigez toute dépendance manquante
    avant d'aller plus loin. Elle rappelle également les linters utilisés par la CI
-   (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`).
+   (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`). En cas d'erreur,
+   reprenez les messages un à un : relancer `make doctor` confirme la correction.
 
    > 🧠 **SOPS et age en deux phrases** : [SOPS](https://github.com/getsops/sops)
    > est l'outil qui chiffre/déchiffre vos fichiers YAML. `age` est la
@@ -64,6 +88,7 @@ pour résoudre les anomalies courantes.
    - génération d'un `main.yml` minimal (`hostname`, `hardware_profile`, `netmode`) ;
    - copie d'un `secrets.sops.yaml` d'exemple ;
    - ajout automatique de l'hôte dans `baremetal/inventory/hosts.yml`.
+   - rappel en sortie des fichiers créés pour faciliter la navigation.
 
 2. **Compléter les variables claires** :
    ```bash
@@ -118,7 +143,8 @@ pour résoudre les anomalies courantes.
    Cette commande lance le playbook `discover_hardware.yml` qui collecte les
    `ansible_facts`, le rendu `lsblk --json` et `ip -j link`. Un fichier JSON est
    créé sous `.cache/discovery/site-a-m710q1.json` (non versionné) afin de
-   faciliter la mise à jour des profils matériels.
+   faciliter la mise à jour des profils matériels. Si l'hôte n'est pas accessible,
+   relisez les erreurs Ansible : elles indiquent l'étape réseau bloquante.
 
 2. **Analyser le cache** : ouvrez le fichier généré pour confirmer les noms
    d'interfaces, les disques et les caractéristiques CPU/RAM avant de finaliser
