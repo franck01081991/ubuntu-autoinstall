@@ -63,6 +63,8 @@ declare -a MAP_ARGS
 extract_and_patch() {
   local iso_path="$1"
   local tmp_path="$2"
+  local required="${3:-}"
+
   if xorriso -osirrox on -indev "$ISO_IN" -extract "$iso_path" "$tmp_path" >/dev/null 2>&1; then
     if [ ! -s "$tmp_path" ]; then
       echo "Extracted $iso_path is empty" >&2
@@ -71,18 +73,22 @@ extract_and_patch() {
     patch_kernel_args "$tmp_path"
     MAP_ARGS+=("-map" "$tmp_path" "$iso_path")
   else
+    if [ "$required" = "required" ]; then
+      echo "Failed to extract required file $iso_path from $ISO_IN" >&2
+      exit 1
+    fi
     echo "Warning: unable to locate $iso_path in $ISO_IN" >&2
   fi
 }
 
 GRUB_CFG="$TMP/grub.cfg"
-extract_and_patch /boot/grub/grub.cfg "$GRUB_CFG"
+extract_and_patch /boot/grub/grub.cfg "$GRUB_CFG" required
 
 LOOPBACK_CFG="$TMP/loopback.cfg"
 extract_and_patch /boot/grub/loopback.cfg "$LOOPBACK_CFG"
 
 ISOLINUX_CFG="$TMP/isolinux-txt.cfg"
-extract_and_patch /isolinux/txt.cfg "$ISOLINUX_CFG"
+extract_and_patch /isolinux/txt.cfg "$ISOLINUX_CFG" required
 
 MAP_ARGS+=("-map" "$TMP/nocloud" /nocloud)
 
