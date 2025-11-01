@@ -18,9 +18,10 @@ Sortie type : `Missing required dependency: xorriso` ou absence de linters recom
 `sops` ou l’assistant ISO affiche « Le fichier de clé age est introuvable ».
 
 **Résolution GitOps**  
-1. Vérifiez que la variable `SOPS_AGE_KEY` (CI) ou `SOPS_AGE_KEY_FILE` pointe vers la clé partagée par l’équipe.  
+1. Vérifiez que la variable `SOPS_AGE_KEY` (CI) ou `SOPS_AGE_KEY_FILE` pointe vers la clé partagée par l’équipe.
 2. Si besoin, mettez à jour `scripts/install-sops.sh`, `scripts/install-age.sh` ou votre bootstrap interne pour distribuer la clé via un secret versionné.
-3. Relancez la commande (`make baremetal/list`, `make baremetal/gen`, wizard…).
+3. Pour un atelier ou un labo, exécutez `./scripts/bootstrap-demo-age-key.sh` afin d’installer la clé de démonstration fournie par le dépôt.
+4. En production, remplacez cette clé par la vôtre (PR `sops updatekeys --add age:<votre_clef>`), puis relancez la commande (`make baremetal/list`, `make baremetal/gen`, wizard…).
 
 ## `make baremetal/fulliso` échoue (ISO Ubuntu introuvable)
 

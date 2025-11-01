@@ -104,12 +104,17 @@ the GitOps pipeline.
 2. **Prepare host variables**
 
    ```bash
+   ./scripts/bootstrap-demo-age-key.sh   # installs the onboarding age key (${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt})
+   export SOPS_AGE_KEY_FILE="${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}"
    cp -R baremetal/inventory/host_vars/example \
      baremetal/inventory/host_vars/site-a-m710q1
    $EDITOR baremetal/inventory/host_vars/site-a-m710q1/main.yml
-   SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt \
-     sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
+   sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
    ```
+
+   The bootstrap script provisions a demo `age` identity suitable for
+   workshops. 🔐 **Production:** rotate to your own keypair and update
+   `.sops.yaml` in a reviewed PR.
 
    Customize `main.yml` (hostname, hardware profile, disk, networking) and use
    SOPS to encrypt secrets in `secrets.sops.yaml` (`password_hash`,
