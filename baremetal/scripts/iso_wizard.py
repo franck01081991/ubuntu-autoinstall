@@ -24,6 +24,7 @@ HARDWARE_PROFILE_DIR = REPO_ROOT / "baremetal" / "inventory" / "profiles" / "har
 GENERATED_DIR = REPO_ROOT / "baremetal" / "autoinstall" / "generated"
 DEFAULT_UBUNTU_ISO = "ubuntu-24.04-live-server-amd64.iso"
 DEFAULT_AGE_KEY_FILE = Path.home() / ".config" / "sops" / "age" / "keys.txt"
+SOPS_INSTALL_SCRIPT = REPO_ROOT / "scripts" / "install-sops.sh"
 
 
 @dataclass(frozen=True)
@@ -47,7 +48,7 @@ ISO_ACTIONS: List[IsoAction] = [
         make_targets=("baremetal/fulliso",),
     ),
     IsoAction(
-        label="3. Seed + Full ISO", 
+        label="3. Seed + Full ISO",
         requires_ubuntu_iso=True,
         make_targets=("baremetal/seed", "baremetal/fulliso"),
     ),
@@ -192,15 +193,22 @@ def prepare_sops_environment(env: Dict[str, str]) -> Dict[str, str]:
     return {"SOPS_AGE_KEY_FILE": str(path)}
 
 
+def run_command(
+    command: Sequence[str], *, env: Dict[str, str] | None = None, cwd: Path | None = None
+) -> None:
+    effective_env = os.environ.copy()
+    if env:
+        effective_env.update(env)
+    print("\n▶", " ".join(command))
+    subprocess.run(command, check=True, env=effective_env, cwd=str(cwd or REPO_ROOT))
+
+
 def run_make(target: str, *, variables: Dict[str, str] | None, sops_env: Dict[str, str]) -> None:
-    env = os.environ.copy()
-    env.update(sops_env)
     command: List[str] = ["make", target]
     if variables:
         for key, value in variables.items():
             command.append(f"{key}={value}")
-    print("\n▶", " ".join(command))
-    subprocess.run(command, check=True, env=env, cwd=str(REPO_ROOT))
+    run_command(command, env=sops_env)
 
 
 def summarize_outputs(host: str) -> None:
@@ -221,6 +229,47 @@ def summarize_outputs(host: str) -> None:
     print("\nISO générées :")
     for artefact in artefacts:
         print(f"  - {artefact.relative_to(REPO_ROOT)}")
+
+
+def handle_repository_update() -> None:
+    print("\nMise à jour du dépôt Git")
+    print("------------------------")
+    confirmation = input(
+        "Lancer `git fetch --all --prune` puis `git pull --ff-only` ? [o/N] : "
+    ).strip().lower()
+    if confirmation not in {"o", "oui", "y", "yes"}:
+        print("Opération annulée.")
+        return
+    try:
+        run_command(["git", "fetch", "--all", "--prune"])
+        run_command(["git", "pull", "--ff-only"])
+        run_command(["git", "status", "--short", "--branch"])
+    except subprocess.CalledProcessError as exc:
+        print(f"La commande s'est terminée avec une erreur : {exc}", file=sys.stderr)
+        sys.exit(exc.returncode or 1)
+
+
+def handle_environment_update(sops_env: Dict[str, str]) -> None:
+    print("\nMise à jour de l'environnement local")
+    print("----------------------------------")
+    if shutil.which("sops") is None and SOPS_INSTALL_SCRIPT.is_file():
+        install = input(
+            "Le binaire sops est introuvable. Lancer scripts/install-sops.sh ? [O/n] : "
+        ).strip().lower()
+        if install in {"", "o", "oui", "y", "yes"}:
+            try:
+                run_command(["bash", str(SOPS_INSTALL_SCRIPT)], env=sops_env)
+            except subprocess.CalledProcessError as exc:
+                print(f"La commande s'est terminée avec une erreur : {exc}", file=sys.stderr)
+                sys.exit(exc.returncode or 1)
+    try:
+        run_command(["make", "doctor"], env=sops_env)
+    except subprocess.CalledProcessError as exc:
+        print(f"La commande s'est terminée avec une erreur : {exc}", file=sys.stderr)
+        sys.exit(exc.returncode or 1)
+    print(
+        "\nVérification terminée. Consultez les messages ci-dessus pour connaître les dépendances à installer."
+    )
 
 
 def handle_host_initialization(sops_env: Dict[str, str]) -> None:
@@ -334,6 +383,8 @@ def handle_clean(sops_env: Dict[str, str]) -> None:
 
 def prompt_main_action() -> int:
     options = (
+        "Mettre à jour le dépôt Git",
+        "Mettre à jour l'environnement local",
         "Initialiser un nouvel hôte",
         "Générer des ISO pour un hôte",
         "Nettoyer les artefacts générés",
@@ -346,16 +397,20 @@ def main() -> None:
     print("Ubuntu Autoinstall – Assistant de génération d'ISO")
     print("================================================\n")
 
-    check_required_binaries(("make", "sops", "age"))
+    check_required_binaries(("git", "make", "sops", "age"))
 
     sops_env = prepare_sops_environment(os.environ.copy())
     while True:
         choice = prompt_main_action()
         if choice == 0:
-            handle_host_initialization(sops_env)
+            handle_repository_update()
         elif choice == 1:
-            handle_iso_generation(sops_env)
+            handle_environment_update(sops_env)
         elif choice == 2:
+            handle_host_initialization(sops_env)
+        elif choice == 3:
+            handle_iso_generation(sops_env)
+        elif choice == 4:
             handle_clean(sops_env)
         else:
             print("Au revoir !")

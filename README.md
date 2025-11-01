@@ -177,7 +177,9 @@ python3 baremetal/scripts/iso_wizard.py
 
 Ce script couvre tout le cycle de vie bare metal :
 
-- vérification des binaires `make`, `sops`, `age` et préparation de l'environnement SOPS/age ;
+- vérification des binaires `git`, `make`, `sops`, `age` et préparation de l'environnement SOPS/age ;
+- mise à jour du dépôt (`git fetch --all --prune` puis `git pull --ff-only`) ;
+- mise à jour de l'environnement local (installation facultative de `sops` via `scripts/install-sops.sh`, exécution de `make doctor`) ;
 - initialisation d'un hôte (`make baremetal/host-init`) en choisissant un profil matériel ;
 - génération d'une ISO seed, d'une ISO complète ou des deux pour n'importe quel hôte déclaré ;
 - nettoyage des artefacts (`make baremetal/clean`).
