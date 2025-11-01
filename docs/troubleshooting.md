@@ -25,7 +25,7 @@ Sortie type : `Missing required dependency: xorriso` ou absence de linters recom
 
 ## `make baremetal/fulliso` échoue (ISO Ubuntu introuvable)
 
-**Symptôme**  
+**Symptôme**
 Le script ISO signale `ISO introuvable à l'emplacement : ...`.
 
 **Résolution GitOps**  
@@ -33,9 +33,20 @@ Le script ISO signale `ISO introuvable à l'emplacement : ...`.
 2. Passez explicitement `UBUNTU_ISO=/chemin/ubuntu-24.04-live-server-amd64.iso` à la cible Make ou dans votre pipeline.  
 3. Relancez `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>`.
 
+## `make baremetal/gen` échoue avec `The filter plugin 'ansible.builtin.length' failed`
+
+**Symptôme**
+La génération Autoinstall s'interrompt avec le message :
+`The filter plugin 'ansible.builtin.length' failed: object of type 'NoneType' has no len()`.
+
+**Résolution GitOps**
+1. Assurez-vous que votre branche contient la correction qui initialise les variables `_hardware_profile_file` et `_explicit_host_vars_file` à des chaînes vides.
+2. Si vous avez un fork interne, récupérez la mise à jour (merge de la branche principale) afin de bénéficier de la résolution.
+3. Relancez `make baremetal/gen HOST=<nom>` pour vérifier que l'autoinstall se régénère correctement.
+
 ## L’hôte n’apparaît pas dans `make baremetal/list`
 
-**Symptôme**  
+**Symptôme**
 La section « Hôtes déclarés » est vide ou manque votre machine.
 
 **Résolution GitOps**  
