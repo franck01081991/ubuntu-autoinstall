@@ -76,6 +76,10 @@ Suivez ces sept étapes pour produire une ISO seed prête à l'emploi :
      ```bash
      sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
      ```
+     > 🧠 **Rappel express** : SOPS est l'éditeur chiffrant, `age` fournit les
+     > clés. Les fichiers `*.sops.yaml` restent chiffrés dans Git ; seul·e·s les
+     > détenteur·rice·s de la clé privée `age` (CI/CD incluse) peuvent les
+     > déchiffrer.
 6. **Générer les fichiers Autoinstall**
    ```bash
    make baremetal/gen HOST=site-a-m710q1
