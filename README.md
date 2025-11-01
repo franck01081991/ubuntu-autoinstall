@@ -167,6 +167,16 @@ Ensuite, lancez `make baremetal/seed` ou `make baremetal/fulliso` en pointant ve
 | `make lint` | Lance tous les linters (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`). |
 | `make secrets-scan` | Exécute `gitleaks detect --config gitleaks.toml --report-format sarif --report-path gitleaks.sarif --redact --exit-code 2`, identique au workflow CI. |
 
+## Assistant interactif ISO
+
+Pour guider un·e technicien·ne sans mémoriser toutes les cibles Make, utilisez l'assistant interactif :
+
+```bash
+python3 baremetal/scripts/iso_wizard.py
+```
+
+Le script liste les hôtes déclarés dans `baremetal/inventory/host_vars/`, propose la génération d'une ISO seed, d'une ISO complète ou des deux, puis exécute les cibles Make idempotentes correspondantes. En fin d'exécution, il rappelle l'emplacement des artefacts rendus sous `baremetal/autoinstall/generated/<hôte>/`.
+
 ## Chiffrement disque
 
 - Activez-le via `disk_encryption.enabled: true` dans vos variables d'hôte.
