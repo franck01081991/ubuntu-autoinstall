@@ -124,19 +124,30 @@ the GitOps pipeline.
            site-a-m710q1: {}
    ```
 
-3. **Render the Autoinstall payload**
+3. **Discover hardware facts automatically**
+
+   ```bash
+   make baremetal/discover HOST=site-a-m710q1
+   ```
+
+   The `discover_hardware.yml` playbook gathers `ansible_facts`, `lsblk`, and
+   `ip -j link` from the remote host and persists a JSON cache under
+   `.cache/discovery/`. Use this snapshot to seed or update your hardware
+   profiles before committing any change.
+
+4. **Render the Autoinstall payload**
 
    ```bash
    make baremetal/gen HOST=site-a-m710q1
    ```
 
-4. **Build the seed ISO**
+5. **Build the seed ISO**
 
    ```bash
    make baremetal/seed HOST=site-a-m710q1
    ```
 
-5. **Produce a full installer ISO (optional)**
+6. **Produce a full installer ISO (optional)**
 
    ```bash
    make baremetal/fulliso HOST=site-a-m710q1 \
@@ -153,6 +164,8 @@ Generated ISOs live under `baremetal/autoinstall/generated/<target>/`.
 - `make baremetal/seed HOST=<name>`: create a seed ISO.
 - `make baremetal/fulliso HOST=<name> UBUNTU_ISO=<path>`: produce a standalone
   installer ISO.
+- `make baremetal/discover HOST=<name>`: collect hardware facts into
+  `.cache/discovery/<name>.json`.
 - `make baremetal/clean`: remove generated artefacts.
 - `make lint`: run the CI linter suite locally.
 - `make baremetal/list`: inspect the Git-tracked hosts and hardware profiles at a glance.
@@ -168,8 +181,8 @@ Run `make baremetal/list` before launching the ISO wizard to double-check the in
   `meta-data`. No ISO or artefact is published anymore, which keeps runtimes
   short and avoids storage pressure.
 - `.github/workflows/repository-integrity.yml`: runs `yamllint`, `ansible-lint`,
-  `shellcheck`, `markdownlint`, and `trivy fs` (config + secrets) to keep the
-  repository clean and secure.
+  `shellcheck`, `markdownlint`, `trivy fs` (config + secrets), and validates
+  inventory consistency for the automated discovery workflow.
 - pip/npm/collection caches derive their keys from file hashes to remain
   idempotent.
 
@@ -243,3 +256,4 @@ image factory):
 - [Ubuntu Autoinstall Reference](https://ubuntu.com/server/docs/install/autoinstall)
 - [Cloud-init NoCloud Datasource](https://cloudinit.readthedocs.io/en/latest/topics/datasources/nocloud.html)
 - [Troubleshooting guide (FR)](docs/troubleshooting.md)
+- [ADR 0011 — automated hardware inventory](docs/adr/0011-automated-hardware-inventory.md)

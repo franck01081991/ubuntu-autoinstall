@@ -30,7 +30,7 @@ manuelle n'est tolérée en production.
 
 ## Démarrage express
 
-Suivez ces six étapes pour produire une ISO seed prête à l'emploi :
+Suivez ces sept étapes pour produire une ISO seed prête à l'emploi :
 
 1. **Cloner et se placer dans le dépôt**
    ```bash
@@ -48,7 +48,15 @@ Suivez ces six étapes pour produire une ISO seed prête à l'emploi :
    make baremetal/host-init HOST=site-a-m710q1 PROFILE=lenovo-m710q
    ```
    La commande crée `host_vars/`, alimente `hosts.yml` et reste idempotente.
-4. **Déclarer les variables et secrets**
+4. **Découvrir automatiquement le matériel**
+   ```bash
+   make baremetal/discover HOST=site-a-m710q1
+   ```
+   Le playbook `discover_hardware.yml` collecte `ansible_facts`, `lsblk` et
+   `ip -j link`, puis écrit un cache JSON local dans `.cache/discovery/`.
+   Servez-vous-en pour pré-remplir vos profils matériels avant de les
+   versionner.
+5. **Déclarer les variables et secrets**
    - Éditez `baremetal/inventory/host_vars/site-a-m710q1/main.yml` (profil
      matériel, réseau, disques).
    - Chiffrez les secrets :
@@ -56,13 +64,13 @@ Suivez ces six étapes pour produire une ISO seed prête à l'emploi :
      SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt \
        sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
      ```
-5. **Générer les fichiers Autoinstall**
+6. **Générer les fichiers Autoinstall**
    ```bash
    make baremetal/gen HOST=site-a-m710q1
    ```
    Les fichiers `user-data` et `meta-data` apparaissent sous
    `baremetal/autoinstall/generated/site-a-m710q1/`.
-6. **Construire l'ISO souhaitée**
+7. **Construire l'ISO souhaitée**
    ```bash
    make baremetal/seed HOST=site-a-m710q1
    make baremetal/fulliso HOST=site-a-m710q1 \
@@ -78,6 +86,7 @@ validés. Ne déployez jamais un ISO qui n'a pas été reconstruit par la CI.
 |-------|----------|-----------------|-------------------|
 | Préparation | Vérifier l'environnement | `make doctor` | Installez les binaires manquants avant de poursuivre. |
 | Inventaire | Créer/mettre à jour `host_vars` | `make baremetal/host-init` | Idempotent : relancez après toute suppression ou ajout. |
+| Découverte | Capturer les faits matériels | `make baremetal/discover` | Cache JSON non versionné sous `.cache/discovery/`. |
 | Configuration | Définir variables & secrets | `$EDITOR main.yml`, `sops secrets.sops.yaml` | Secrets uniquement via `sops` + `age`. |
 | Validation | Vérifier rendu & lint | `make baremetal/gen`, `make lint`, `make secrets-scan` | `make lint` exécute `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`. |
 | Construction | Produire ISO | `make baremetal/seed`, `make baremetal/fulliso` | Téléchargez l'ISO officielle avant la version complète. |
@@ -107,6 +116,7 @@ Respectez ce découpage pour rester compatible avec la CI et l'usine GitOps.
 | Regénérer Autoinstall | `make baremetal/gen HOST=<nom>` | Produit `user-data` / `meta-data` à versionner. |
 | Construire un ISO seed | `make baremetal/seed HOST=<nom>` | Génère `seed-<nom>.iso` idempotent. |
 | Construire un ISO complet | `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>` | Intègre l'installateur officiel Ubuntu. |
+| Découvrir le matériel | `make baremetal/discover HOST=<nom>` | Alimente `.cache/discovery/<nom>.json` via Ansible. |
 | Lancer les linters | `make lint` | `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`. |
 | Scanner les secrets | `make secrets-scan` | `gitleaks detect --config gitleaks.toml --exit-code 2`. |
 | Inspecter l'inventaire | `make baremetal/list` | Résumé hôtes + profils matériels (`FORMAT=json` pour une sortie machine). |
@@ -124,14 +134,16 @@ Le script vérifie l'environnement, synchronise le dépôt, initie les hôtes,
 construit les ISO et nettoie les artefacts en s'appuyant uniquement sur les
 cibles `make` (idempotence garantie). Les profils matériels proposés
 correspondent désormais aux manifestes `*.yml`/`*.yaml` présents dans
-`baremetal/inventory/profiles/hardware/`.
+`baremetal/inventory/profiles/hardware/`. Pour préparer un nouveau matériel,
+collectez d'abord les faits via `make baremetal/discover`, puis nourrissez vos
+profils à partir du cache JSON généré.
 
 ## CI/CD, sécurité et conformité
 
 - **Workflows GitHub Actions**
   - `build-iso.yml` : régénère les Autoinstall touchés par une PR.
   - `repository-integrity.yml` : lance `yamllint`, `ansible-lint`, `shellcheck`,
-    `markdownlint` et `trivy fs`. Échec si vulnérabilité `HIGH`/`CRITICAL`.
+    `markdownlint`, `trivy fs` et contrôle la cohérence de l'inventaire.
   - `secret-scanning.yml` : exécute `gitleaks detect` (push, PR, cron, manuel).
 - **Gestion des secrets**
   - Secrets chiffrés avec `sops` + `age` (clé privée stockée côté plateforme CI).
@@ -153,6 +165,7 @@ correspondent désormais aux manifestes `*.yml`/`*.yaml` présents dans
 - [ADR 0001 — recentrage bare metal](docs/adr/0001-focus-baremetal.md)
 - [ADR 0006 — rationalisation CI](docs/adr/0006-ci-rationalization.md)
 - [ADR 0009 — partitionnement ANSSI](docs/adr/0009-anssi-disk-layout.md)
+- [ADR 0011 — inventaire matériel automatisé](docs/adr/0011-automated-hardware-inventory.md)
 - [Guide de dépannage](docs/troubleshooting.md)
 - [Documentation anglaise](README.en.md)
 

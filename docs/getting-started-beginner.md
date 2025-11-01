@@ -15,9 +15,10 @@ commande sans risque pour retrouver un état cohérent.
 |-------|-----------------|-----------------------|
 | 1. Préparer l'environnement | Dépôt cloné et dépendances vérifiées | `git clone`, `make doctor` |
 | 2. Créer l'hôte | Inventaire `host_vars` + secrets chiffrés | `make baremetal/host-init`, `sops` |
-| 3. Générer les fichiers Autoinstall | `user-data` et `meta-data` contrôlés | `make baremetal/gen`, revue manuelle |
-| 4. Construire l'ISO | ISO seed (et ISO complète optionnelle) | `make baremetal/seed`, `make baremetal/fulliso` |
-| 5. Soumettre la contribution | Branche, commit, PR décrivant la livraison | `git checkout -b`, `git commit`, `git push` |
+| 3. Découvrir le matériel | Cache JSON local pour enrichir les profils | `make baremetal/discover` |
+| 4. Générer les fichiers Autoinstall | `user-data` et `meta-data` contrôlés | `make baremetal/gen`, revue manuelle |
+| 5. Construire l'ISO | ISO seed (et ISO complète optionnelle) | `make baremetal/seed`, `make baremetal/fulliso` |
+| 6. Soumettre la contribution | Branche, commit, PR décrivant la livraison | `git checkout -b`, `git commit`, `git push` |
 
 Gardez la [fiche mémo technicien](technician-cheatsheet.md) pour vos
 opérations ultérieures et le [guide de dépannage](troubleshooting.md)
@@ -85,7 +86,24 @@ pour résoudre les anomalies courantes.
 
 ---
 
-## 3. Générer et contrôler les fichiers Autoinstall
+## 3. Découvrir le matériel automatiquement
+
+1. **Exécuter la découverte** :
+   ```bash
+   make baremetal/discover HOST=site-a-m710q1
+   ```
+   Cette commande lance le playbook `discover_hardware.yml` qui collecte les
+   `ansible_facts`, le rendu `lsblk --json` et `ip -j link`. Un fichier JSON est
+   créé sous `.cache/discovery/site-a-m710q1.json` (non versionné) afin de
+   faciliter la mise à jour des profils matériels.
+
+2. **Analyser le cache** : ouvrez le fichier généré pour confirmer les noms
+   d'interfaces, les disques et les caractéristiques CPU/RAM avant de finaliser
+   vos profils.
+
+---
+
+## 4. Générer et contrôler les fichiers Autoinstall
 
 1. **Rendre les fichiers** :
    ```bash
@@ -111,7 +129,7 @@ pour résoudre les anomalies courantes.
 
 ---
 
-## 4. Construire l'ISO
+## 5. Construire l'ISO
 
 1. **ISO seed** (recommandé) :
    ```bash
@@ -136,7 +154,7 @@ pour résoudre les anomalies courantes.
 
 ---
 
-## 5. Soumettre la contribution
+## 6. Soumettre la contribution
 
 1. **Créer une branche descriptive** :
    ```bash
@@ -174,6 +192,7 @@ pour résoudre les anomalies courantes.
 ## Check-list finale
 
 - [ ] `make doctor` sans erreur.
+- [ ] `make baremetal/discover` exécuté pour capturer les faits matériels.
 - [ ] `make baremetal/gen` et `make baremetal/seed` exécutés avec succès.
 - [ ] `make lint` et `make secrets-scan` au vert.
 - [ ] Secrets uniquement dans des fichiers `*.sops.yaml` chiffrés.
