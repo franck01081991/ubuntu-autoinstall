@@ -78,7 +78,9 @@ def list_hosts() -> List[str]:
     hosts = [
         entry.name
         for entry in HOST_VARS_DIR.iterdir()
-        if entry.is_dir() and not entry.name.startswith(".")
+        if entry.is_dir()
+        and not entry.name.startswith(".")
+        and any((entry / filename).is_file() for filename in ("main.yml", "main.yaml"))
     ]
     hosts.sort()
     return hosts
