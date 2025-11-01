@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+import json
+import sys
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable, Sequence
 
@@ -190,6 +192,12 @@ def parse_args() -> argparse.Namespace:
         description="Lister l'inventaire bare metal versionné (hôtes, profils matériels)."
     )
     parser.add_argument(
+        "--format",
+        choices=("table", "json"),
+        default="table",
+        help="Format de sortie (table par défaut).",
+    )
+    parser.add_argument(
         "mode",
         choices=("summary", "hosts", "profiles"),
         nargs="?",
@@ -211,6 +219,16 @@ def main() -> None:
         hosts = collect_host_summaries()
     else:
         hosts = []
+
+    if args.format == "json":
+        payload: dict[str, list[dict[str, str | None]]] = {}
+        if args.mode in {"summary", "profiles"}:
+            payload["hardware_profiles"] = [asdict(profile) for profile in profiles]
+        if args.mode in {"summary", "hosts"}:
+            payload["hosts"] = [asdict(host) for host in hosts]
+        json.dump(payload, sys.stdout, ensure_ascii=False, indent=2)
+        print()
+        return
 
     if args.mode == "summary":
         print_hardware_section(profiles)

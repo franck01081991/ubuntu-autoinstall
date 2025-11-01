@@ -5,6 +5,7 @@ UBUNTU_ISO ?= ubuntu-24.04-live-server-amd64.iso
 
 BAREMETAL_DIR ?= baremetal
 TARGET := $(if $(PROFILE),$(PROFILE),$(HOST))
+FORMAT ?= table
 
 .PHONY: baremetal/gen baremetal/seed baremetal/fulliso baremetal/clean baremetal/list baremetal/list-hosts baremetal/list-profiles baremetal/host-init baremetal/validate lint doctor secrets-scan
 
@@ -30,13 +31,13 @@ baremetal/clean:
 	rm -rf $(BAREMETAL_DIR)/autoinstall/generated/*
 
 baremetal/list:
-	python3 scripts/list_inventory.py summary
+	python3 scripts/list_inventory.py --format $(FORMAT) summary
 
 baremetal/list-hosts:
-	python3 scripts/list_inventory.py hosts
+	python3 scripts/list_inventory.py --format $(FORMAT) hosts
 
 baremetal/list-profiles:
-	python3 scripts/list_inventory.py profiles
+	python3 scripts/list_inventory.py --format $(FORMAT) profiles
 
 lint:
 	yamllint ansible baremetal .github/workflows

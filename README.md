@@ -109,7 +109,7 @@ Respectez ce découpage pour rester compatible avec la CI et l'usine GitOps.
 | Construire un ISO complet | `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>` | Intègre l'installateur officiel Ubuntu. |
 | Lancer les linters | `make lint` | `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`. |
 | Scanner les secrets | `make secrets-scan` | `gitleaks detect --config gitleaks.toml --exit-code 2`. |
-| Inspecter l'inventaire | `make baremetal/list` | Résumé hôtes + profils matériels. |
+| Inspecter l'inventaire | `make baremetal/list` | Résumé hôtes + profils matériels (`FORMAT=json` pour une sortie machine). |
 | Nettoyer les artefacts | `make baremetal/clean` | Supprime les rendus locaux. |
 
 ### Assistant interactif
@@ -159,3 +159,20 @@ cibles `make` (idempotence garantie).
 Toute contribution doit rester **idempotente**, documentée et validée par la
 CI. Mettez à jour cette documentation ou rédigez un ADR si vous modifiez
 l'architecture de la chaîne GitOps.
+Pour intégrer l'inventaire bare metal dans un pipeline d'automatisation, vous
+pouvez demander une sortie JSON. Exemple :
+
+```bash
+make baremetal/list FORMAT=json
+```
+
+Le script sous-jacent accepte également `hosts` ou `profiles` pour ne récupérer
+qu'un extrait spécifique :
+
+```bash
+make baremetal/list-hosts FORMAT=json
+make baremetal/list-profiles FORMAT=json
+```
+
+Ces commandes restent idempotentes : la sortie reflète uniquement les fichiers
+`baremetal/inventory` versionnés.
