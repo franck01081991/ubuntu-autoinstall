@@ -6,10 +6,10 @@ UBUNTU_ISO ?= ubuntu-24.04-live-server-amd64.iso
 BAREMETAL_DIR ?= baremetal
 TARGET := $(if $(PROFILE),$(PROFILE),$(HOST))
 
-.PHONY: baremetal/gen baremetal/seed baremetal/fulliso baremetal/clean baremetal/list baremetal/list-hosts baremetal/list-profiles baremetal/host-init lint doctor secrets-scan
+.PHONY: baremetal/gen baremetal/seed baremetal/fulliso baremetal/clean baremetal/list baremetal/list-hosts baremetal/list-profiles baremetal/host-init baremetal/validate lint doctor secrets-scan
 
 REQUIRED_CMDS := python3 ansible-playbook xorriso mkpasswd sops age
-OPTIONAL_CMDS := yamllint ansible-lint shellcheck markdownlint gitleaks
+OPTIONAL_CMDS := yamllint ansible-lint shellcheck markdownlint gitleaks cloud-init
 
 baremetal/gen:
 	cd $(BAREMETAL_DIR)/ansible/playbooks && PROFILE=$(PROFILE) HOST=$(TARGET) $(ANSIBLE) generate_autoinstall.yml
@@ -19,6 +19,9 @@ baremetal/seed: baremetal/gen
 
 baremetal/fulliso: baremetal/gen
 	bash $(BAREMETAL_DIR)/scripts/make_full_iso.sh $(TARGET) $(UBUNTU_ISO)
+
+baremetal/validate:
+	bash $(BAREMETAL_DIR)/scripts/validate_cloud_init.sh $(TARGET)
 
 baremetal/host-init:
 	bash scripts/bootstrap-host.sh --host $(HOST) --profile $(PROFILE)

@@ -32,7 +32,7 @@ Les composants historiques (provisioning applicatif, VPS, etc.) ont été retir�
 ## Prérequis rapides
 
 1. ISO officielle *Ubuntu 24.04 Live Server* (fichier `.iso`).
-2. Outils côté poste : `python3`, `ansible-core`, `xorriso`, `mkpasswd`, `sops`, `age`.
+2. Outils côté poste : `python3`, `ansible-core`, `xorriso`, `mkpasswd`, `sops`, `age` (ajoutez `cloud-init` pour valider vos fichiers `user-data`).
 3. Accès Git avec revue de code (aucun commit direct sur la branche de production).
 
 Vérifiez votre environnement avec :
@@ -163,6 +163,7 @@ Ensuite, lancez `make baremetal/seed` ou `make baremetal/fulliso` en pointant ve
 | `make baremetal/host-init HOST=<nom> PROFILE=<profil>` | Prépare un hôte (répertoire `host_vars` + inventaire). |
 | `make baremetal/seed HOST=<nom>` | Crée une image CIDATA minimale. |
 | `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>` | Construit une ISO autonome. |
+| `make baremetal/validate HOST=<nom>` | Valide `user-data` avec `cloud-init schema` avant diffusion. |
 | `make baremetal/clean` | Supprime les artefacts générés. |
 | `make lint` | Lance tous les linters (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`). |
 | `make secrets-scan` | Exécute `gitleaks detect --config gitleaks.toml --report-format sarif --report-path gitleaks.sarif --redact --exit-code 2`, identique au workflow CI. |
