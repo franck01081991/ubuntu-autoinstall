@@ -116,6 +116,12 @@ Respectez ce découpage pour rester compatible avec l'usine GitOps.
 |-------|----------|-------------|
 | Vérifier l'environnement | `make doctor` | Contrôle dépendances et rappelle les linters attendus. |
 | Initialiser un hôte | `make baremetal/host-init HOST=<nom> PROFILE=<profil>` | Crée `host_vars/` + met à jour `inventory/hosts.yml`. |
+
+> ℹ️ Depuis l'assistant ISO et la CLI, la variable d'environnement `PROFILE` peut
+> pointer soit vers un profil matériel (`inventory/profiles/hardware/`), soit
+> vers un hôte (`inventory/host_vars/<HOST>/`). Dans ce second cas, les tâches
+> Ansible rechargeront les variables d'hôte avant de résoudre le profil
+> matériel référencé.
 | Regénérer Autoinstall | `make baremetal/gen HOST=<nom>` | Produit `user-data` / `meta-data` à versionner. |
 | Construire un ISO seed | `make baremetal/seed HOST=<nom>` | Génère `seed-<nom>.iso` idempotent. |
 | Construire un ISO complet | `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>` | Intègre l'installateur officiel Ubuntu. |

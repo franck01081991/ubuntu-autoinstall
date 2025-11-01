@@ -168,7 +168,10 @@ Generated ISOs live under `baremetal/autoinstall/generated/<target>/`.
 
 - `make doctor`: dependency checks.
 - `make baremetal/gen HOST=<name>` or `PROFILE=<profile>`: render Autoinstall
-  files.
+  files. The `PROFILE` environment variable can target a hardware profile under
+  `inventory/profiles/hardware/` or an existing host in `inventory/host_vars/`;
+  in the latter case host variables are reloaded before resolving the referenced
+  hardware profile.
 - `make baremetal/seed HOST=<name>`: create a seed ISO.
 - `make baremetal/fulliso HOST=<name> UBUNTU_ISO=<path>`: produce a standalone
   installer ISO.
