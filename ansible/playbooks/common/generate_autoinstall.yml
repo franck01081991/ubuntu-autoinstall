@@ -9,7 +9,10 @@
 - name: Load hardware profile when rendering a PROFILE directly
   when: profile | length > 0
   ansible.builtin.include_vars:
-    file: "{{ inventory_root }}/profiles/hardware/{{ profile }}.yml"
+    file: "{{ lookup('first_found', {
+      'files': [profile + '.yml', profile + '.yaml'],
+      'paths': [inventory_root + '/profiles/hardware']
+    }) }}"
 
 - name: Parse host variables to resolve the hardware profile
   when: profile | length == 0
@@ -22,7 +25,10 @@
     - host_raw_vars.hardware_profile is defined
     - host_raw_vars.hardware_profile | length > 0
   ansible.builtin.include_vars:
-    file: "{{ inventory_root }}/profiles/hardware/{{ host_raw_vars.hardware_profile }}.yml"
+    file: "{{ lookup('first_found', {
+      'files': [host_raw_vars.hardware_profile + '.yml', host_raw_vars.hardware_profile + '.yaml'],
+      'paths': [inventory_root + '/profiles/hardware']
+    }) }}"
 
 - name: Load host variables
   when: profile | length == 0
