@@ -42,6 +42,12 @@ pour résoudre les anomalies courantes.
    avant d'aller plus loin. Elle rappelle également les linters utilisés par la CI
    (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`).
 
+   > 🧠 **SOPS et age en deux phrases** : [SOPS](https://github.com/getsops/sops)
+   > est l'outil qui chiffre/déchiffre vos fichiers YAML. `age` est la
+   > technologie de chiffrement sous-jacente. On stocke en Git uniquement les
+   > fichiers chiffrés (`*.sops.yaml`), et chacun·e possède la clé privée `age`
+   > (dans `~/.config/sops/age/keys.txt`) pour les lire localement.
+
 > ℹ️ Des scripts idempotents sont fournis pour Linux amd64 :
 > `./scripts/install-sops.sh` et `./scripts/install-age.sh`.
 
@@ -67,14 +73,30 @@ pour résoudre les anomalies courantes.
    variable requise par vos templates.
 
 3. **Chiffrer les secrets** :
-   ```bash
-   ./scripts/bootstrap-demo-age-key.sh   # respecte ${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}
-   export SOPS_AGE_KEY_FILE="${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}"
-   sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
-   ```
+   1. **Installer/charger la clé age** (une seule fois par machine) :
+      ```bash
+      ./scripts/bootstrap-demo-age-key.sh   # respecte ${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}
+      export SOPS_AGE_KEY_FILE="${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}"
+      ```
+      Ce script crée le fichier `~/.config/sops/age/keys.txt` si besoin et y
+      ajoute la clé privée de démonstration. En production, remplacez-la par
+      votre propre clé et faites-la relire via PR dans `.sops.yaml`.
+   2. **Ouvrir le fichier chiffré avec SOPS** :
+      ```bash
+      sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
+      ```
+      La première sauvegarde crée automatiquement la structure chiffrée. SOPS
+      ouvre votre éditeur texte (défini par `$EDITOR`). Tapez les valeurs en
+      clair puis sauvegardez : le fichier stocké sur disque reste chiffré.
+
    Stockez-y uniquement des données sensibles (hash de mot de passe,
    `ssh_authorized_keys`, passphrases LUKS). Les passphrases globales se placent
    dans `baremetal/inventory/group_vars/all/disk_encryption.sops.yaml`.
+
+   > ✅ Vérification rapide : `sops -d baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml`
+   > affiche le contenu en clair dans le terminal (sans rien modifier). Si la
+   > commande échoue, votre clé `age` n'est pas trouvée : relancez l'étape 1 ou
+   > vérifiez la variable `SOPS_AGE_KEY_FILE`.
 
 4. **Valider l'inventaire** :
    ```bash
