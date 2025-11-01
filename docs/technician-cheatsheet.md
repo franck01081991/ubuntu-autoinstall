@@ -18,6 +18,8 @@ Git afin de respecter les principes GitOps.
 | Construire l'ISO complète | `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>` | Ajoute l'installateur officiel Ubuntu Live Server. |
 | Lancer les linters | `make lint` | `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`. |
 | Scanner les secrets | `make secrets-scan` | `gitleaks detect --config gitleaks.toml --exit-code 2`. |
+| Générer une clé age | `make age/keygen OUTPUT=~/.config/sops/age/keys.txt` | Crée ou régénère l'identité `age` locale (`OVERWRITE=1`). |
+| Afficher la clé publique age | `make age/show-recipient OUTPUT=~/.config/sops/age/keys.txt` | Affiche le recipient à ajouter dans `.sops.yaml`. |
 | Lister inventaire + profils | `make baremetal/list` | Vérifie rapidement la cohérence de vos hôtes et profils matériels. |
 | Nettoyer les artefacts | `make baremetal/clean` | Supprime les fichiers générés localement. |
 
@@ -44,7 +46,8 @@ Git afin de respecter les principes GitOps.
 - `make baremetal/list-hosts` : s'assurer qu'un hôte est bien versionné avant de
   lancer `make baremetal/gen` ou l'assistant ISO.
 - `python3 baremetal/scripts/iso_wizard.py` : assistant interactif pour guider
-  un technicien pas à pas (check dépendances, génération ISO, nettoyage).
+  un technicien pas à pas (dépendances, gestion des clés SOPS/age, playbooks,
+  génération ISO, nettoyage).
 - [`docs/troubleshooting.md`](troubleshooting.md) : recense les erreurs les plus
   fréquentes (dépendances manquantes, clé SOPS absente, ISO introuvable) et les
   résolutions GitOps associées.

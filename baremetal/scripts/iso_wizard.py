@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Interactive helper to generate Ubuntu Autoinstall ISO images.
+"""Interactive helper to drive the Ubuntu Autoinstall toolchain.
 
 The wizard guides the operator through the necessary `make` targets to render
-an Autoinstall configuration and assemble either the seed ISO (CIDATA), the
-full ISO, or both. All commands remain idempotent and rely on existing
-Makefile targets so that the CI/CD pipeline can replay the same operations.
+Autoinstall configurations, assemble ISO images, manage SOPS/age keys and
+trigger common Ansible playbooks. All commands remain idempotent and rely on
+existing Makefile targets so that the CI/CD pipeline can replay the same
+operations.
 """
 from __future__ import annotations
 
@@ -24,6 +25,8 @@ HARDWARE_PROFILE_DIR = REPO_ROOT / "baremetal" / "inventory" / "profiles" / "har
 GENERATED_DIR = REPO_ROOT / "baremetal" / "autoinstall" / "generated"
 DEFAULT_UBUNTU_ISO = "ubuntu-24.04-live-server-amd64.iso"
 DEFAULT_AGE_KEY_FILE = Path.home() / ".config" / "sops" / "age" / "keys.txt"
+REQUIRED_BINARIES = ("git", "make")
+RECOMMENDED_BINARIES = ("sops", "age", "age-keygen", "ansible-playbook")
 SOPS_INSTALL_SCRIPT = REPO_ROOT / "scripts" / "install-sops.sh"
 AGE_INSTALL_SCRIPT = REPO_ROOT / "scripts" / "install-age.sh"
 INSTALLER_HINTS = {
@@ -67,6 +70,50 @@ ISO_ACTIONS: List[IsoAction] = [
 ]
 
 
+@dataclass(frozen=True)
+class PlaybookAction:
+    """Describe an Ansible make target exposed through the wizard."""
+
+    label: str
+    make_target: str
+    requires_host: bool = False
+    supports_format: bool = False
+
+
+PLAYBOOK_ACTIONS: List[PlaybookAction] = [
+    PlaybookAction(
+        label="Regénérer les fichiers Autoinstall (ansible)",
+        make_target="baremetal/gen",
+        requires_host=True,
+    ),
+    PlaybookAction(
+        label="Valider le rendu cloud-init",
+        make_target="baremetal/validate",
+        requires_host=True,
+    ),
+    PlaybookAction(
+        label="Découvrir le matériel (playbook Ansible)",
+        make_target="baremetal/discover",
+        requires_host=True,
+    ),
+    PlaybookAction(
+        label="Lister inventaire + profils (table/json)",
+        make_target="baremetal/list",
+        supports_format=True,
+    ),
+    PlaybookAction(
+        label="Lister uniquement les hôtes",
+        make_target="baremetal/list-hosts",
+        supports_format=True,
+    ),
+    PlaybookAction(
+        label="Lister uniquement les profils matériels",
+        make_target="baremetal/list-profiles",
+        supports_format=True,
+    ),
+]
+
+
 def check_required_binaries(binaries: Sequence[str]) -> None:
     missing = [binary for binary in binaries if shutil.which(binary) is None]
     if not missing:
@@ -85,6 +132,20 @@ def check_required_binaries(binaries: Sequence[str]) -> None:
         file=sys.stderr,
     )
     sys.exit(1)
+
+
+def warn_missing_binaries(binaries: Sequence[str]) -> None:
+    """Display a non-blocking warning when optional binaries are absent."""
+
+    missing = [binary for binary in binaries if shutil.which(binary) is None]
+    if not missing:
+        return
+    formatted = ", ".join(sorted(missing))
+    print(
+        "ℹ️ Dépendances recommandées absentes du PATH : "
+        f"{formatted}. Utilisez le menu \"Mettre à jour l'environnement local\" pour les installer.",
+        file=sys.stderr,
+    )
 
 
 def list_hosts() -> List[str]:
@@ -214,6 +275,25 @@ def prompt_age_key_file(default: Path) -> Path:
         print(f"Fichier de clé age introuvable : {path}\n")
 
 
+def prompt_age_key_output(default: Path) -> Path:
+    while True:
+        candidate = input(
+            f"Emplacement du fichier de clé age [{default}] (:q pour annuler) : "
+        ).strip()
+        if candidate.lower() in CANCEL_KEYWORDS:
+            raise UserCancelled
+        if not candidate:
+            candidate = str(default)
+        path = Path(candidate).expanduser()
+        if path.is_dir():
+            print("Le chemin fourni correspond à un répertoire. Indiquez un fichier.\n")
+            continue
+        if " " in str(path):
+            print("Les chemins contenant des espaces ne sont pas pris en charge.\n")
+            continue
+        return path
+
+
 def prepare_sops_environment(env: Dict[str, str]) -> Dict[str, str]:
     if env.get("SOPS_AGE_KEY"):
         return {}
@@ -254,13 +334,22 @@ def run_command(
     subprocess.run(command, check=True, env=effective_env, cwd=str(cwd or REPO_ROOT))
 
 
-def run_make(target: str, *, variables: Dict[str, str] | None, sops_env: Dict[str, str]) -> None:
+def run_make(
+    target: str,
+    *,
+    variables: Dict[str, str] | None,
+    sops_env: Dict[str, str],
+    propagate_profile: bool = True,
+) -> None:
     command: List[str] = ["make", target]
     if variables:
         for key, value in variables.items():
             command.append(f"{key}={value}")
     env = dict(sops_env)
-    env["PROFILE"] = (variables or {}).get("HOST", "")
+    if propagate_profile and variables:
+        profile_candidate = variables.get("PROFILE") or variables.get("HOST")
+        if profile_candidate:
+            env["PROFILE"] = profile_candidate
     run_command(command, env=env)
 
 
@@ -469,12 +558,183 @@ def handle_clean(sops_env: Dict[str, str]) -> None:
     print("\nArtefacts supprimés.")
 
 
+def display_selected_age_key(path: Path | None) -> None:
+    if path:
+        print(f"Clé age active : {path}")
+    else:
+        print(
+            "Aucune clé age n'est configurée. Générer ou sélectionner un fichier avant de chiffrer des secrets."
+        )
+
+
+def generate_age_key(sops_env: Dict[str, str]) -> Dict[str, str]:
+    current_value = sops_env.get("SOPS_AGE_KEY_FILE")
+    default_path = Path(current_value).expanduser() if current_value else DEFAULT_AGE_KEY_FILE
+    try:
+        target_path = prompt_age_key_output(default_path)
+    except UserCancelled:
+        print("Opération annulée.")
+        return sops_env
+
+    overwrite = False
+    if target_path.exists():
+        confirm = input(
+            f"Le fichier {target_path} existe déjà. Le remplacer ? [o/N] : "
+        ).strip().lower()
+        if confirm not in {"o", "oui", "y", "yes"}:
+            print("Opération annulée.")
+            return sops_env
+        overwrite = True
+
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    command = ["make", "age/keygen", f"OUTPUT={target_path}"]
+    if overwrite:
+        command.append("OVERWRITE=1")
+    try:
+        run_command(command, env=sops_env)
+    except subprocess.CalledProcessError as exc:
+        print(f"La commande s'est terminée avec une erreur : {exc}", file=sys.stderr)
+        return sops_env
+
+    updated_env = dict(sops_env)
+    updated_env["SOPS_AGE_KEY_FILE"] = str(target_path)
+    print(
+        "\nClé age générée. Sauvegardez la clé privée dans votre gestionnaire de secrets et partagez uniquement la clé publique."
+    )
+    display_selected_age_key(target_path)
+    return updated_env
+
+
+def select_existing_age_key(sops_env: Dict[str, str]) -> Dict[str, str]:
+    current_value = sops_env.get("SOPS_AGE_KEY_FILE")
+    default_path = Path(current_value).expanduser() if current_value else DEFAULT_AGE_KEY_FILE
+    try:
+        path = prompt_age_key_file(default_path)
+    except UserCancelled:
+        print("Opération annulée.")
+        return sops_env
+
+    updated_env = dict(sops_env)
+    updated_env["SOPS_AGE_KEY_FILE"] = str(path)
+    display_selected_age_key(path)
+    return updated_env
+
+
+def show_age_public_key(sops_env: Dict[str, str]) -> None:
+    raw_path = sops_env.get("SOPS_AGE_KEY_FILE")
+    if not raw_path:
+        print(
+            "⚠️ Aucune clé age n'est sélectionnée. Générez ou sélectionnez un fichier avant d'afficher la clé publique.",
+            file=sys.stderr,
+        )
+        return
+    path = Path(raw_path).expanduser()
+    if not path.is_file():
+        print(f"⚠️ Le fichier {path} est introuvable.", file=sys.stderr)
+        return
+    try:
+        run_command(["make", "age/show-recipient", f"OUTPUT={path}"], env=sops_env)
+    except subprocess.CalledProcessError as exc:
+        print(f"La commande s'est terminée avec une erreur : {exc}", file=sys.stderr)
+
+
+def handle_age_key_management(sops_env: Dict[str, str]) -> Dict[str, str]:
+    env = dict(sops_env)
+    while True:
+        print("\nGestion des clés SOPS/age")
+        print("-------------------------")
+        display_selected_age_key(
+            Path(env["SOPS_AGE_KEY_FILE"]).expanduser() if env.get("SOPS_AGE_KEY_FILE") else None
+        )
+        try:
+            choice = prompt_choice(
+                (
+                    "Sélectionner un fichier de clé existant",
+                    "Générer une nouvelle clé age",
+                    "Afficher la clé publique (recipient)",
+                ),
+                "Actions disponibles :",
+                allow_cancel=True,
+                cancel_label="Retour au menu principal",
+            )
+        except UserCancelled:
+            return env
+
+        if choice == 0:
+            env = select_existing_age_key(env)
+        elif choice == 1:
+            env = generate_age_key(env)
+        else:
+            show_age_public_key(env)
+
+
+def prompt_output_format() -> str:
+    choice = prompt_choice(
+        ("table (lecture humaine)", "json (scripts/CI)"),
+        "Format de sortie :",
+        allow_cancel=True,
+        cancel_label="Annuler et revenir au menu",
+    )
+    if choice == 1:
+        return "json"
+    return "table"
+
+
+def handle_playbook_management(sops_env: Dict[str, str]) -> None:
+    while True:
+        try:
+            idx = prompt_choice(
+                [action.label for action in PLAYBOOK_ACTIONS],
+                "Playbooks disponibles :",
+                allow_cancel=True,
+                cancel_label="Retour au menu principal",
+            )
+        except UserCancelled:
+            return
+
+        action = PLAYBOOK_ACTIONS[idx]
+        variables: Dict[str, str] = {}
+        if action.requires_host:
+            hosts = list_hosts()
+            try:
+                host = prompt_host(hosts)
+            except UserCancelled:
+                print("Opération annulée.")
+                continue
+            variables["HOST"] = host
+            print(f"\nHôte sélectionné : {host}\n")
+
+        if action.supports_format:
+            try:
+                selected_format = prompt_output_format()
+            except UserCancelled:
+                print("Opération annulée.")
+                continue
+            variables["FORMAT"] = selected_format
+
+        try:
+            run_make(
+                action.make_target,
+                variables=variables or None,
+                sops_env=sops_env,
+                propagate_profile=action.requires_host,
+            )
+        except subprocess.CalledProcessError as exc:
+            print(f"La commande s'est terminée avec une erreur : {exc}", file=sys.stderr)
+            return
+
+        if action.supports_format:
+            print()
+
+
 def prompt_main_action() -> int:
     options = (
         "Mettre à jour le dépôt Git",
         "Mettre à jour l'environnement local",
+        "Gérer les clés SOPS/age",
         "Initialiser un nouvel hôte",
         "Générer des ISO pour un hôte",
+        "Gérer les playbooks Ansible",
         "Nettoyer les artefacts générés",
         "Quitter",
     )
@@ -485,7 +745,8 @@ def main() -> None:
     print("Ubuntu Autoinstall – Assistant de génération d'ISO")
     print("================================================\n")
 
-    check_required_binaries(("git", "make", "sops", "age"))
+    check_required_binaries(REQUIRED_BINARIES)
+    warn_missing_binaries(RECOMMENDED_BINARIES)
 
     sops_env = prepare_sops_environment(os.environ.copy())
     while True:
@@ -495,10 +756,14 @@ def main() -> None:
         elif choice == 1:
             handle_environment_update(sops_env)
         elif choice == 2:
-            handle_host_initialization(sops_env)
+            sops_env = handle_age_key_management(sops_env)
         elif choice == 3:
-            handle_iso_generation(sops_env)
+            handle_host_initialization(sops_env)
         elif choice == 4:
+            handle_iso_generation(sops_env)
+        elif choice == 5:
+            handle_playbook_management(sops_env)
+        elif choice == 6:
             handle_clean(sops_env)
         else:
             print("Au revoir !")
