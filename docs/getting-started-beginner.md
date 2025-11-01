@@ -4,6 +4,10 @@ Ce guide vous accompagne du clonage du dépôt à la production d'une ISO seed,
 sans prérequis sur Autoinstall ou GitOps. Chaque étape est idempotente : vous
 pouvez relancer les commandes, la CI reproduira exactement les mêmes artefacts.
 
+> 🎯 Pour un mémo rapide des actions quotidiennes, consultez la
+> [fiche mémo technicien](technician-cheatsheet.md). Ce guide reste la
+> référence pour l'onboarding détaillé étape par étape.
+
 ## Objectifs
 
 1. Comprendre la structure minimale du dépôt centrée sur les ISO.
