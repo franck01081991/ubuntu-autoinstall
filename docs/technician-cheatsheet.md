@@ -48,6 +48,9 @@ Git afin de respecter les principes GitOps.
 - `python3 baremetal/scripts/iso_wizard.py` : assistant interactif pour guider
   un technicien pas à pas (dépendances, gestion des clés SOPS/age, playbooks,
   génération ISO, nettoyage).
+- Placez l'ISO officielle dans `files/`, `~/Downloads/` ou `~/Téléchargements/`
+  pour que l'assistant la détecte automatiquement lors de la génération
+  `baremetal/fulliso`.
 - Depuis le menu « Personnaliser la configuration d'un hôte », ouvrez les
   fichiers `host_vars/<HOST>/` dans votre éditeur (ou `sops` pour les secrets)
   juste après l'initialisation.
