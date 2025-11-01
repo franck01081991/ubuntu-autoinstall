@@ -28,74 +28,59 @@ artefacts. Aucune action manuelle n'est tolérée en production.
   - traçabilité (commits + PR revues),
   - sécurité (SOPS/age, scans Trivy et Gitleaks, aucun secret en clair).
 
+### Glossaire rapide
+
+| Terme | Signification | Pourquoi c'est important ? |
+|-------|---------------|-----------------------------|
+| **ISO seed** | Image minimale contenant `user-data` et `meta-data` cloud-init. | Permet d'automatiser une installation Ubuntu en gardant l'ISO officielle intacte. |
+| **ISO complète** | ISO Ubuntu Live Server + vos fichiers Autoinstall intégrés. | Pratique pour les technicien·ne·s sans réseau ou sans seconde clé USB. |
+| **Autoinstall** | Fichiers `user-data` / `meta-data` générés depuis vos templates. | Décrit comment configurer l'hôte (réseau, partitions, utilisateurs). |
+| **Idempotent** | Une commande peut être relancée sans effet de bord. | Garantit que la chaîne GitOps reste prédictible et sûre. |
+| **SOPS + age** | Couple outil + format de chiffrement pour secrets YAML. | Assure que les données sensibles ne sortent jamais en clair de Git. |
+
 ## Démarrage express
 
-Suivez ces sept étapes pour produire une ISO seed prête à l'emploi :
+Cette section condense tout le nécessaire pour produire une ISO *seed*
+autonome. Elle complète le [guide débutant détaillé](docs/getting-started-beginner.md).
 
-1. **Cloner et se placer dans le dépôt**
-   ```bash
-   git clone git@github.com:example/ubuntu-autoinstall.git
-   cd ubuntu-autoinstall
-   ```
-2. **Vérifier la station de travail**
-   ```bash
-   make doctor
-   ```
-   Corrigez toute dépendance manquante (`python3`, `ansible-core`, `xorriso`,
-   `mkpasswd`, `sops`, `age`, `cloud-init`). Des installateurs idempotents sont
-   fournis pour Linux amd64 : `./scripts/install-sops.sh` et
-   `./scripts/install-age.sh`.
-3. **Initialiser l'hôte cible**
-   ```bash
-   make baremetal/host-init HOST=site-a-m710q1 PROFILE=lenovo-m710q
-   ```
-   La commande crée `host_vars/`, alimente `hosts.yml` et reste idempotente.
-   Le fichier `baremetal/inventory/host_vars/<HOST>/main.yml` généré contient
-   immédiatement `hostname: <HOST>` et `hardware_profile: <PROFILE>`, ce qui
-   évite toute valeur placeholder à corriger manuellement.
-4. **Découvrir automatiquement le matériel**
-   ```bash
-   make baremetal/discover HOST=site-a-m710q1
-   ```
-   Le playbook `discover_hardware.yml` collecte `ansible_facts`, `lsblk` et
-   `ip -j link`, puis écrit un cache JSON local dans `.cache/discovery/`.
-   Servez-vous-en pour pré-remplir vos profils matériels avant de les
-   versionner.
-5. **Déclarer les variables et secrets**
-   - Installez la clé `age` de démonstration (utile pour les environnements de
-     test ou les exercices) :
-     ```bash
-     ./scripts/bootstrap-demo-age-key.sh   # respecte ${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}
-     export SOPS_AGE_KEY_FILE="${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}"
-     ```
-     > 🔐 Pour la production, remplacez cette clé par la vôtre et mettez à jour
-     > `.sops.yaml` via une PR.
-   - Éditez `baremetal/inventory/host_vars/site-a-m710q1/main.yml` (profil
-     matériel, réseau, disques).
-   - Chiffrez les secrets :
-     ```bash
-     sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
-     ```
-     > 🧠 **Rappel express** : SOPS est l'éditeur chiffrant, `age` fournit les
-     > clés. Les fichiers `*.sops.yaml` restent chiffrés dans Git ; seul·e·s les
-     > détenteur·rice·s de la clé privée `age` (CI/CD incluse) peuvent les
-     > déchiffrer.
-6. **Générer les fichiers Autoinstall**
-   ```bash
-   make baremetal/gen HOST=site-a-m710q1
-   ```
-   Les fichiers `user-data` et `meta-data` apparaissent sous
-   `baremetal/autoinstall/generated/site-a-m710q1/`.
-7. **Construire l'ISO souhaitée**
-   ```bash
-   make baremetal/seed HOST=site-a-m710q1
-   make baremetal/fulliso HOST=site-a-m710q1 \
-     UBUNTU_ISO=/chemin/ubuntu-24.04-live-server-amd64.iso   # optionnel
-   ```
+### Avant de commencer
 
-Une fois la PR fusionnée, vos pipelines internes tirent les artefacts
-validés. Assurez-vous de regénérer les ISO via les cibles `make` avant de
-proposer une fusion.
+- Poste Linux avec `python3`, `ansible-core`, `xorriso`, `mkpasswd`, `sops`,
+  `age` et `cloud-init`. Lancer `make doctor` listera tout manque.
+- Accès Git SSH au dépôt (clé configurée côté forge).
+- Une clé `age` (de test via `./scripts/bootstrap-demo-age-key.sh`, ou votre clé
+  d'équipe référencée dans `.sops.yaml`).
+
+> 💡 **Astuce** : les scripts `./scripts/install-sops.sh` et
+> `./scripts/install-age.sh` (Linux amd64) sont idempotents. Relancez-les pour
+> mettre à jour ou réparer une installation.
+
+### Parcours en 7 étapes
+
+| # | Action | Ce que vous obtenez | Commandes |
+|---|--------|---------------------|-----------|
+| 1 | **Cloner le dépôt** | Répertoire de travail local | `git clone … && cd ubuntu-autoinstall` |
+| 2 | **Contrôler la station** | Dépendances validées | `make doctor` |
+| 3 | **Initialiser l'hôte** | Dossier `host_vars/<HOST>/` + entrée dans `hosts.yml` | `make baremetal/host-init HOST=<HOST> PROFILE=<PROFIL>` |
+| 4 | **Découvrir le matériel** | Cache JSON non versionné `.cache/discovery/<HOST>.json` | `make baremetal/discover HOST=<HOST>` |
+| 5 | **Déclarer variables & secrets** | Fichiers clairs + secrets chiffrés | Éditer `main.yml`, `sops secrets.sops.yaml` |
+| 6 | **Générer Autoinstall** | `meta-data` + `user-data` prêts à relire | `make baremetal/gen HOST=<HOST>` |
+| 7 | **Construire l'ISO** | ISO seed (et ISO complète optionnelle) | `make baremetal/seed HOST=<HOST>`<br>`make baremetal/fulliso HOST=<HOST> UBUNTU_ISO=/chemin/iso` |
+
+### Détails complémentaires
+
+- `make baremetal/host-init` est idempotent : relancez-le si vous supprimez un
+  dossier ou ajustez un profil matériel.
+- Pour chiffrer vos secrets, positionnez `SOPS_AGE_KEY_FILE` si besoin puis
+  lancez `sops baremetal/inventory/host_vars/<HOST>/secrets.sops.yaml`.
+- Après `make baremetal/gen`, relisez `baremetal/autoinstall/generated/<HOST>/user-data`
+  pour confirmer les sections sensibles (`users`, `late-commands`, etc.).
+- `make baremetal/fulliso` nécessite l'ISO officielle Ubuntu téléchargée
+  manuellement ; la variable `UBUNTU_ISO` doit pointer vers ce fichier.
+
+Une fois vos validations locales terminées et la PR fusionnée, vos pipelines
+GitOps reconstruisent les artefacts de référence. Pensez à regénérer les ISO
+avant de demander une revue afin que les diffs soient à jour.
 
 ## Workflow GitOps complet
 
