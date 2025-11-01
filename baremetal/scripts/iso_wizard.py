@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -33,13 +34,12 @@ INSTALLER_HINTS = {
     "sops": "scripts/install-sops.sh",
     "age": "scripts/install-age.sh",
 }
+CANCEL_KEYWORDS = {"q", "quit", "annuler", "cancel", "stop", "exit", ":q"}
+YES_CHOICES = {"", "o", "oui", "y", "yes"}
 
 
 class UserCancelled(RuntimeError):
     """Raised when the operator cancels the current interaction."""
-
-
-CANCEL_KEYWORDS = {"q", "quit", "annuler", "cancel", "stop", "exit", ":q"}
 
 
 @dataclass(frozen=True)
@@ -164,6 +164,21 @@ def list_hosts() -> List[str]:
     ]
     hosts.sort()
     return hosts
+
+
+def list_host_files(host_dir: Path) -> List[Path]:
+    """Return editable files declared for a given host."""
+
+    if not host_dir.exists():
+        return []
+
+    files = [
+        entry
+        for entry in host_dir.iterdir()
+        if entry.is_file() and not entry.name.startswith(".")
+    ]
+    files.sort()
+    return files
 
 
 def list_hardware_profiles() -> List[str]:
@@ -294,6 +309,25 @@ def prompt_age_key_output(default: Path) -> Path:
         return path
 
 
+def detect_editor() -> List[str]:
+    """Return the preferred text editor command."""
+
+    for env_var in ("VISUAL", "EDITOR"):
+        value = os.environ.get(env_var)
+        if value:
+            command = shlex.split(value)
+            if command:
+                return command
+
+    for candidate in ("nano", "vi", "vim"):
+        if shutil.which(candidate):
+            return [candidate]
+
+    raise FileNotFoundError(
+        "Aucun éditeur texte détecté (VISUAL/EDITOR non définis et nano/vi/vim absents)."
+    )
+
+
 def prepare_sops_environment(env: Dict[str, str]) -> Dict[str, str]:
     if env.get("SOPS_AGE_KEY"):
         return {}
@@ -371,6 +405,28 @@ def summarize_outputs(host: str) -> None:
     print("\nISO générées :")
     for artefact in artefacts:
         print(f"  - {artefact.relative_to(REPO_ROOT)}")
+
+
+def edit_host_file(path: Path, sops_env: Dict[str, str]) -> None:
+    """Open the requested file with the appropriate editor."""
+
+    if ".sops." in path.name:
+        if shutil.which("sops") is None:
+            print(
+                "⚠️ Impossible d'éditer les secrets : le binaire `sops` est introuvable.",
+                file=sys.stderr,
+            )
+            return
+        run_command(["sops", str(path)], env=sops_env, cwd=path.parent)
+        return
+
+    try:
+        editor = detect_editor()
+    except FileNotFoundError as error:
+        print(f"⚠️ {error}", file=sys.stderr)
+        return
+
+    run_command([*editor, str(path)], env=sops_env, cwd=path.parent)
 
 
 def handle_repository_update() -> None:
@@ -476,6 +532,12 @@ def handle_host_initialization(sops_env: Dict[str, str]) -> None:
         "\nHôte initialisé. Vous pouvez maintenant personnaliser les fichiers dans "
         f"baremetal/inventory/host_vars/{host}/ puis relancer la génération d'ISO."
     )
+
+    customize = input(
+        "Souhaitez-vous ouvrir ces fichiers pour les personnaliser tout de suite ? [O/n] : "
+    ).strip().lower()
+    if customize in YES_CHOICES:
+        handle_host_customization(sops_env, host=host)
 
 
 def handle_iso_generation(sops_env: Dict[str, str]) -> None:
@@ -668,6 +730,55 @@ def handle_age_key_management(sops_env: Dict[str, str]) -> Dict[str, str]:
             show_age_public_key(env)
 
 
+def handle_host_customization(
+    sops_env: Dict[str, str], *, host: str | None = None
+) -> None:
+    """Let the operator edit host_vars files without leaving the wizard."""
+
+    selected_host = host
+    if selected_host is None:
+        hosts = list_hosts()
+        if not hosts:
+            print(
+                "Aucun hôte disponible. Initialisez-en un avant de personnaliser les fichiers.",
+                file=sys.stderr,
+            )
+            return
+        try:
+            selected_host = prompt_host(hosts)
+        except UserCancelled:
+            print("Opération annulée.")
+            return
+    host_dir = HOST_VARS_DIR / selected_host
+    files = list_host_files(host_dir)
+    if not files:
+        print(
+            f"Aucun fichier à personnaliser dans {host_dir.relative_to(REPO_ROOT)}.",
+            file=sys.stderr,
+        )
+        return
+
+    while True:
+        options = [
+            str(path.relative_to(REPO_ROOT))
+            for path in files
+        ] + ["Terminer la personnalisation"]
+        try:
+            choice = prompt_choice(
+                options,
+                "Fichiers disponibles :",
+                allow_cancel=True,
+                cancel_label="Retour au menu principal",
+            )
+        except UserCancelled:
+            print("Opération annulée.")
+            return
+        if choice == len(options) - 1:
+            print("Personnalisation terminée.")
+            return
+        edit_host_file(files[choice], sops_env)
+
+
 def prompt_output_format() -> str:
     choice = prompt_choice(
         ("table (lecture humaine)", "json (scripts/CI)"),
@@ -733,6 +844,7 @@ def prompt_main_action() -> int:
         "Mettre à jour l'environnement local",
         "Gérer les clés SOPS/age",
         "Initialiser un nouvel hôte",
+        "Personnaliser la configuration d'un hôte",
         "Générer des ISO pour un hôte",
         "Gérer les playbooks Ansible",
         "Nettoyer les artefacts générés",
@@ -760,10 +872,12 @@ def main() -> None:
         elif choice == 3:
             handle_host_initialization(sops_env)
         elif choice == 4:
-            handle_iso_generation(sops_env)
+            handle_host_customization(sops_env)
         elif choice == 5:
-            handle_playbook_management(sops_env)
+            handle_iso_generation(sops_env)
         elif choice == 6:
+            handle_playbook_management(sops_env)
+        elif choice == 7:
             handle_clean(sops_env)
         else:
             print("Au revoir !")
