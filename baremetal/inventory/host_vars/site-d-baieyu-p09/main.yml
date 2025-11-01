@@ -1,8 +1,0 @@
----
-hostname: site-d-baieyu-p09
-hardware_profile: baieyu-p09
-disk_device: /dev/sda
-netmode: dhcp
-nic: enp1s0
-# Secrets (password_hash, ssh_authorized_keys, etc.) sont gérés via
-# `secrets.sops.yaml` adjacent chiffré avec SOPS.
