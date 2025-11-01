@@ -152,7 +152,10 @@ profils à partir du cache JSON généré.
 - **Validations à lancer avant toute PR**
   - `make lint` : `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`.
   - `make secrets-scan` : `gitleaks detect --config gitleaks.toml --exit-code 2`.
-  - `make baremetal/gen HOST=<nom>` : regénère les fichiers Autoinstall impactés.
+- `make baremetal/gen HOST=<nom>` : regénère les fichiers Autoinstall impactés.
+- La CI GitHub Actions rejoue automatiquement `yamllint` et `ansible-lint` via
+  `.github/workflows/lint.yml` pour garantir qu'aucune régression
+  YAML/Ansible n'est mergée.
 - **Gestion des secrets**
   - Secrets chiffrés avec `sops` + `age` (clé privée stockée côté plateforme CI).
   - `scripts/ci/check-no-plaintext-secrets.py` vérifie qu'aucune donnée sensible
