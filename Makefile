@@ -43,7 +43,7 @@ baremetal/discover:
 	python3 scripts/discover_hardware.py --inventory $(BAREMETAL_DIR)/inventory/hosts.yml --limit $(TARGET)
 
 lint:
-        yamllint ansible baremetal
+	yamllint ansible baremetal
 	ansible-lint \
 	  ansible/playbooks/common/generate_autoinstall.yml \
 	  baremetal/ansible/playbooks/generate_autoinstall.yml
@@ -73,9 +73,9 @@ doctor:
 	    optional_missing=1; \
 	  fi; \
 	done; \
-        if [ $$optional_missing -eq 0 ]; then \
-          echo 'All optional linting tools detected.'; \
-        else \
-          echo 'Installez les outils optionnels pour rester aligné avec les contrôles internes.'; \
+	if [ $$optional_missing -eq 0 ]; then \
+	  echo 'All optional linting tools detected.'; \
+	else \
+	  echo 'Installez les outils optionnels pour rester aligné avec les contrôles internes.'; \
 	fi; \
 	echo 'Environment looks good.'
