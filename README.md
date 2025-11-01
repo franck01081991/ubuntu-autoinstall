@@ -90,6 +90,57 @@ Une fois vos validations locales terminées et la PR fusionnée, vos pipelines
 GitOps reconstruisent les artefacts de référence. Pensez à regénérer les ISO
 avant de demander une revue afin que les diffs soient à jour.
 
+### Automatisation Ansible au premier démarrage
+
+Chaque hôte installé active désormais un service `firstboot-ansible.service`
+qui lance un playbook depuis un dépôt Git externe juste après le premier
+redémarrage. Le template `baremetal/autoinstall/templates/user-data.j2` installe
+`git`, `ansible` et `python3-apt`, rend le script `/root/firstboot-ansible.sh`
+et enregistre un marqueur (`/var/lib/firstboot-ansible.done`) pour garantir
+l'idempotence.
+
+- Configurez le dépôt cible via `ansible_repo_url` dans
+  `baremetal/inventory/host_vars/<HÔTE>/main.yml`. Valeur par défaut :
+  `https://github.com/franck01081991/infra-ansible.git`.
+- Ajustez la portée d'inventaire avec `ansible_inventory_limit` (défaut :
+  `hostname`). La commande exécutée est :
+
+  ```bash
+  ansible-playbook -i inventory/hosts.ini ansible/site.yml --limit "<valeur>" -c local
+  ```
+
+Pour un dépôt privé SSH, injectez une clé dédiée depuis un secret SOPS puis
+remplacez l'URL par `git@github.com:ORG/REPO.git`. Exemple dans
+`host_vars/<HÔTE>/main.yml` et `secrets.sops.yaml` :
+
+```yaml
+# host_vars/<HÔTE>/main.yml
+ansible_repo_url: git@github.com:example/infra-ansible.git
+```
+
+```yaml
+# host_vars/<HÔTE>/secrets.sops.yaml
+cloud_init_private_keys:
+  infra_ansible: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    (clé chiffrée via SOPS)
+    -----END OPENSSH PRIVATE KEY-----
+```
+
+Ajoutez ensuite un bloc `write_files` supplémentaire (via un profil ou une
+commande Jinja) qui restitue la clé sous `/root/.ssh/id_ed25519_infra_ansible`
+avec les permissions `0600`. Exemple minimal :
+
+```yaml
+    write_files:
+      - path: /root/.ssh/id_ed25519_infra_ansible
+        permissions: '0600'
+        owner: root:root
+        content: "{{ cloud_init_private_keys.infra_ansible }}"
+```
+
+Référez-vous à SOPS pour chiffrer le secret.
+
 ## Workflow GitOps complet
 
 | Phase | Objectif | Commandes clefs | Point d'attention |

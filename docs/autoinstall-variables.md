@@ -29,6 +29,8 @@ Les valeurs sont réparties entre les fichiers `host_vars/<HÔTE>/main.yml`,
 | `keyboard_layout` / `keyboard_variant` | Non | Disposition clavier installateur. |
 | `apt_primary_uri` / `apt_primary_arches` | Non | Miroir APT personnalisé et architectures autorisées. |
 | `extra_packages` | Non | Paquets supplémentaires à installer. |
+| `ansible_repo_url` | Non | URL Git du dépôt Ansible exécuté au premier démarrage (`https://` ou `ssh://`). |
+| `ansible_inventory_limit` | Non | Valeur passée à `ansible-playbook --limit` (défaut : `hostname`). |
 | `storage_swap_size` | Non | Taille du swap en Mio (0 par défaut). |
 | `storage_config_override` | Non | Remplace entièrement la section `storage.config` (YAML brut). |
 | `storage_additional_late_commands` | Non | Liste de commandes `late-commands` à ajouter. |
