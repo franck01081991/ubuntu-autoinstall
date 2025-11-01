@@ -7,7 +7,7 @@ BAREMETAL_DIR ?= baremetal
 TARGET := $(if $(PROFILE),$(PROFILE),$(HOST))
 FORMAT ?= table
 
-.PHONY: baremetal/gen baremetal/seed baremetal/fulliso baremetal/clean baremetal/list baremetal/list-hosts baremetal/list-profiles baremetal/host-init baremetal/validate lint doctor secrets-scan
+.PHONY: baremetal/gen baremetal/seed baremetal/fulliso baremetal/clean baremetal/list baremetal/list-hosts baremetal/list-profiles baremetal/discover baremetal/host-init baremetal/validate lint doctor secrets-scan
 
 REQUIRED_CMDS := python3 ansible-playbook xorriso mkpasswd sops age
 OPTIONAL_CMDS := yamllint ansible-lint shellcheck markdownlint gitleaks cloud-init
@@ -38,6 +38,9 @@ baremetal/list-hosts:
 
 baremetal/list-profiles:
 	python3 scripts/list_inventory.py --format $(FORMAT) profiles
+
+baremetal/discover:
+	python3 scripts/discover_hardware.py --inventory $(BAREMETAL_DIR)/inventory/hosts.yml --limit $(TARGET)
 
 lint:
 	yamllint ansible baremetal .github/workflows

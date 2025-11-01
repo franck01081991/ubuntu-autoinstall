@@ -131,7 +131,11 @@ jobs:
 
       - name: Run ansible-lint
         run: |
-          ansible-lint ansible/playbooks/common/generate_autoinstall.yml baremetal/ansible/playbooks/generate_autoinstall.yml
+          ansible-lint ansible/playbooks/common/generate_autoinstall.yml baremetal/ansible/playbooks/generate_autoinstall.yml baremetal/ansible/playbooks/discover_hardware.yml
+
+      - name: Check inventory consistency
+        run: |
+          python scripts/ci/check_inventory_consistency.py
 
       - name: Run ShellCheck
         shell: bash
