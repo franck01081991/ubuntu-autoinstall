@@ -91,9 +91,11 @@ def list_hardware_profiles() -> List[str]:
         return []
 
     profiles = [
-        entry.name
+        entry.stem
         for entry in HARDWARE_PROFILE_DIR.iterdir()
-        if entry.is_dir() and not entry.name.startswith(".")
+        if entry.is_file()
+        and entry.suffix.lower() in {".yml", ".yaml"}
+        and not entry.name.startswith(".")
     ]
     profiles.sort()
     return profiles

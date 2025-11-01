@@ -122,7 +122,9 @@ python3 baremetal/scripts/iso_wizard.py
 
 Le script vérifie l'environnement, synchronise le dépôt, initie les hôtes,
 construit les ISO et nettoie les artefacts en s'appuyant uniquement sur les
-cibles `make` (idempotence garantie).
+cibles `make` (idempotence garantie). Les profils matériels proposés
+correspondent désormais aux manifestes `*.yml`/`*.yaml` présents dans
+`baremetal/inventory/profiles/hardware/`.
 
 ## CI/CD, sécurité et conformité
 
