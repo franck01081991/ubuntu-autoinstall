@@ -1,4 +1,10 @@
 ---
+-# Shared tasks to render NoCloud autoinstall configurations
+- name: Initialize profile lookup facts
+  ansible.builtin.set_fact:
+    _hardware_profile_file: ""
+    _explicit_host_vars_file: ""
+
 # Shared tasks to render NoCloud autoinstall configurations
 - name: Ensure autoinstall generated base directory exists
   ansible.builtin.file:
@@ -14,20 +20,20 @@
         _hardware_profile_file: "{{ lookup('first_found', {
           'files': [profile + '.yml', profile + '.yaml'],
           'paths': [inventory_root + '/profiles/hardware']
-        }, errors='ignore') }}"
+        }, errors='ignore') | default('', true) }}"
 
     - name: Locate host variables when explicit PROFILE is not a hardware profile
-      when: _hardware_profile_file | length == 0
+      when: (_hardware_profile_file | default('')) | length == 0
       block:
         - name: Locate host variables file for explicit PROFILE
           ansible.builtin.set_fact:
             _explicit_host_vars_file: "{{ lookup('first_found', {
               'files': ['main.yml', 'main.yaml'],
               'paths': [inventory_root + '/host_vars/' + profile]
-            }, errors='ignore') }}"
+            }, errors='ignore') | default('', true) }}"
 
         - name: Fail when explicit PROFILE does not match any inventory entry
-          when: _explicit_host_vars_file | length == 0
+          when: (_explicit_host_vars_file | default('')) | length == 0
           ansible.builtin.fail:
             msg: >-
               PROFILE '{{ profile }}' does not match any hardware profile under
@@ -43,7 +49,7 @@
 - name: Load hardware profile when rendering a PROFILE directly
   when:
     - profile | length > 0
-    - _hardware_profile_file | length > 0
+    - (_hardware_profile_file | default('')) | length > 0
   ansible.builtin.include_vars:
     file: "{{ _hardware_profile_file }}"
 
