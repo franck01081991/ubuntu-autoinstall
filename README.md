@@ -48,6 +48,9 @@ Suivez ces sept étapes pour produire une ISO seed prête à l'emploi :
    make baremetal/host-init HOST=site-a-m710q1 PROFILE=lenovo-m710q
    ```
    La commande crée `host_vars/`, alimente `hosts.yml` et reste idempotente.
+   Le fichier `baremetal/inventory/host_vars/<HOST>/main.yml` généré contient
+   immédiatement `hostname: <HOST>` et `hardware_profile: <PROFILE>`, ce qui
+   évite toute valeur placeholder à corriger manuellement.
 4. **Découvrir automatiquement le matériel**
    ```bash
    make baremetal/discover HOST=site-a-m710q1

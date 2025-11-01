@@ -70,13 +70,13 @@ trap cleanup EXIT
 
 if [[ ! -f "${MAIN_FILE}" ]]; then
   tmp_main="$(mktemp)"
-  cat >"${tmp_main}" <<'EOF_MAIN'
+  cat >"${tmp_main}" <<EOF_MAIN
 ---
 hostname: ${HOST}
 hardware_profile: ${PROFILE}
 netmode: dhcp
 # Secrets (password_hash, ssh_authorized_keys, etc.) sont gérés via
-# `secrets.sops.yaml` adjacent chiffré avec SOPS.
+# 'secrets.sops.yaml' adjacent chiffré avec SOPS.
 EOF_MAIN
   install -m 0644 "${tmp_main}" "${MAIN_FILE}"
   rm -f "${tmp_main}"
