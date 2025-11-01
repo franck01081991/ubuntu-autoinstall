@@ -417,7 +417,20 @@ def edit_host_file(path: Path, sops_env: Dict[str, str]) -> None:
                 file=sys.stderr,
             )
             return
-        run_command(["sops", str(path)], env=sops_env, cwd=path.parent)
+        proc = subprocess.run(
+            ["sops", str(path)],
+            env={**os.environ, **sops_env},
+            cwd=str(path.parent),
+        )
+
+        if proc.returncode == 0:
+            return
+
+        if proc.returncode == 200:
+            print(f"[wizard] aucun changement dans {path}, on continue.")
+            return
+
+        raise SystemExit(proc.returncode)
         return
 
     try:

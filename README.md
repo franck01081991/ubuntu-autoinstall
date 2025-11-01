@@ -162,6 +162,9 @@ profils à partir du cache JSON généré.
 > `host_vars/<HOST>/` via l'option « Personnaliser la configuration d'un hôte »
 > pour lancer votre éditeur (ou `sops` pour les secrets) sans quitter
 > l'assistant.
+> ✅ Si vous fermez `sops` sans modifier le secret, l'assistant continue
+> désormais sans erreur bloquante et journalise simplement qu'aucun changement
+> n'a été détecté.
 
 ## Gouvernance, sécurité et conformité
 
