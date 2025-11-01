@@ -32,6 +32,13 @@ INSTALLER_HINTS = {
 }
 
 
+class UserCancelled(RuntimeError):
+    """Raised when the operator cancels the current interaction."""
+
+
+CANCEL_KEYWORDS = {"q", "quit", "annuler", "cancel", "stop", "exit", ":q"}
+
+
 @dataclass(frozen=True)
 class IsoAction:
     """Describe the ISO artefacts that should be produced."""
@@ -115,14 +122,24 @@ def list_hardware_profiles() -> List[str]:
     return profiles
 
 
-def prompt_choice(options: Sequence[str], prompt: str) -> int:
+def prompt_choice(
+    options: Sequence[str],
+    prompt: str,
+    *,
+    allow_cancel: bool = False,
+    cancel_label: str = "Annuler",
+) -> int:
     """Display a numeric menu and return the selected index."""
 
     while True:
         print(prompt)
         for idx, option in enumerate(options, start=1):
             print(f"  {idx}. {option}")
+        if allow_cancel:
+            print(f"  0. {cancel_label}")
         raw = input("Sélectionnez une option : ").strip()
+        if allow_cancel and raw == "0":
+            raise UserCancelled
         if not raw.isdigit():
             print("Veuillez entrer un numéro valide.\n")
             continue
@@ -139,14 +156,16 @@ def prompt_host(hosts: Sequence[str]) -> str:
             file=sys.stderr,
         )
         sys.exit(1)
-    idx = prompt_choice(hosts, "Hôtes disponibles :")
+    idx = prompt_choice(hosts, "Hôtes disponibles :", allow_cancel=True)
     return hosts[idx]
 
 
 def prompt_new_host_name() -> str:
     pattern = re.compile(r"^[a-zA-Z0-9._-]+$")
     while True:
-        name = input("Nom d'hôte (alphanumérique, ._- autorisés) : ").strip()
+        name = input("Nom d'hôte (alphanumérique, ._- autorisés, :q pour annuler) : ").strip()
+        if name.lower() in CANCEL_KEYWORDS:
+            raise UserCancelled
         if not name:
             print("Le nom d'hôte est obligatoire.\n")
             continue
@@ -157,13 +176,21 @@ def prompt_new_host_name() -> str:
 
 
 def prompt_iso_action() -> IsoAction:
-    idx = prompt_choice([action.label for action in ISO_ACTIONS], "Quel type d'image générer ?")
+    idx = prompt_choice(
+        [action.label for action in ISO_ACTIONS],
+        "Quel type d'image générer ?",
+        allow_cancel=True,
+    )
     return ISO_ACTIONS[idx]
 
 
 def prompt_iso_path(default: str) -> str:
     while True:
-        candidate = input(f"Chemin vers l'ISO Ubuntu officielle [{default}] : ").strip()
+        candidate = input(
+            f"Chemin vers l'ISO Ubuntu officielle [{default}] (:q pour annuler) : "
+        ).strip()
+        if candidate.lower() in CANCEL_KEYWORDS:
+            raise UserCancelled
         if not candidate:
             candidate = default
         path = Path(candidate).expanduser()
@@ -174,7 +201,11 @@ def prompt_iso_path(default: str) -> str:
 
 def prompt_age_key_file(default: Path) -> Path:
     while True:
-        candidate = input(f"Chemin de la clé age pour SOPS [{default}] : ").strip()
+        candidate = input(
+            f"Chemin de la clé age pour SOPS [{default}] (:q pour annuler) : "
+        ).strip()
+        if candidate.lower() in CANCEL_KEYWORDS:
+            raise UserCancelled
         if not candidate:
             candidate = str(default)
         path = Path(candidate).expanduser()
@@ -205,7 +236,11 @@ def prepare_sops_environment(env: Dict[str, str]) -> Dict[str, str]:
         if confirmed in {"", "o", "oui", "y", "yes"}:
             return {"SOPS_AGE_KEY_FILE": str(default_path)}
 
-    path = prompt_age_key_file(default_path)
+    try:
+        path = prompt_age_key_file(default_path)
+    except UserCancelled:
+        print("Opération annulée.")
+        return {}
     return {"SOPS_AGE_KEY_FILE": str(path)}
 
 
@@ -303,7 +338,11 @@ def handle_environment_update(sops_env: Dict[str, str]) -> None:
 def handle_host_initialization(sops_env: Dict[str, str]) -> None:
     print("\nInitialisation d'un hôte bare metal")
     print("-----------------------------------")
-    host = prompt_new_host_name()
+    try:
+        host = prompt_new_host_name()
+    except UserCancelled:
+        print("Opération annulée.")
+        return
 
     existing_path = HOST_VARS_DIR / host
     if existing_path.exists():
@@ -317,7 +356,16 @@ def handle_host_initialization(sops_env: Dict[str, str]) -> None:
     profiles = list_hardware_profiles()
     profile: str | None = None
     if profiles:
-        profile_idx = prompt_choice(profiles, "Profils matériels disponibles :")
+        try:
+            profile_idx = prompt_choice(
+                profiles,
+                "Profils matériels disponibles :",
+                allow_cancel=True,
+                cancel_label="Annuler la sélection et revenir au menu",
+            )
+        except UserCancelled:
+            print("Opération annulée.")
+            return
         profile = profiles[profile_idx]
     else:
         print(
@@ -355,13 +403,25 @@ def handle_iso_generation(sops_env: Dict[str, str]) -> None:
         if not hosts:
             return
 
-    host = prompt_host(hosts)
+    try:
+        host = prompt_host(hosts)
+    except UserCancelled:
+        print("Opération annulée.")
+        return
     print(f"\nHôte sélectionné : {host}\n")
 
-    action = prompt_iso_action()
+    try:
+        action = prompt_iso_action()
+    except UserCancelled:
+        print("Opération annulée.")
+        return
     ubuntu_iso: str | None = None
     if action.requires_ubuntu_iso:
-        ubuntu_iso = prompt_iso_path(os.environ.get("UBUNTU_ISO", DEFAULT_UBUNTU_ISO))
+        try:
+            ubuntu_iso = prompt_iso_path(os.environ.get("UBUNTU_ISO", DEFAULT_UBUNTU_ISO))
+        except UserCancelled:
+            print("Opération annulée.")
+            return
 
     print("\nRésumé :")
     print(f"  - Hôte : {host}")

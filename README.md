@@ -152,6 +152,10 @@ correspondent désormais aux manifestes `*.yml`/`*.yaml` présents dans
 collectez d'abord les faits via `make baremetal/discover`, puis nourrissez vos
 profils à partir du cache JSON généré.
 
+> 🆕 Tous les menus interactifs autorisent désormais l'annulation immédiate :
+> choisissez `0` dans les listes ou saisissez `:q` pour interrompre l'action
+> en cours et revenir au menu principal sans modifier l'état local.
+
 ## Gouvernance, sécurité et conformité
 
 - **Validations à lancer avant toute PR**
