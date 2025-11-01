@@ -11,6 +11,9 @@ artefacts. Aucune action manuelle n'est tolérée en production.
 > 🛠️ Besoin d'un aide-mémoire une fois formé·e ? Gardez la
 > [fiche mémo technicien](docs/technician-cheatsheet.md) et le
 > [guide de dépannage](docs/troubleshooting.md) à proximité.
+>
+> 🔐 Besoin d'un rappel sur les secrets ? Consultez le
+> [guide simplifié SOPS + age](docs/sops-age-guide.md).
 
 ---
 
@@ -73,6 +76,8 @@ autonome. Elle complète le [guide débutant détaillé](docs/getting-started-be
   dossier ou ajustez un profil matériel.
 - Pour chiffrer vos secrets, positionnez `SOPS_AGE_KEY_FILE` si besoin puis
   lancez `sops baremetal/inventory/host_vars/<HOST>/secrets.sops.yaml`.
+  La procédure détaillée est décrite dans le
+  [guide SOPS + age](docs/sops-age-guide.md).
 - Après `make baremetal/gen`, relisez `baremetal/autoinstall/generated/<HOST>/user-data`
   pour confirmer les sections sensibles (`users`, `late-commands`, etc.).
 - `make baremetal/fulliso` nécessite l'ISO officielle Ubuntu téléchargée
