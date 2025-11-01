@@ -209,7 +209,11 @@ def run_make(target: str, *, variables: Dict[str, str] | None, sops_env: Dict[st
         for key, value in variables.items():
             command.append(f"{key}={value}")
     env = dict(sops_env)
-    env["PROFILE"] = (variables or {}).get("HOST", "")
+    profile = (variables or {}).get("PROFILE")
+    if profile is not None:
+        env["PROFILE"] = profile
+    else:
+        env["PROFILE"] = ""
     run_command(command, env=env)
 
 
