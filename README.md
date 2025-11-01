@@ -167,6 +167,25 @@ Ensuite, lancez `make baremetal/seed` ou `make baremetal/fulliso` en pointant ve
 | `make lint` | Lance tous les linters (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`). |
 | `make secrets-scan` | Exécute `gitleaks detect --config gitleaks.toml --report-format sarif --report-path gitleaks.sarif --redact --exit-code 2`, identique au workflow CI. |
 
+## Assistant interactif ISO
+
+Pour guider un·e technicien·ne sans mémoriser toutes les cibles Make, utilisez l'assistant interactif :
+
+```bash
+python3 baremetal/scripts/iso_wizard.py
+```
+
+Ce script couvre tout le cycle de vie bare metal :
+
+- vérification des binaires `git`, `make`, `sops`, `age` et préparation de l'environnement SOPS/age ;
+- mise à jour du dépôt (`git fetch --all --prune` puis `git pull --ff-only`) ;
+- mise à jour de l'environnement local (installation facultative de `sops` via `scripts/install-sops.sh`, exécution de `make doctor`) ;
+- initialisation d'un hôte (`make baremetal/host-init`) en choisissant un profil matériel ;
+- génération d'une ISO seed, d'une ISO complète ou des deux pour n'importe quel hôte déclaré ;
+- nettoyage des artefacts (`make baremetal/clean`).
+
+Chaque action reste idempotente en s'appuyant exclusivement sur les cibles Make du dépôt. Les ISO rendues sont rappelées à la fin dans `baremetal/autoinstall/generated/<hôte>/`.
+
 ## Chiffrement disque
 
 - Activez-le via `disk_encryption.enabled: true` dans vos variables d'hôte.
