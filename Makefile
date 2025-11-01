@@ -6,7 +6,7 @@ UBUNTU_ISO ?= ubuntu-24.04-live-server-amd64.iso
 BAREMETAL_DIR ?= baremetal
 TARGET := $(if $(PROFILE),$(PROFILE),$(HOST))
 
-.PHONY: baremetal/gen baremetal/seed baremetal/fulliso baremetal/clean baremetal/host-init lint doctor secrets-scan
+.PHONY: baremetal/gen baremetal/seed baremetal/fulliso baremetal/clean baremetal/list baremetal/list-hosts baremetal/list-profiles baremetal/host-init lint doctor secrets-scan
 
 REQUIRED_CMDS := python3 ansible-playbook xorriso mkpasswd sops age
 OPTIONAL_CMDS := yamllint ansible-lint shellcheck markdownlint gitleaks
@@ -25,6 +25,15 @@ baremetal/host-init:
 
 baremetal/clean:
 	rm -rf $(BAREMETAL_DIR)/autoinstall/generated/*
+
+baremetal/list:
+	python3 scripts/list_inventory.py summary
+
+baremetal/list-hosts:
+	python3 scripts/list_inventory.py hosts
+
+baremetal/list-profiles:
+	python3 scripts/list_inventory.py profiles
 
 lint:
 	yamllint ansible baremetal .github/workflows

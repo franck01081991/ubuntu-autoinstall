@@ -15,6 +15,9 @@ terminé afin de gagner du temps sur les opérations quotidiennes.
 | Construire une ISO complète | `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>` | Nécessite l'ISO officielle Ubuntu en entrée. |
 | Lancer tous les linters | `make lint` | Reflète la CI (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`). |
 | Scanner les secrets | `make secrets-scan` | Alias local de `gitleaks detect`, identique au pipeline CI. |
+| Visualiser l'inventaire versionné | `make baremetal/list` | Résumé hôtes/profils pour contrôle express. |
+| Lister uniquement les hôtes | `make baremetal/list-hosts` | Confirme que `host_vars/` est cohérent avant une ISO. |
+| Lister uniquement les profils matériels | `make baremetal/list-profiles` | Vérifie les gabarits disponibles. |
 
 ## Rappels GitOps obligatoires
 
@@ -33,3 +36,8 @@ terminé afin de gagner du temps sur les opérations quotidiennes.
 
 Gardez cette fiche à portée pour accélérer vos opérations tout en respectant
 les exigences d'idempotence et de conformité GitOps.
+
+## Diagnostic rapide
+
+- Lancez `make baremetal/list` pour confirmer qu'un hôte est bien versionné avant de générer une ISO ou d'utiliser l'assistant interactif.
+- En cas d'erreur (`sops` sans clé, ISO introuvable, dépendance manquante), appuyez-vous sur le guide [`docs/troubleshooting.md`](troubleshooting.md) et corrigez via Git (branche + PR) plutôt que par actions manuelles.
