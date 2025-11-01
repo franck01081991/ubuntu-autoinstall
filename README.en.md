@@ -59,6 +59,7 @@ baremetal/
 ansible/                # Shared dependencies and task files
 docs/                   # Guides and Architecture Decision Records
 scripts/install-sops.sh # SOPS installer (Linux amd64)
+scripts/install-age.sh  # age installer (Linux amd64)
 ```
 
 Every directory shown above is required to produce the bare metal ISOs through
@@ -96,7 +97,9 @@ the GitOps pipeline.
    ```
 
    The target confirms required binaries and highlights the CI linters
-   (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`).
+   (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`). Idempotent
+   installers are available for Linux amd64: `./scripts/install-sops.sh` and
+   `./scripts/install-age.sh`.
 
 2. **Prepare host variables**
 

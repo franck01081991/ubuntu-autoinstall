@@ -19,7 +19,7 @@ Sortie type : `Missing required dependency: xorriso` ou absence de linters recom
 
 **Résolution GitOps**  
 1. Vérifiez que la variable `SOPS_AGE_KEY` (CI) ou `SOPS_AGE_KEY_FILE` pointe vers la clé partagée par l’équipe.  
-2. Si besoin, mettez à jour `scripts/install-sops.sh` ou votre bootstrap interne pour distribuer la clé via un secret versionné.  
+2. Si besoin, mettez à jour `scripts/install-sops.sh`, `scripts/install-age.sh` ou votre bootstrap interne pour distribuer la clé via un secret versionné.
 3. Relancez la commande (`make baremetal/list`, `make baremetal/gen`, wizard…).
 
 ## `make baremetal/fulliso` échoue (ISO Ubuntu introuvable)

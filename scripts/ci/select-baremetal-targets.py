@@ -93,6 +93,7 @@ def determine_targets(changed_files: Iterable[str]) -> tuple[list[dict[str, str]
     always_all_files = {
         "Makefile",
         "scripts/install-sops.sh",
+        "scripts/install-age.sh",
         "baremetal/inventory/hosts.yml",
         ".github/workflows/build-iso.yml",
     }

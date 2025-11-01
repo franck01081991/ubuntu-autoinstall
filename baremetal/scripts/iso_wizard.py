@@ -25,6 +25,11 @@ GENERATED_DIR = REPO_ROOT / "baremetal" / "autoinstall" / "generated"
 DEFAULT_UBUNTU_ISO = "ubuntu-24.04-live-server-amd64.iso"
 DEFAULT_AGE_KEY_FILE = Path.home() / ".config" / "sops" / "age" / "keys.txt"
 SOPS_INSTALL_SCRIPT = REPO_ROOT / "scripts" / "install-sops.sh"
+AGE_INSTALL_SCRIPT = REPO_ROOT / "scripts" / "install-age.sh"
+INSTALLER_HINTS = {
+    "sops": "scripts/install-sops.sh",
+    "age": "scripts/install-age.sh",
+}
 
 
 @dataclass(frozen=True)
@@ -59,7 +64,14 @@ def check_required_binaries(binaries: Sequence[str]) -> None:
     missing = [binary for binary in binaries if shutil.which(binary) is None]
     if not missing:
         return
-    formatted = ", ".join(missing)
+    formatted_missing = []
+    for binary in missing:
+        hint = INSTALLER_HINTS.get(binary)
+        if hint:
+            formatted_missing.append(f"{binary} (installer : {hint})")
+        else:
+            formatted_missing.append(binary)
+    formatted = ", ".join(formatted_missing)
     print(
         "Les binaires requis suivants sont introuvables dans le PATH : "
         f"{formatted}. Installez-les avant de continuer.",
@@ -263,6 +275,16 @@ def handle_environment_update(sops_env: Dict[str, str]) -> None:
         if install in {"", "o", "oui", "y", "yes"}:
             try:
                 run_command(["bash", str(SOPS_INSTALL_SCRIPT)], env=sops_env)
+            except subprocess.CalledProcessError as exc:
+                print(f"La commande s'est terminée avec une erreur : {exc}", file=sys.stderr)
+                sys.exit(exc.returncode or 1)
+    if shutil.which("age") is None and AGE_INSTALL_SCRIPT.is_file():
+        install_age = input(
+            "Le binaire age est introuvable. Lancer scripts/install-age.sh ? [O/n] : "
+        ).strip().lower()
+        if install_age in {"", "o", "oui", "y", "yes"}:
+            try:
+                run_command(["bash", str(AGE_INSTALL_SCRIPT)], env=sops_env)
             except subprocess.CalledProcessError as exc:
                 print(f"La commande s'est terminée avec une erreur : {exc}", file=sys.stderr)
                 sys.exit(exc.returncode or 1)
