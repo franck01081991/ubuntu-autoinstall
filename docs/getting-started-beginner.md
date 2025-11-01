@@ -53,33 +53,35 @@ Elle signale également (sans échouer) l'absence des linters utilisés en CI :
 
 ## 3. Préparer un répertoire `host_vars`
 
-Chaque hôte dispose désormais d'un **répertoire** contenant :
+Chaque hôte dispose d'un **répertoire** contenant :
 
 - `main.yml` : variables non sensibles ;
 - `secrets.sops.yaml` : secrets chiffrés (hash du mot de passe, clés SSH,
-  tokens). Ce fichier doit toujours rester chiffré dans Git.
+  tokens). Ce fichier doit rester chiffré dans Git.
+
+Initialisez le dossier et l'inventaire avec la cible automatisée :
 
 ```bash
-cp -R baremetal/inventory/host_vars/example \
-  baremetal/inventory/host_vars/site-a-m710q1
+make baremetal/host-init HOST=site-a-m710q1 PROFILE=lenovo-m710q
+```
+
+La commande :
+
+- crée `baremetal/inventory/host_vars/site-a-m710q1/` ;
+- génère un `main.yml` minimal (`hostname`, `hardware_profile`, `netmode: dhcp`) ;
+- copie `secrets.sops.yaml` depuis l'exemple ;
+- ajoute l'hôte dans `baremetal/inventory/hosts.yml`.
+
+La cible est idempotente : relancez-la après avoir supprimé un fichier ou pour
+ajouter l'hôte à l'inventaire.
+
+Ensuite, personnalisez `main.yml` (profil matériel, disques, réseau) puis
+éditez les secrets via SOPS :
+
+```bash
 $EDITOR baremetal/inventory/host_vars/site-a-m710q1/main.yml
 SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt \
   sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
-```
-
-Personnalisez `main.yml` (hostname, profil matériel `lenovo-m710q`, disque
-principal, configuration réseau). Dans `secrets.sops.yaml`, remplacez les
-valeurs de démonstration par vos propres clés/hashe de mot de passe via SOPS.
-Ajoutez ensuite le nom de l'hôte dans `baremetal/inventory/hosts.yml` : le
-fichier est volontairement vide pour que chaque utilisateur ne suive que ses
-propres machines.
-
-```yaml
-all:
-  children:
-    baremetal:
-      hosts:
-        site-a-m710q1: {}
 ```
 
 > 🔐 Pour activer le chiffrement OS, ajoutez `disk_encryption.enabled: true`
