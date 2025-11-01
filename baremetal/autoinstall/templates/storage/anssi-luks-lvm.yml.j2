@@ -152,6 +152,22 @@ storage_config_override:
     size: -1
     flag: lvm
 {% endif %}
+  - type: format
+    id: fmt-efi
+    volume: efi
+    fstype: fat32
+  - type: format
+    id: fmt-boot
+    volume: boot
+    fstype: ext4
+  - type: mount
+    id: mnt-efi
+    path: /boot/efi
+    device: fmt-efi
+  - type: mount
+    id: mnt-boot
+    path: /boot
+    device: fmt-boot
   - type: lvm_volgroup
     id: {{ vg_name }}
     devices:
