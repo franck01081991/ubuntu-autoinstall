@@ -66,7 +66,7 @@ autonome. Elle complète le [guide débutant détaillé](docs/getting-started-be
 | 2 | **Contrôler la station** | Dépendances validées | `make doctor` |
 | 3 | **Initialiser l'hôte** | Dossier `host_vars/<HOST>/` + entrée dans `hosts.yml` | `make baremetal/host-init HOST=<HOST> PROFILE=<PROFIL>` |
 | 4 | **Découvrir le matériel** | Cache JSON non versionné `.cache/discovery/<HOST>.json` | `make baremetal/discover HOST=<HOST>` |
-| 5 | **Déclarer variables & secrets** | Fichiers clairs + secrets chiffrés | Éditer `main.yml`, `sops secrets.sops.yaml` |
+| 5 | **Déclarer variables & secrets** | Fichiers clairs + secrets chiffrés | Éditer `main.yml`, `sops secrets.sops.yaml` (voir le [guide des variables](docs/autoinstall-variables.md)) |
 | 6 | **Générer Autoinstall** | `meta-data` + `user-data` prêts à relire | `make baremetal/gen HOST=<HOST>` |
 | 7 | **Construire l'ISO** | ISO seed (et ISO complète optionnelle) | `make baremetal/seed HOST=<HOST>`<br>`make baremetal/fulliso HOST=<HOST> UBUNTU_ISO=/chemin/iso` |
 
