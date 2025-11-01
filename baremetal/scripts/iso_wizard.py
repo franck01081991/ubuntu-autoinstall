@@ -224,7 +224,9 @@ def run_make(target: str, *, variables: Dict[str, str] | None, sops_env: Dict[st
     if variables:
         for key, value in variables.items():
             command.append(f"{key}={value}")
-    run_command(command, env=sops_env)
+    env = dict(sops_env)
+    env["PROFILE"] = (variables or {}).get("HOST", "")
+    run_command(command, env=env)
 
 
 def summarize_outputs(host: str) -> None:
