@@ -1,0 +1,190 @@
+{% set encryption = disk_encryption | default({}) %}
+{% set luks_enabled = encryption.enabled | default(false) %}
+{% set vg_name = 'vg0' %}
+{% set lvm_volumes = [
+  {'name': 'lv_root', 'mount': '/', 'fstype': 'ext4', 'initial_mib': 20480, 'target_mib': 32768, 'mount_options': 'defaults,noatime'},
+  {'name': 'lv_var', 'mount': '/var', 'fstype': 'ext4', 'initial_mib': 15360, 'target_mib': 24576, 'mount_options': 'defaults,noatime,nodev'},
+  {'name': 'lv_var_log', 'mount': '/var/log', 'fstype': 'ext4', 'initial_mib': 4096, 'target_mib': 8192, 'mount_options': 'defaults,noatime,nodev,nosuid,noexec'},
+  {'name': 'lv_var_log_audit', 'mount': '/var/log/audit', 'fstype': 'ext4', 'initial_mib': 1024, 'target_mib': 2048, 'mount_options': 'defaults,noatime,nodev,nosuid,noexec'},
+  {'name': 'lv_tmp', 'mount': '/tmp', 'fstype': 'ext4', 'initial_mib': 2048, 'target_mib': 8192, 'mount_options': 'defaults,nodev,nosuid,noexec'},
+  {'name': 'lv_var_tmp', 'mount': '/var/tmp', 'fstype': 'ext4', 'initial_mib': 2048, 'target_mib': 8192, 'mount_options': 'defaults,nodev,nosuid,noexec'},
+  {'name': 'lv_home', 'mount': '/home', 'fstype': 'ext4', 'initial_mib': 6144, 'target_mib': 40960, 'mount_options': 'defaults,noatime,nodev'},
+  {'name': 'lv_swap', 'fstype': 'swap', 'initial_mib': 8192, 'target_mib': 8192, 'skip_resize': True, 'resize_filesystem': False},
+  {'name': 'lv_srv', 'mount': '/srv', 'fstype': 'ext4', 'initial_mib': 2048, 'target_mib': None, 'consume_rest': True, 'mount_options': 'defaults,noatime,nodev,nosuid'}
+] %}
+{% set storage_resize_plan = {
+  'vg_name': vg_name,
+  'volumes': lvm_volumes
+} %}
+{% set storage_resize_script = [
+"#!/usr/bin/env python3",
+"import json",
+"import subprocess",
+"import sys",
+"",
+"PLAN = json.loads('''" ~ (storage_resize_plan | to_json) ~ "''')",
+"",
+"VG = PLAN['vg_name']",
+"VOLUMES = PLAN['volumes']",
+"",
+"def run(cmd):",
+"    subprocess.run(cmd, check=True)",
+"",
+"def capture(cmd):",
+"    return subprocess.run(cmd, check=True, capture_output=True, text=True).stdout.strip()",
+"",
+"def to_mib(value):",
+"    try:",
+"        return int(float(value))",
+"    except ValueError as exc:",
+"        raise SystemExit(f\"Unable to parse size '{value}': {exc}\") from exc",
+"",
+"def vg_free_mib():",
+"    output = capture(['vgs', '--noheadings', '--units', 'm', '--nosuffix', '-o', 'vg_free', VG])",
+"    if not output:",
+"        return 0",
+"    return to_mib(output)",
+"",
+"def lv_size_mib(name):",
+"    output = capture(['lvs', '--noheadings', '--units', 'm', '--nosuffix', '-o', 'lv_size', f'{VG}/{name}'])",
+"    if not output:",
+"        raise SystemExit(f\"Logical volume {name} not found\")",
+"    return to_mib(output)",
+"",
+"def lv_path(name):",
+"    return f'/dev/{VG}/{name}'",
+"",
+"def resize_fs(name, volume):",
+"    fstype = volume.get('fstype')",
+"    if fstype == 'ext4' and volume.get('resize_filesystem', True):",
+"        run(['resize2fs', lv_path(name)])",
+"",
+"def extend_to(volume, target):",
+"    if volume.get('skip_resize', False):",
+"        return",
+"    if target in (None, 0):",
+"        return",
+"    name = volume['name']",
+"    current = lv_size_mib(name)",
+"    if current >= target:",
+"        return",
+"    free = vg_free_mib()",
+"    if free <= 0:",
+"        return",
+"    delta = min(target - current, free)",
+"    if delta <= 0:",
+"        return",
+"    run(['lvextend', '-L', f'+{delta}M', f'{VG}/{name}'])",
+"    resize_fs(name, volume)",
+"",
+"def consume_remaining(volume):",
+"    if volume.get('skip_resize', False):",
+"        return",
+"    free = vg_free_mib()",
+"    if free <= 0:",
+"        return",
+"    name = volume['name']",
+"    run(['lvextend', '-L', f'+{free}M', f'{VG}/{name}'])",
+"    resize_fs(name, volume)",
+"",
+"def main():",
+"    for volume in VOLUMES:",
+"        extend_to(volume, volume.get('target_mib'))",
+"    for volume in VOLUMES:",
+"        if volume.get('consume_rest'):",
+"            consume_remaining(volume)",
+"",
+"if __name__ == '__main__':",
+"    try:",
+"        main()",
+"    except subprocess.CalledProcessError as exc:",
+"        sys.stderr.write(f'[anssi-resize-lvm] Command failed: {exc}\\n')",
+"        raise"
+] | join('\n') %}
+{% set storage_resize_script_b64 = storage_resize_script | b64encode %}
+storage_swap_size: 0
+storage_config_override:
+  - id: disk0
+    type: disk
+    match:
+      path: "{{ disk_device }}"
+    wipe: superblock-recursive
+    ptable: gpt
+    grub_device: true
+  - type: partition
+    id: efi
+    device: disk0
+    size: 550M
+    flag: boot
+  - type: partition
+    id: boot
+    device: disk0
+    size: 1G
+{% if luks_enabled %}
+  - type: partition
+    id: luks-root-partition
+    device: disk0
+    size: -1
+  - type: dm_crypt
+    id: luks-root
+    volume: luks-root-partition
+    dm_name: {{ encryption.device_name | default('cryptroot') }}
+    key: "{{ encryption.passphrase | mandatory('disk_encryption.passphrase must be provided when disk encryption is enabled') }}"
+{%   if encryption.cipher is defined %}
+    cipher: {{ encryption.cipher }}
+{%   endif %}
+{%   if encryption.keysize is defined %}
+    keysize: {{ encryption.keysize }}
+{%   endif %}
+{%   if encryption.hash is defined %}
+    hash: {{ encryption.hash }}
+{%   endif %}
+{%   if encryption.pbkdf is defined %}
+    pbkdf:
+{%     for pbkdf_key, pbkdf_value in encryption.pbkdf.items() %}
+      {{ pbkdf_key }}: {{ pbkdf_value | to_json }}
+{%     endfor %}
+{%   endif %}
+{% else %}
+  - type: partition
+    id: pv-root
+    device: disk0
+    size: -1
+    flag: lvm
+{% endif %}
+  - type: lvm_volgroup
+    id: {{ vg_name }}
+    devices:
+      - {{ 'luks-root' if luks_enabled else 'pv-root' }}
+{% for volume in lvm_volumes %}
+  - type: lvm_partition
+    id: {{ volume.name }}
+    volgroup: {{ vg_name }}
+    size: {{ volume.initial_mib }}M
+{% endfor %}
+{% for volume in lvm_volumes if volume.fstype %}
+  - type: format
+    id: fmt-{{ volume.name }}
+    volume: {{ volume.name }}
+    fstype: {{ volume.fstype }}
+{% endfor %}
+{% for volume in lvm_volumes if volume.mount %}
+  - type: mount
+    id: mnt-{{ volume.name }}
+    path: {{ volume.mount }}
+    device: fmt-{{ volume.name }}
+    options: "{{ volume.mount_options }}"
+{% endfor %}
+{% for volume in lvm_volumes if volume.fstype == 'swap' %}
+  - type: mount
+    id: mnt-{{ volume.name }}
+    path: none
+    device: fmt-{{ volume.name }}
+    options: "sw"
+{% endfor %}
+additional_late_commands:
+  - "curtin in-target -- bash -lc 'install -d -m 0700 /var/log/audit'"
+  - "curtin in-target -- bash -lc 'chmod 1777 /tmp /var/tmp'"
+  - "curtin in-target -- bash -lc 'base64 -d <<\"EOF\" >/usr/local/sbin/anssi-resize-lvm.py\n{{ storage_resize_script_b64 }}\nEOF'"
+  - "curtin in-target -- chmod 0750 /usr/local/sbin/anssi-resize-lvm.py"
+  - "curtin in-target -- /usr/local/sbin/anssi-resize-lvm.py"

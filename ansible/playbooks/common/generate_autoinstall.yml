@@ -42,6 +42,20 @@
   ansible.builtin.include_vars:
     file: "{{ host_secrets_file }}"
 
+- name: Load storage layout override when requested
+  when:
+    - storage_layout is defined
+    - storage_layout | length > 0
+  ansible.builtin.set_fact:
+    _storage_layout_data: "{{ lookup('template', templates_root + '/storage/' + storage_layout + '.yml.j2') | from_yaml }}"
+
+- name: Apply storage layout variables
+  when: _storage_layout_data is defined
+  ansible.builtin.set_fact:
+    storage_config_override: "{{ _storage_layout_data.storage_config_override }}"
+    storage_swap_size: "{{ storage_swap_size | default(_storage_layout_data.storage_swap_size | default(0), true) }}"
+    storage_additional_late_commands: "{{ (storage_additional_late_commands | default([])) + (_storage_layout_data.additional_late_commands | default([])) }}"
+
 - name: Ensure output dir exists for target {{ config_name }}
   ansible.builtin.file:
     path: "{{ autoinstall_dir }}/generated/{{ config_name }}"

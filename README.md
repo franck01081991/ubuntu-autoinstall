@@ -106,6 +106,8 @@ Gardez ce découpage : il garantit la reproductibilité et l'idempotence.
 - **Profils matériels** : `baremetal/inventory/profiles/hardware/` fournit des bases par type de machine (disques, NIC, paquets). Dupliquez puis adaptez :
   - `lenovo-m710q` : ThinkCentre M710q (NVMe principal + SATA secondaire).
   - `raspberry-pi-4b-sd` : Raspberry Pi 4 Model B ARM64 sur carte SD (`/dev/mmcblk0`, miroir `ports.ubuntu.com`).
+
+Pour appliquer le partitionnement ANSSI, activez `storage_layout: anssi-luks-lvm` dans vos variables d'hôte ou dupliquez un profil matériel existant puis adaptez les tailles de volumes selon vos besoins. Assurez-vous que la capacité disque retenue permet d'atteindre les tailles recommandées par l'ANSSI.
 - **Variables d'hôte** : chaque serveur possède un dossier `baremetal/inventory/host_vars/<hote>/` avec `main.yml` (clair) + `secrets.sops.yaml` (chiffré). Utilisez `make baremetal/host-init` pour créer ou mettre à jour ce dossier.
 - **Inventaire Ansible** : `baremetal/inventory/hosts.yml` est alimenté automatiquement par `make baremetal/host-init`. Supprimez dans Git les hôtes qui ne sont plus utilisés.
 - **Templates** : `baremetal/autoinstall/templates/` décrit la structure commune de `user-data`/`meta-data`. Modifiez-les uniquement si le produit évolue.
@@ -113,6 +115,7 @@ Gardez ce découpage : il garantit la reproductibilité et l'idempotence.
 - **Paramètres avancés** :
   - `apt_primary_arches` ajuste l'architecture APT rendue par `user-data` (par défaut `['amd64']`).
   - `apt_primary_uri` pointe vers le miroir Ubuntu (par défaut `http://archive.ubuntu.com/ubuntu`).
+  - `storage_layout` applique un gabarit de partitionnement depuis `baremetal/autoinstall/templates/storage/` (ex : `anssi-luks-lvm`).
   - `storage_swap_size` personnalise la taille du swap (par défaut `0`).
   - `storage_config_override` remplace entièrement la configuration disque générée par défaut (utile pour ARM/Raspberry Pi).
 
@@ -183,8 +186,10 @@ Ensuite, lancez `make baremetal/seed` ou `make baremetal/fulliso` en pointant ve
 - [Guide débutant](docs/getting-started-beginner.md)
 - [ADR 0001 — recentrage bare metal](docs/adr/0001-focus-baremetal.md)
 - [ADR 0006 — rationalisation CI GitHub Actions](docs/adr/0006-ci-rationalization.md)
+- [ADR 0009 — partitionnement ANSSI](docs/adr/0009-anssi-disk-layout.md)
 - [Documentation anglaise](README.en.md)
 - [Fiche mémo technicien](docs/technician-cheatsheet.md)
+- [Partitionnement disque durci (ANSSI)](docs/baremetal-partitioning.md)
 - [Ubuntu Autoinstall Reference](https://ubuntu.com/server/docs/install/autoinstall)
 - [Datasource Cloud-init NoCloud](https://cloudinit.readthedocs.io/en/latest/topics/datasources/nocloud.html)
 
