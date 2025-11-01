@@ -1,0 +1,22 @@
+name: Makefile validation
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  parse-makefile:
+    name: Check Makefile recipes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Ensure Makefile parses for lint target
+        run: make --dry-run lint
+      - name: Ensure Makefile parses for doctor target
+        run: make --dry-run doctor

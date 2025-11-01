@@ -22,6 +22,7 @@ artefacts. Aucune action manuelle n'est tolérée en production.
 - **Comment c'est géré** :
   - modèles Jinja2, inventaire YAML et secrets SOPS versionnés dans `baremetal/` ;
   - validations locales orchestrées par `make lint`, `make baremetal/gen` et `make secrets-scan` ;
+  - garde-fou CI : le workflow GitHub « Makefile validation » s'assure en *dry-run* que les recettes `lint` et `doctor` restent parsables ;
   - livraison via pipelines GitOps (Flux ou Argo CD) qui tirent les artefacts depuis Git.
 - **Ce que l'on garantit** :
   - reproductibilité (idempotence des cibles `make`),
@@ -101,7 +102,7 @@ proposer une fusion.
 | Inventaire | Créer/mettre à jour `host_vars` | `make baremetal/host-init` | Idempotent : relancez après toute suppression ou ajout. |
 | Découverte | Capturer les faits matériels | `make baremetal/discover` | Cache JSON non versionné sous `.cache/discovery/`. |
 | Configuration | Définir variables & secrets | `$EDITOR main.yml`, `sops secrets.sops.yaml` | Secrets uniquement via `sops` + `age`. |
-| Validation | Vérifier rendu & lint | `make baremetal/gen`, `make lint`, `make secrets-scan` | `make lint` exécute `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`. |
+| Validation | Vérifier rendu & lint | `make baremetal/gen`, `make lint`, `make secrets-scan` | `make lint` exécute `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`. Le workflow CI « Makefile validation » exécute `make --dry-run lint` et `make --dry-run doctor` pour prévenir toute régression d'indentation. |
 | Construction | Produire ISO | `make baremetal/seed`, `make baremetal/fulliso` | Téléchargez l'ISO officielle avant la version complète. |
 | Livraison | Soumettre via PR | `git status`, `git commit`, `git push` | Décrivez l'objectif, les tests, le plan de rollback. |
 
