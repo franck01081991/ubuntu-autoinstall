@@ -29,11 +29,13 @@ définit quelles clés publiques peuvent déchiffrer les secrets stockés dans G
 make age/keygen OUTPUT=~/.config/sops/age/keys.txt
 
 # Afficher la clé publique à partager dans `.sops.yaml`
-age-keygen -y ~/.config/sops/age/keys.txt
+make age/show-recipient OUTPUT=~/.config/sops/age/keys.txt
 ```
 
 - Conservez la clé privée dans un coffre (1Password, Vault, etc.).
 - Diffusez uniquement la clé publique (`age1...`).
+- L'assistant `python3 baremetal/scripts/iso_wizard.py` propose les mêmes
+  actions via le menu « Gérer les clés SOPS/age ».
 
 ## 2. Enregistrer la clé publique dans `.sops.yaml`
 

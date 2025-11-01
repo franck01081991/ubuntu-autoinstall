@@ -133,6 +133,8 @@ Respectez ce découpage pour rester compatible avec l'usine GitOps.
 | Découvrir le matériel | `make baremetal/discover HOST=<nom>` | Alimente `.cache/discovery/<nom>.json` via Ansible. |
 | Lancer les linters | `make lint` | `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`. |
 | Scanner les secrets | `make secrets-scan` | `gitleaks detect --config gitleaks.toml --exit-code 2`. |
+| Générer une clé age | `make age/keygen OUTPUT=~/.config/sops/age/keys.txt` | Produit une identité `age` idempotente (`OVERWRITE=1` pour la régénérer). |
+| Afficher la clé publique age | `make age/show-recipient OUTPUT=~/.config/sops/age/keys.txt` | Récupère le recipient (`age1...`) à publier dans `.sops.yaml`. |
 | Inspecter l'inventaire | `make baremetal/list` | Résumé hôtes + profils matériels (`FORMAT=json` pour une sortie machine). |
 | Nettoyer les artefacts | `make baremetal/clean` | Supprime les rendus locaux. |
 
@@ -145,16 +147,17 @@ python3 baremetal/scripts/iso_wizard.py
 ```
 
 Le script vérifie l'environnement, synchronise le dépôt, initie les hôtes,
-construit les ISO et nettoie les artefacts en s'appuyant uniquement sur les
+gère les clés SOPS/age, déclenche les playbooks Ansible courants, construit les
+ISO et nettoie les artefacts en s'appuyant uniquement sur les
 cibles `make` (idempotence garantie). Les profils matériels proposés
 correspondent désormais aux manifestes `*.yml`/`*.yaml` présents dans
 `baremetal/inventory/profiles/hardware/`. Pour préparer un nouveau matériel,
 collectez d'abord les faits via `make baremetal/discover`, puis nourrissez vos
 profils à partir du cache JSON généré.
 
-> 🆕 Tous les menus interactifs autorisent désormais l'annulation immédiate :
-> choisissez `0` dans les listes ou saisissez `:q` pour interrompre l'action
-> en cours et revenir au menu principal sans modifier l'état local.
+> 🆕 Les menus proposent également la gestion des clés SOPS/age et l'exécution
+> des playbooks `baremetal/*`. Utilisez `0` ou `:q` pour annuler et revenir au
+> menu principal sans modifier l'état local.
 
 ## Gouvernance, sécurité et conformité
 
