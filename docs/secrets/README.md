@@ -4,7 +4,9 @@ Ce répertoire référence les emplacements attendus pour les secrets chiffrés 
 [SOPS](https://github.com/getsops/sops) et la clé `age` partagée par l'équipe.
 Aucun secret en clair ne doit être committé. Ajoutez votre clé publique `age`
 dans `.sops.yaml` (section `key_groups`) et distribuez la clé privée via les
-secrets CI/CD (`SOPS_AGE_KEY`).
+secrets CI/CD (`SOPS_AGE_KEY`). Pour un atelier, exécutez
+`./scripts/bootstrap-demo-age-key.sh` afin d’installer l’identité `age`
+partagée par défaut.
 
 ## Fichiers attendus
 

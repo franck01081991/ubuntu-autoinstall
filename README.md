@@ -62,12 +62,19 @@ Suivez ces sept étapes pour produire une ISO seed prête à l'emploi :
    Servez-vous-en pour pré-remplir vos profils matériels avant de les
    versionner.
 5. **Déclarer les variables et secrets**
+   - Installez la clé `age` de démonstration (utile pour les environnements de
+     test ou les exercices) :
+     ```bash
+     ./scripts/bootstrap-demo-age-key.sh   # respecte ${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}
+     export SOPS_AGE_KEY_FILE="${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}"
+     ```
+     > 🔐 Pour la production, remplacez cette clé par la vôtre et mettez à jour
+     > `.sops.yaml` via une PR.
    - Éditez `baremetal/inventory/host_vars/site-a-m710q1/main.yml` (profil
      matériel, réseau, disques).
    - Chiffrez les secrets :
      ```bash
-     SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt \
-       sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
+     sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
      ```
 6. **Générer les fichiers Autoinstall**
    ```bash

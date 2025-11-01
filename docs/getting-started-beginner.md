@@ -68,8 +68,9 @@ pour résoudre les anomalies courantes.
 
 3. **Chiffrer les secrets** :
    ```bash
-   SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt \
-     sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
+   ./scripts/bootstrap-demo-age-key.sh   # respecte ${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}
+   export SOPS_AGE_KEY_FILE="${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}"
+   sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
    ```
    Stockez-y uniquement des données sensibles (hash de mot de passe,
    `ssh_authorized_keys`, passphrases LUKS). Les passphrases globales se placent

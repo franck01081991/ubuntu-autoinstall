@@ -1,0 +1,7 @@
+---
+# Variables pour un Lenovo ThinkCentre de labo (profil M710q)
+hostname: thinkcentre1
+hardware_profile: lenovo-m710q
+netmode: dhcp
+management_interface: eno1
+# Secrets chiffrés via SOPS dans secrets.sops.yaml
