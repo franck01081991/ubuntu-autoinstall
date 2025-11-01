@@ -175,7 +175,14 @@ Pour guider un·e technicien·ne sans mémoriser toutes les cibles Make, utilise
 python3 baremetal/scripts/iso_wizard.py
 ```
 
-Le script liste les hôtes déclarés dans `baremetal/inventory/host_vars/`, vérifie la présence des binaires `make`, `sops` et `age`, aide à sélectionner la clé `age` attendue par SOPS, propose la génération d'une ISO seed, d'une ISO complète ou des deux, puis exécute les cibles Make idempotentes correspondantes. En fin d'exécution, il rappelle l'emplacement des artefacts rendus sous `baremetal/autoinstall/generated/<hôte>/`.
+Ce script couvre tout le cycle de vie bare metal :
+
+- vérification des binaires `make`, `sops`, `age` et préparation de l'environnement SOPS/age ;
+- initialisation d'un hôte (`make baremetal/host-init`) en choisissant un profil matériel ;
+- génération d'une ISO seed, d'une ISO complète ou des deux pour n'importe quel hôte déclaré ;
+- nettoyage des artefacts (`make baremetal/clean`).
+
+Chaque action reste idempotente en s'appuyant exclusivement sur les cibles Make du dépôt. Les ISO rendues sont rappelées à la fin dans `baremetal/autoinstall/generated/<hôte>/`.
 
 ## Chiffrement disque
 

@@ -9,6 +9,7 @@ Makefile targets so that the CI/CD pipeline can replay the same operations.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -19,6 +20,7 @@ from typing import Dict, List, Sequence
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 HOST_VARS_DIR = REPO_ROOT / "baremetal" / "inventory" / "host_vars"
+HARDWARE_PROFILE_DIR = REPO_ROOT / "baremetal" / "inventory" / "profiles" / "hardware"
 GENERATED_DIR = REPO_ROOT / "baremetal" / "autoinstall" / "generated"
 DEFAULT_UBUNTU_ISO = "ubuntu-24.04-live-server-amd64.iso"
 DEFAULT_AGE_KEY_FILE = Path.home() / ".config" / "sops" / "age" / "keys.txt"
@@ -81,6 +83,21 @@ def list_hosts() -> List[str]:
     return hosts
 
 
+def list_hardware_profiles() -> List[str]:
+    """Return available hardware profiles defined in the inventory."""
+
+    if not HARDWARE_PROFILE_DIR.exists():
+        return []
+
+    profiles = [
+        entry.name
+        for entry in HARDWARE_PROFILE_DIR.iterdir()
+        if entry.is_dir() and not entry.name.startswith(".")
+    ]
+    profiles.sort()
+    return profiles
+
+
 def prompt_choice(options: Sequence[str], prompt: str) -> int:
     """Display a numeric menu and return the selected index."""
 
@@ -107,6 +124,19 @@ def prompt_host(hosts: Sequence[str]) -> str:
         sys.exit(1)
     idx = prompt_choice(hosts, "Hôtes disponibles :")
     return hosts[idx]
+
+
+def prompt_new_host_name() -> str:
+    pattern = re.compile(r"^[a-zA-Z0-9._-]+$")
+    while True:
+        name = input("Nom d'hôte (alphanumérique, ._- autorisés) : ").strip()
+        if not name:
+            print("Le nom d'hôte est obligatoire.\n")
+            continue
+        if not pattern.match(name):
+            print("Nom invalide. Utilisez uniquement lettres, chiffres, points, tirets, underscores.\n")
+            continue
+        return name
 
 
 def prompt_iso_action() -> IsoAction:
@@ -162,14 +192,13 @@ def prepare_sops_environment(env: Dict[str, str]) -> Dict[str, str]:
     return {"SOPS_AGE_KEY_FILE": str(path)}
 
 
-def run_make(target: str, host: str, ubuntu_iso: str | None, sops_env: Dict[str, str]) -> None:
+def run_make(target: str, *, variables: Dict[str, str] | None, sops_env: Dict[str, str]) -> None:
     env = os.environ.copy()
-    env.setdefault("HOST", host)
-    env.setdefault("PROFILE", "")
     env.update(sops_env)
-    command: List[str] = ["make", target, f"HOST={host}"]
-    if target == "baremetal/fulliso" and ubuntu_iso:
-        command.append(f"UBUNTU_ISO={ubuntu_iso}")
+    command: List[str] = ["make", target]
+    if variables:
+        for key, value in variables.items():
+            command.append(f"{key}={value}")
     print("\n▶", " ".join(command))
     subprocess.run(command, check=True, env=env, cwd=str(REPO_ROOT))
 
@@ -194,13 +223,61 @@ def summarize_outputs(host: str) -> None:
         print(f"  - {artefact.relative_to(REPO_ROOT)}")
 
 
-def main() -> None:
-    print("Ubuntu Autoinstall – Assistant de génération d'ISO")
-    print("================================================\n")
+def handle_host_initialization(sops_env: Dict[str, str]) -> None:
+    print("\nInitialisation d'un hôte bare metal")
+    print("-----------------------------------")
+    host = prompt_new_host_name()
 
-    check_required_binaries(("make", "sops", "age"))
+    existing_path = HOST_VARS_DIR / host
+    if existing_path.exists():
+        confirm = input(
+            f"Le répertoire {existing_path} existe déjà. Relancer l'initialisation ? [o/N] : "
+        ).strip().lower()
+        if confirm not in {"o", "oui", "y", "yes"}:
+            print("Opération annulée.")
+            return
 
+    profiles = list_hardware_profiles()
+    profile: str | None = None
+    if profiles:
+        profile_idx = prompt_choice(profiles, "Profils matériels disponibles :")
+        profile = profiles[profile_idx]
+    else:
+        print(
+            "⚠️ Aucun profil matériel détecté. La cible Make utilisera la valeur par défaut si disponible.",
+            file=sys.stderr,
+        )
+
+    variables = {"HOST": host}
+    if profile:
+        variables["PROFILE"] = profile
+
+    try:
+        run_make("baremetal/host-init", variables=variables, sops_env=sops_env)
+    except subprocess.CalledProcessError as exc:
+        print(f"La commande s'est terminée avec une erreur : {exc}", file=sys.stderr)
+        sys.exit(exc.returncode or 1)
+
+    print(
+        "\nHôte initialisé. Vous pouvez maintenant personnaliser les fichiers dans "
+        f"baremetal/inventory/host_vars/{host}/ puis relancer la génération d'ISO."
+    )
+
+
+def handle_iso_generation(sops_env: Dict[str, str]) -> None:
     hosts = list_hosts()
+    if not hosts:
+        print(
+            "Aucun hôte disponible. Initialisez-en un avant de générer des ISO.",
+            file=sys.stderr,
+        )
+        create = input("Souhaitez-vous créer un nouvel hôte maintenant ? [O/n] : ").strip().lower()
+        if create in {"", "o", "oui", "y", "yes"}:
+            handle_host_initialization(sops_env)
+            hosts = list_hosts()
+        if not hosts:
+            return
+
     host = prompt_host(hosts)
     print(f"\nHôte sélectionné : {host}\n")
 
@@ -208,8 +285,6 @@ def main() -> None:
     ubuntu_iso: str | None = None
     if action.requires_ubuntu_iso:
         ubuntu_iso = prompt_iso_path(os.environ.get("UBUNTU_ISO", DEFAULT_UBUNTU_ISO))
-
-    sops_env = prepare_sops_environment(os.environ.copy())
 
     print("\nRésumé :")
     print(f"  - Hôte : {host}")
@@ -228,12 +303,63 @@ def main() -> None:
 
     try:
         for target in action.make_targets:
-            run_make(target, host=host, ubuntu_iso=ubuntu_iso, sops_env=sops_env)
+            variables = {"HOST": host}
+            if target == "baremetal/fulliso" and ubuntu_iso:
+                variables["UBUNTU_ISO"] = ubuntu_iso
+            run_make(target, variables=variables, sops_env=sops_env)
     except subprocess.CalledProcessError as exc:
         print(f"La commande s'est terminée avec une erreur : {exc}", file=sys.stderr)
         sys.exit(exc.returncode or 1)
 
     summarize_outputs(host)
+
+
+def handle_clean(sops_env: Dict[str, str]) -> None:
+    confirmation = input(
+        "Cette opération supprime les artefacts générés dans baremetal/autoinstall/generated/. "
+        "Continuer ? [o/N] : "
+    ).strip().lower()
+    if confirmation not in {"o", "oui", "y", "yes"}:
+        print("Opération annulée.")
+        return
+
+    try:
+        run_make("baremetal/clean", variables=None, sops_env=sops_env)
+    except subprocess.CalledProcessError as exc:
+        print(f"La commande s'est terminée avec une erreur : {exc}", file=sys.stderr)
+        sys.exit(exc.returncode or 1)
+
+    print("\nArtefacts supprimés.")
+
+
+def prompt_main_action() -> int:
+    options = (
+        "Initialiser un nouvel hôte",
+        "Générer des ISO pour un hôte",
+        "Nettoyer les artefacts générés",
+        "Quitter",
+    )
+    return prompt_choice(options, "Actions disponibles :")
+
+
+def main() -> None:
+    print("Ubuntu Autoinstall – Assistant de génération d'ISO")
+    print("================================================\n")
+
+    check_required_binaries(("make", "sops", "age"))
+
+    sops_env = prepare_sops_environment(os.environ.copy())
+    while True:
+        choice = prompt_main_action()
+        if choice == 0:
+            handle_host_initialization(sops_env)
+        elif choice == 1:
+            handle_iso_generation(sops_env)
+        elif choice == 2:
+            handle_clean(sops_env)
+        else:
+            print("Au revoir !")
+            break
 
 
 if __name__ == "__main__":
