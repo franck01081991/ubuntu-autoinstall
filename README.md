@@ -82,6 +82,9 @@ autonome. Elle complète le [guide débutant détaillé](docs/getting-started-be
   pour confirmer les sections sensibles (`users`, `late-commands`, etc.).
 - `make baremetal/fulliso` nécessite l'ISO officielle Ubuntu téléchargée
   manuellement ; la variable `UBUNTU_ISO` doit pointer vers ce fichier.
+- L'ISO complète générée injecte automatiquement `autoinstall ds=nocloud;s=/cdrom/nocloud/`
+  dans les chargeurs GRUB (UEFI) **et** ISOLINUX (BIOS) afin de démarrer l'installation
+  sans intervention.
 
 Une fois vos validations locales terminées et la PR fusionnée, vos pipelines
 GitOps reconstruisent les artefacts de référence. Pensez à regénérer les ISO
