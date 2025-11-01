@@ -1,224 +1,161 @@
 # Ubuntu Autoinstall
 
-Bienvenue ! Ce dépôt vous aide à fabriquer des images d'installation Ubuntu Server 24.04 LTS en suivant une approche **GitOps**. Tout est défini dans Git, vérifié par la CI/CD, puis reproduit à la demande sur votre poste ou dans une usine d'image. Aucune opération manuelle en production : on automatise, on révise, on rejoue.
+Ce dépôt fournit **une usine GitOps** pour créer des ISO Ubuntu Server 24.04 LTS
+prêtes à déployer sur des serveurs bare metal. Tout passe par Git : on modifie,
+on révise, on teste, puis la CI reconstruit les artefacts. Aucune action
+manuelle n'est tolérée en production.
 
-> 🙋 Première visite ? Commencez par le [guide débutant](docs/getting-started-beginner.md) pour suivre un cas concret pas à pas.
+> 🆕 Première prise en main ? Enchaînez directement les étapes de la section
+> ["Démarrage express"](#démarrage-express).
 >
-> ⏱️ Déjà opérationnel·le ? Gardez la [fiche mémo technicien](docs/technician-cheatsheet.md) sous la main pour retrouver les commandes critiques.
+> 🛠️ Besoin d'un aide-mémoire une fois formé·e ? Gardez la
+> [fiche mémo technicien](docs/technician-cheatsheet.md) et le
+> [guide de dépannage](docs/troubleshooting.md) à proximité.
 
 ---
 
-## Pourquoi ce projet ?
+## Ce dépôt en bref
 
-- **Automatiser vos installations bare metal** : les fichiers Autoinstall (`user-data` et `meta-data`) sont générés à partir de modèles Jinja2 et de variables YAML.
-- **Garder un historique clair** : chaque changement (inventaire, template, scripts) passe par revue de code et reste traçable.
-- **Rester reproductible** : la CI s'assure que tout se rend correctement avant d'intégrer une modification.
+- **Ce que l'on produit** :
+  - un ISO *seed* (NoCloud/CIDATA) à monter en plus de l'ISO officielle ;
+  - un ISO complet qui embarque l'installateur Ubuntu Live Server + vos fichiers Autoinstall.
+- **Comment c'est géré** :
+  - modèles Jinja2, inventaire YAML et secrets SOPS versionnés dans `baremetal/` ;
+  - CI GitHub Actions qui relance les linters, regénère les Autoinstall et scanne les secrets ;
+  - livraison via pipelines GitOps (Flux ou Argo CD) qui tirent les artefacts depuis Git.
+- **Ce que l'on garantit** :
+  - reproductibilité (idempotence des cibles `make`),
+  - traçabilité (commits + PR revues),
+  - sécurité (SOPS/age, scans Trivy et Gitleaks, aucun secret en clair).
 
-## Ce que vous allez produire
+## Démarrage express
 
-| Type d'image | À quoi ça sert ? | Comment l'obtenir ? |
-|--------------|------------------|----------------------|
-| **ISO seed (`CIDATA`)** | Un mini ISO à monter à côté de l'ISO officielle Ubuntu. | `make baremetal/seed HOST=<nom>` |
-| **ISO complète** | L'ISO Ubuntu Live Server qui embarque directement les fichiers NoCloud. | `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=/chemin/ubuntu.iso` |
+Suivez ces six étapes pour produire une ISO seed prête à l'emploi :
 
-Les composants historiques (provisioning applicatif, VPS, etc.) ont été retirés pour se concentrer uniquement sur la chaîne bare metal. Ils restent disponibles dans l'historique Git si besoin.
+1. **Cloner et se placer dans le dépôt**
+   ```bash
+   git clone git@github.com:example/ubuntu-autoinstall.git
+   cd ubuntu-autoinstall
+   ```
+2. **Vérifier la station de travail**
+   ```bash
+   make doctor
+   ```
+   Corrigez toute dépendance manquante (`python3`, `ansible-core`, `xorriso`,
+   `mkpasswd`, `sops`, `age`, `cloud-init`).
+3. **Initialiser l'hôte cible**
+   ```bash
+   make baremetal/host-init HOST=site-a-m710q1 PROFILE=lenovo-m710q
+   ```
+   La commande crée `host_vars/`, alimente `hosts.yml` et reste idempotente.
+4. **Déclarer les variables et secrets**
+   - Éditez `baremetal/inventory/host_vars/site-a-m710q1/main.yml` (profil
+     matériel, réseau, disques).
+   - Chiffrez les secrets :
+     ```bash
+     SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt \
+       sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
+     ```
+5. **Générer les fichiers Autoinstall**
+   ```bash
+   make baremetal/gen HOST=site-a-m710q1
+   ```
+   Les fichiers `user-data` et `meta-data` apparaissent sous
+   `baremetal/autoinstall/generated/site-a-m710q1/`.
+6. **Construire l'ISO souhaitée**
+   ```bash
+   make baremetal/seed HOST=site-a-m710q1
+   make baremetal/fulliso HOST=site-a-m710q1 \
+     UBUNTU_ISO=/chemin/ubuntu-24.04-live-server-amd64.iso   # optionnel
+   ```
 
-## Les bases à connaître
+Une fois la PR fusionnée, vos pipelines internes tirent les artefacts
+validés. Ne déployez jamais un ISO qui n'a pas été reconstruit par la CI.
 
-- **Autoinstall + cloud-init (NoCloud)** : mécanisme officiel d'Ubuntu pour automatiser l'installation.
-- **GitOps** : toute configuration vit dans le dépôt. Les changements sont revus, testés, puis synchronisés vers les environnements.
-- **SOPS + age** : secrets chiffrés par fichier. La CI peut les déchiffrer grâce à la clé stockée côté plateforme (GitHub Actions par défaut).
+## Workflow GitOps complet
 
-## Prérequis rapides
+| Phase | Objectif | Commandes clefs | Point d'attention |
+|-------|----------|-----------------|-------------------|
+| Préparation | Vérifier l'environnement | `make doctor` | Installez les binaires manquants avant de poursuivre. |
+| Inventaire | Créer/mettre à jour `host_vars` | `make baremetal/host-init` | Idempotent : relancez après toute suppression ou ajout. |
+| Configuration | Définir variables & secrets | `$EDITOR main.yml`, `sops secrets.sops.yaml` | Secrets uniquement via `sops` + `age`. |
+| Validation | Vérifier rendu & lint | `make baremetal/gen`, `make lint`, `make secrets-scan` | `make lint` exécute `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`. |
+| Construction | Produire ISO | `make baremetal/seed`, `make baremetal/fulliso` | Téléchargez l'ISO officielle avant la version complète. |
+| Livraison | Soumettre via PR | `git status`, `git commit`, `git push` | Décrivez l'objectif, les tests, le plan de rollback. |
 
-1. ISO officielle *Ubuntu 24.04 Live Server* (fichier `.iso`).
-2. Outils côté poste : `python3`, `ansible-core`, `xorriso`, `mkpasswd`, `sops`, `age` (ajoutez `cloud-init` pour valider vos fichiers `user-data`).
-3. Accès Git avec revue de code (aucun commit direct sur la branche de production).
-
-Vérifiez votre environnement avec :
-
-```bash
-make doctor
-```
-
-La commande alerte sur les dépendances manquantes et rappelle les linters utilisés par la CI (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`).
-
-## Structure du dépôt
+### Structure à connaître
 
 ```text
 baremetal/
-├── ansible/            # Playbooks pour rendre Autoinstall
-├── autoinstall/        # Templates Jinja2 + sorties générées
-├── inventory/          # Variables d'hôtes et profils matériels
-└── scripts/            # Génération des ISO seed/full
-ansible/                # Rôles et collections partagés
-docs/                   # Guides utilisateurs, ADR et secrets chiffrés
-scripts/install-sops.sh # Installation rapide de SOPS (Linux amd64)
+├── ansible/            # Rôles et tâches partagés (templates, scripts)
+├── autoinstall/        # Templates Jinja2 + rendus générés
+├── inventory/          # Profils matériels + variables d'hôtes chiffrées
+└── scripts/            # Génération ISO et assistants
+ansible/                # Collections et dépendances Ansible mutualisées
+docs/                   # Guides utilisateurs, ADR, secrets chiffrés
+scripts/install-sops.sh # Installation simplifiée de SOPS (Linux amd64)
 ```
 
-Gardez ce découpage : il garantit la reproductibilité et l'idempotence.
+Respectez ce découpage pour rester compatible avec la CI et l'usine GitOps.
 
-## Comment démarrer ?
+### Commandes Make utiles
 
-1. **Initialiser un hôte avec la cible dédiée**
-   ```bash
-   make baremetal/host-init HOST=mon-premier-hote PROFILE=lenovo-m710q
-   ```
-   La cible crée le dossier `baremetal/inventory/host_vars/mon-premier-hote/`,
-   génère un `main.yml` minimal, copie `secrets.sops.yaml` depuis l'exemple et
-   inscrit automatiquement l'hôte dans `baremetal/inventory/hosts.yml`. Elle
-   est idempotente : relancez-la pour synchroniser les fichiers si nécessaire.
+| Usage | Commande | Commentaire |
+|-------|----------|-------------|
+| Vérifier l'environnement | `make doctor` | Contrôle dépendances et rappelle les linters attendus. |
+| Initialiser un hôte | `make baremetal/host-init HOST=<nom> PROFILE=<profil>` | Crée `host_vars/` + met à jour `inventory/hosts.yml`. |
+| Regénérer Autoinstall | `make baremetal/gen HOST=<nom>` | Produit `user-data` / `meta-data` à versionner. |
+| Construire un ISO seed | `make baremetal/seed HOST=<nom>` | Génère `seed-<nom>.iso` idempotent. |
+| Construire un ISO complet | `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>` | Intègre l'installateur officiel Ubuntu. |
+| Lancer les linters | `make lint` | `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`. |
+| Scanner les secrets | `make secrets-scan` | `gitleaks detect --config gitleaks.toml --exit-code 2`. |
+| Inspecter l'inventaire | `make baremetal/list` | Résumé hôtes + profils matériels. |
+| Nettoyer les artefacts | `make baremetal/clean` | Supprime les rendus locaux. |
 
-2. **Éditer les variables claires**
-   - Fichier : `baremetal/inventory/host_vars/mon-premier-hote/main.yml`
-   - Renseignez `hostname`, `hardware_profile`, réseau, disques, etc.
+### Assistant interactif
 
-3. **Chiffrer les secrets**
-   ```bash
-   SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt \
-     sops baremetal/inventory/host_vars/mon-premier-hote/secrets.sops.yaml
-   ```
-   Stockez-y uniquement des valeurs sensibles (`password_hash`, `ssh_authorized_keys`, tokens). Les passphrases LUKS se déclarent dans `baremetal/inventory/group_vars/all/disk_encryption.sops.yaml`.
-
-4. **Générer l'autoinstall**
-   ```bash
-   make baremetal/gen HOST=mon-premier-hote
-   ```
-   Les fichiers `user-data` et `meta-data` apparaissent sous `baremetal/autoinstall/generated/mon-premier-hote/`.
-
-5. **Créer l'ISO seed**
-   ```bash
-   make baremetal/seed HOST=mon-premier-hote
-   ```
-
-6. **Créer l'ISO complète (optionnel)**
-   ```bash
-   make baremetal/fulliso HOST=mon-premier-hote \
-     UBUNTU_ISO=/chemin/vers/ubuntu-24.04-live-server-amd64.iso
-   ```
-
-> 💡 Pensez à valider votre branche via la CI avant d'utiliser une ISO sur un serveur réel.
-
-## Aller plus loin
-
-### Inventaire et templates
-
-- **Profils matériels** : `baremetal/inventory/profiles/hardware/` fournit des bases par type de machine (disques, NIC, paquets). Dupliquez puis adaptez :
-  - `lenovo-m710q` : ThinkCentre M710q (NVMe principal + SATA secondaire).
-  - `raspberry-pi-4b-sd` : Raspberry Pi 4 Model B ARM64 sur carte SD (`/dev/mmcblk0`, miroir `ports.ubuntu.com`).
-
-Pour appliquer le partitionnement ANSSI, activez `storage_layout: anssi-luks-lvm` dans vos variables d'hôte ou dupliquez un profil matériel existant puis adaptez les tailles de volumes selon vos besoins. Assurez-vous que la capacité disque retenue permet d'atteindre les tailles recommandées par l'ANSSI.
-- **Variables d'hôte** : chaque serveur possède un dossier `baremetal/inventory/host_vars/<hote>/` avec `main.yml` (clair) + `secrets.sops.yaml` (chiffré). Utilisez `make baremetal/host-init` pour créer ou mettre à jour ce dossier.
-- **Inventaire Ansible** : `baremetal/inventory/hosts.yml` est alimenté automatiquement par `make baremetal/host-init`. Supprimez dans Git les hôtes qui ne sont plus utilisés.
-- **Templates** : `baremetal/autoinstall/templates/` décrit la structure commune de `user-data`/`meta-data`. Modifiez-les uniquement si le produit évolue.
-- **Profil sécurisé** : `baremetal/autoinstall/secure-ubuntu-22.04.yaml` propose un système durci (LUKS+LVM, UFW, durcissement SSH). La passphrase LUKS est injectée dynamiquement par la CI via `SOPS_DECRYPTED_DISK_PASSPHRASE`.
-- **Paramètres avancés** :
-  - `apt_primary_arches` ajuste l'architecture APT rendue par `user-data` (par défaut `['amd64']`).
-  - `apt_primary_uri` pointe vers le miroir Ubuntu (par défaut `http://archive.ubuntu.com/ubuntu`).
-  - `storage_layout` applique un gabarit de partitionnement depuis `baremetal/autoinstall/templates/storage/` (ex : `anssi-luks-lvm`).
-  - `storage_swap_size` personnalise la taille du swap (par défaut `0`).
-  - `storage_config_override` remplace entièrement la configuration disque générée par défaut (utile pour ARM/Raspberry Pi).
-
-### Exemple d'injection GitOps d'une passphrase LUKS
-
-```yaml
-- name: Injecter la passphrase LUKS dans l'autoinstall sécurisé
-  ansible.builtin.template:
-    src: baremetal/autoinstall/secure-ubuntu-22.04.yaml
-    dest: "{{ workspace }}/secure-ubuntu-22.04.rendered.yaml"
-    vars:
-      SOPS_DECRYPTED_DISK_PASSPHRASE: >-
-        {{
-          lookup(
-            'community.sops.sops',
-            'docs/secrets/baremetal-luks.sops.yaml'
-          )['disk_luks_passphrase']
-        }}
-```
-
-Ensuite, lancez `make baremetal/seed` ou `make baremetal/fulliso` en pointant vers le fichier rendu.
-
-### Après installation
-
-1. Vérifiez que l'accès SSH repose bien sur votre clé publique.
-2. Confirmez le chiffrement avec `lsblk --fs`.
-3. Assurez-vous que `ufw`, `fail2ban` et `unattended-upgrades` sont actifs.
-
-## Validation, CI/CD et sécurité
-
-- **Workflows GitHub Actions**
-  - `.github/workflows/build-iso.yml` : rend automatiquement les fichiers Autoinstall impactés par une PR. Les exécutions redondantes sont annulées (`concurrency`).
-  - `.github/workflows/repository-integrity.yml` : exécute `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint` et `trivy fs`. Le scan Trivy échoue sur toute branche (PR incluses) en cas de faille `HIGH`/`CRITICAL`.
-  - `.github/workflows/secret-scanning.yml` : télécharge le binaire `gitleaks` (`v8.16.1`) dans `${RUNNER_TEMP}`, l'ajoute au `PATH` puis exécute `gitleaks detect --config gitleaks.toml --report-format sarif --report-path gitleaks.sarif --redact --exit-code 2` à chaque push/PR, sur déclenchement manuel ou via le cron hebdomadaire (lundi 05:00 UTC). Les rapports SARIF sont importés dans Code Scanning hors PR.
-- **Détection de secrets** : `scripts/ci/check-no-plaintext-secrets.py` vérifie qu'aucun secret ne fuit dans l'inventaire. `trivy fs` et `gitleaks` complètent le contrôle.
-- **Clé `SOPS_AGE_KEY`** : ajoutez-la dans les secrets GitHub pour que la CI puisse déchiffrer. Sans elle, le workflow *Validate Bare Metal Configurations* est ignoré.
-- **Stockage des ISO** : exportez-les vers un stockage maîtrisé (dépôt interne, artefacts chiffrés, etc.).
-
-## Commandes Make utiles
-
-| Commande | Usage |
-|----------|-------|
-| `make doctor` | Vérifie les dépendances et linters attendus par la CI. |
-| `make baremetal/gen HOST=<nom>` | Rend `user-data`/`meta-data` pour un hôte. |
-| `make baremetal/host-init HOST=<nom> PROFILE=<profil>` | Prépare un hôte (répertoire `host_vars` + inventaire). |
-| `make baremetal/seed HOST=<nom>` | Crée une image CIDATA minimale. |
-| `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>` | Construit une ISO autonome. |
-| `make baremetal/validate HOST=<nom>` | Valide `user-data` avec `cloud-init schema` avant diffusion. |
-| `make baremetal/clean` | Supprime les artefacts générés. |
-| `make lint` | Lance tous les linters (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`). |
-| `make secrets-scan` | Exécute `gitleaks detect --config gitleaks.toml --report-format sarif --report-path gitleaks.sarif --redact --exit-code 2`, identique au workflow CI. |
-| `make baremetal/list` | Résume l'inventaire Git (hôtes + profils matériels) pour vérification rapide. |
-| `make baremetal/list-hosts` | Affiche uniquement les hôtes déclarés (`host_vars`). |
-| `make baremetal/list-profiles` | Affiche uniquement les profils matériels disponibles. |
-
-Utilisez `make baremetal/list` avant ou après une modification pour confirmer que vos hôtes et profils sont correctement versionnés. Le guide [`docs/troubleshooting.md`](docs/troubleshooting.md) centralise les erreurs courantes (dépendances manquantes, clé SOPS absente, ISO introuvable) et leurs résolutions GitOps.
-
-## Assistant interactif ISO
-
-Pour guider un·e technicien·ne sans mémoriser toutes les cibles Make, utilisez l'assistant interactif :
+Pour guider un·e technicien·ne étape par étape :
 
 ```bash
 python3 baremetal/scripts/iso_wizard.py
 ```
 
-Ce script couvre tout le cycle de vie bare metal :
+Le script vérifie l'environnement, synchronise le dépôt, initie les hôtes,
+construit les ISO et nettoie les artefacts en s'appuyant uniquement sur les
+cibles `make` (idempotence garantie).
 
-- vérification des binaires `git`, `make`, `sops`, `age` et préparation de l'environnement SOPS/age ;
-- mise à jour du dépôt (`git fetch --all --prune` puis `git pull --ff-only`) ;
-- mise à jour de l'environnement local (installation facultative de `sops` via `scripts/install-sops.sh`, exécution de `make doctor`) ;
-- initialisation d'un hôte (`make baremetal/host-init`) en choisissant un profil matériel ;
-- génération d'une ISO seed, d'une ISO complète ou des deux pour n'importe quel hôte déclaré ;
-- nettoyage des artefacts (`make baremetal/clean`).
+## CI/CD, sécurité et conformité
 
-Chaque action reste idempotente en s'appuyant exclusivement sur les cibles Make du dépôt. Les ISO rendues sont rappelées à la fin dans `baremetal/autoinstall/generated/<hôte>/`.
+- **Workflows GitHub Actions**
+  - `build-iso.yml` : régénère les Autoinstall touchés par une PR.
+  - `repository-integrity.yml` : lance `yamllint`, `ansible-lint`, `shellcheck`,
+    `markdownlint` et `trivy fs`. Échec si vulnérabilité `HIGH`/`CRITICAL`.
+  - `secret-scanning.yml` : exécute `gitleaks detect` (push, PR, cron, manuel).
+- **Gestion des secrets**
+  - Secrets chiffrés avec `sops` + `age` (clé privée stockée côté plateforme CI).
+  - `scripts/ci/check-no-plaintext-secrets.py` vérifie qu'aucune donnée sensible
+    n'est commitée en clair.
+- **Livraison GitOps**
+  - Les artefacts produits par la CI sont consommés par Flux/Argo CD.
+  - Préparez un plan de rollback (tag ou commit précédent) avant diffusion sur
+    un nouvel environnement.
+- **Stockage**
+  - Archivez les ISO validées dans un stockage maîtrisé et chiffré.
 
-## Chiffrement disque
+## Ressources complémentaires
 
-- Activez-le via `disk_encryption.enabled: true` dans vos variables d'hôte.
-- Stockez les passphrases chiffrées dans `baremetal/inventory/group_vars/all/disk_encryption.sops.yaml`.
-- Suivez le guide [Chiffrement du disque système](docs/baremetal-disk-encryption.md) pour créer et faire tourner les secrets.
-
-## Générer une ISO hors CI
-
-1. Vérifiez votre branche via la CI.
-2. Rendez les fichiers avec `make baremetal/gen HOST=<nom>` ou `PROFILE=<profil>`.
-3. Téléchargez et vérifiez l'ISO officielle 24.04 (pour l'ISO complète).
-4. Lancez `make baremetal/seed` et/ou `make baremetal/fulliso`.
-5. Contrôlez les fichiers produits dans `baremetal/autoinstall/generated/<nom>/` et vérifiez leurs empreintes avant diffusion.
-
-## Ressources utiles
-
-- [Guide débutant](docs/getting-started-beginner.md)
-- [ADR 0001 — recentrage bare metal](docs/adr/0001-focus-baremetal.md)
-- [ADR 0006 — rationalisation CI GitHub Actions](docs/adr/0006-ci-rationalization.md)
-- [ADR 0009 — partitionnement ANSSI](docs/adr/0009-anssi-disk-layout.md)
-- [Documentation anglaise](README.en.md)
+- [Guide débutant pas à pas](docs/getting-started-beginner.md)
 - [Fiche mémo technicien](docs/technician-cheatsheet.md)
-- [Partitionnement disque durci (ANSSI)](docs/baremetal-partitioning.md)
-- [Ubuntu Autoinstall Reference](https://ubuntu.com/server/docs/install/autoinstall)
-- [Datasource Cloud-init NoCloud](https://cloudinit.readthedocs.io/en/latest/topics/datasources/nocloud.html)
-- [Dépannage chaîne Autoinstall](docs/troubleshooting.md)
+- [Partitionnement ANSSI et disques chiffrés](docs/baremetal-partitioning.md)
+- [Chiffrement disque (SOPS)](docs/baremetal-disk-encryption.md)
+- [ADR 0001 — recentrage bare metal](docs/adr/0001-focus-baremetal.md)
+- [ADR 0006 — rationalisation CI](docs/adr/0006-ci-rationalization.md)
+- [ADR 0009 — partitionnement ANSSI](docs/adr/0009-anssi-disk-layout.md)
+- [Guide de dépannage](docs/troubleshooting.md)
+- [Documentation anglaise](README.en.md)
 
 ---
 
-Ce dépôt applique des pratiques GitOps strictes : idempotence, sécurité des secrets, déploiements tirés par la plateforme (Flux/Argo CD). Toute nouvelle contribution doit respecter ces principes et mettre à jour la documentation ou un ADR si l'architecture évolue.
+Toute contribution doit rester **idempotente**, documentée et validée par la
+CI. Mettez à jour cette documentation ou rédigez un ADR si vous modifiez
+l'architecture de la chaîne GitOps.
