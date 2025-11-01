@@ -96,7 +96,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pip make age curl
+          sudo apt-get install -y python3-pip make age curl cloud-init
           bash scripts/install-sops.sh /usr/local/bin
           python3 -m pip install --user -r ansible/requirements.txt
           $HOME/.local/bin/ansible-galaxy collection install -r ansible/collections/requirements.yml
@@ -121,3 +121,4 @@ jobs:
           ls -al baremetal/autoinstall/generated/${TARGET}
           test -f baremetal/autoinstall/generated/${TARGET}/user-data
           test -f baremetal/autoinstall/generated/${TARGET}/meta-data
+          make baremetal/validate
