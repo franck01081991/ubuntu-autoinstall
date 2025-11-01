@@ -2,8 +2,8 @@
 
 Ce dépôt fournit **une usine GitOps** pour créer des ISO Ubuntu Server 24.04 LTS
 prêtes à déployer sur des serveurs bare metal. Tout passe par Git : on modifie,
-on révise, on teste, puis la CI reconstruit les artefacts. Aucune action
-manuelle n'est tolérée en production.
+on révise, on teste et l'automatisation interne (Make + Ansible) regénère les
+artefacts. Aucune action manuelle n'est tolérée en production.
 
 > 🆕 Première prise en main ? Enchaînez directement les étapes de la section
 > ["Démarrage express"](#démarrage-express).
@@ -21,7 +21,7 @@ manuelle n'est tolérée en production.
   - un ISO complet qui embarque l'installateur Ubuntu Live Server + vos fichiers Autoinstall.
 - **Comment c'est géré** :
   - modèles Jinja2, inventaire YAML et secrets SOPS versionnés dans `baremetal/` ;
-  - CI GitHub Actions qui relance les linters, regénère les Autoinstall et scanne les secrets ;
+  - validations locales orchestrées par `make lint`, `make baremetal/gen` et `make secrets-scan` ;
   - livraison via pipelines GitOps (Flux ou Argo CD) qui tirent les artefacts depuis Git.
 - **Ce que l'on garantit** :
   - reproductibilité (idempotence des cibles `make`),
@@ -90,7 +90,8 @@ Suivez ces sept étapes pour produire une ISO seed prête à l'emploi :
    ```
 
 Une fois la PR fusionnée, vos pipelines internes tirent les artefacts
-validés. Ne déployez jamais un ISO qui n'a pas été reconstruit par la CI.
+validés. Assurez-vous de regénérer les ISO via les cibles `make` avant de
+proposer une fusion.
 
 ## Workflow GitOps complet
 
@@ -118,7 +119,7 @@ scripts/install-sops.sh # Installation simplifiée de SOPS (Linux amd64)
 scripts/install-age.sh  # Installation simplifiée de age (Linux amd64)
 ```
 
-Respectez ce découpage pour rester compatible avec la CI et l'usine GitOps.
+Respectez ce découpage pour rester compatible avec l'usine GitOps.
 
 ### Commandes Make utiles
 
@@ -151,13 +152,12 @@ correspondent désormais aux manifestes `*.yml`/`*.yaml` présents dans
 collectez d'abord les faits via `make baremetal/discover`, puis nourrissez vos
 profils à partir du cache JSON généré.
 
-## CI/CD, sécurité et conformité
+## Gouvernance, sécurité et conformité
 
-- **Workflows GitHub Actions**
-  - `build-iso.yml` : régénère les Autoinstall touchés par une PR.
-  - `repository-integrity.yml` : lance `yamllint`, `ansible-lint`, `shellcheck`,
-    `markdownlint`, `trivy fs` et contrôle la cohérence de l'inventaire.
-  - `secret-scanning.yml` : exécute `gitleaks detect` (push, PR, cron, manuel).
+- **Validations à lancer avant toute PR**
+  - `make lint` : `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`.
+  - `make secrets-scan` : `gitleaks detect --config gitleaks.toml --exit-code 2`.
+  - `make baremetal/gen HOST=<nom>` : regénère les fichiers Autoinstall impactés.
 - **Gestion des secrets**
   - Secrets chiffrés avec `sops` + `age` (clé privée stockée côté plateforme CI).
   - `scripts/ci/check-no-plaintext-secrets.py` vérifie qu'aucune donnée sensible
