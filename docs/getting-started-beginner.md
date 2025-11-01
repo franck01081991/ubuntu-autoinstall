@@ -1,192 +1,183 @@
-# Guide débutant : générer sa première ISO Autoinstall
+# Guide débutant : produire sa première ISO en autonomie
 
-Ce guide vous accompagne du clonage du dépôt à la production d'une ISO seed,
-sans prérequis sur Autoinstall ou GitOps. Chaque étape est idempotente : vous
-pouvez relancer les commandes, la CI reproduira exactement les mêmes artefacts.
+Ce tutoriel accompagne un·e technicien·ne qui découvre la chaîne
+**Ubuntu Autoinstall GitOps**. Chaque action est idempotente : relancez une
+commande sans risque pour retrouver un état cohérent.
 
-> 🎯 Pour un mémo rapide des actions quotidiennes, consultez la
-> [fiche mémo technicien](technician-cheatsheet.md). Ce guide reste la
-> référence pour l'onboarding détaillé étape par étape.
+> 🎯 Objectif final : générer et versionner une ISO *seed* prête à l'emploi pour
+> un hôte bare metal donné.
 
-## Objectifs
+---
 
-1. Comprendre la structure minimale du dépôt centrée sur les ISO.
-2. Installer les dépendances locales nécessaires.
-3. Générer les fichiers `user-data`/`meta-data` pour un hôte ou un profil.
-4. Construire une ISO seed prête pour l'installateur Ubuntu.
-5. Préparer une contribution conforme (branche, commit, PR).
+## Vue d'ensemble
 
-## 1. Cloner le dépôt et explorer l'arborescence
+| Étape | Résultat obtenu | Commandes principales |
+|-------|-----------------|-----------------------|
+| 1. Préparer l'environnement | Dépôt cloné et dépendances vérifiées | `git clone`, `make doctor` |
+| 2. Créer l'hôte | Inventaire `host_vars` + secrets chiffrés | `make baremetal/host-init`, `sops` |
+| 3. Générer les fichiers Autoinstall | `user-data` et `meta-data` contrôlés | `make baremetal/gen`, revue manuelle |
+| 4. Construire l'ISO | ISO seed (et ISO complète optionnelle) | `make baremetal/seed`, `make baremetal/fulliso` |
+| 5. Soumettre la contribution | Branche, commit, PR décrivant la livraison | `git checkout -b`, `git commit`, `git push` |
 
-```bash
-# Clonage via SSH (recommandé)
-git clone git@github.com:example/ubuntu-autoinstall.git
-cd ubuntu-autoinstall
+Gardez la [fiche mémo technicien](technician-cheatsheet.md) pour vos
+opérations ultérieures et le [guide de dépannage](troubleshooting.md)
+pour résoudre les anomalies courantes.
 
-# Visualiser les dossiers clés
-ls baremetal
-```
+---
 
-- `baremetal/` : templates, inventaire et scripts pour générer les ISO.
-- `ansible/` : dépendances partagées (`collections`, requirements Python, tâches
-  communes).
-- `docs/` : guides utilisateurs (dont ce document).
+## 1. Préparer l'environnement
 
-> 🔁 Toute modification doit transiter par Git (branche dédiée + PR). Aucun
-> ajustement manuel n'est toléré sur les environnements cibles.
+1. **Cloner le dépôt et entrer dans le dossier** :
+   ```bash
+   git clone git@github.com:example/ubuntu-autoinstall.git
+   cd ubuntu-autoinstall
+   ```
+2. **Contrôler les prérequis** :
+   ```bash
+   make doctor
+   ```
+   Cette commande vérifie la présence de `python3`, `ansible-core`, `xorriso`,
+   `mkpasswd`, `sops`, `age` et `cloud-init`. Corrigez toute dépendance manquante
+   avant d'aller plus loin. Elle rappelle également les linters utilisés par la CI
+   (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`).
 
-## 2. Installer les dépendances locales
+> ℹ️ Si vous devez installer `sops`, un script est disponible :
+> `./scripts/install-sops.sh` (Linux amd64).
 
-Les cibles `make` reposent sur des outils standards. Vérifiez leur présence :
+---
 
-```bash
-make doctor
-```
+## 2. Créer l'hôte et protéger les secrets
 
-La commande contrôle :
+1. **Initialiser l'hôte** :
+   ```bash
+   make baremetal/host-init HOST=site-a-m710q1 PROFILE=lenovo-m710q
+   ```
+   Effets :
+   - création de `baremetal/inventory/host_vars/site-a-m710q1/` ;
+   - génération d'un `main.yml` minimal (`hostname`, `hardware_profile`, `netmode`) ;
+   - copie d'un `secrets.sops.yaml` d'exemple ;
+   - ajout automatique de l'hôte dans `baremetal/inventory/hosts.yml`.
 
-- `python3` et `ansible-playbook` ;
-- `xorriso` (construction d'ISO) et `mkpasswd` (hash yescrypt/SHA512) ;
-- `sops` et un binaire `age` dans le `PATH`.
+2. **Compléter les variables claires** :
+   ```bash
+   $EDITOR baremetal/inventory/host_vars/site-a-m710q1/main.yml
+   ```
+   Renseignez le profil matériel, les interfaces réseau, les disques et toute
+   variable requise par vos templates.
 
-Elle signale également (sans échouer) l'absence des linters utilisés en CI :
-`yamllint`, `ansible-lint`, `shellcheck` et `markdownlint`.
+3. **Chiffrer les secrets** :
+   ```bash
+   SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt \
+     sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
+   ```
+   Stockez-y uniquement des données sensibles (hash de mot de passe,
+   `ssh_authorized_keys`, passphrases LUKS). Les passphrases globales se placent
+   dans `baremetal/inventory/group_vars/all/disk_encryption.sops.yaml`.
 
-> ℹ️ Corrigez toute dépendance manquante avant de poursuivre. Les scripts ne
-> fournissent pas de contournement local.
+4. **Valider l'inventaire** :
+   ```bash
+   make baremetal/list
+   ```
+   L'hôte doit apparaître dans la section « Hôtes déclarés ».
 
-## 3. Préparer un répertoire `host_vars`
+> 🔐 GitOps oblige : aucun secret en clair dans Git. Si vous avez un doute,
+> exécutez `make secrets-scan` avant de pousser votre branche.
 
-Chaque hôte dispose d'un **répertoire** contenant :
+---
 
-- `main.yml` : variables non sensibles ;
-- `secrets.sops.yaml` : secrets chiffrés (hash du mot de passe, clés SSH,
-  tokens). Ce fichier doit rester chiffré dans Git.
+## 3. Générer et contrôler les fichiers Autoinstall
 
-Initialisez le dossier et l'inventaire avec la cible automatisée :
+1. **Rendre les fichiers** :
+   ```bash
+   make baremetal/gen HOST=site-a-m710q1
+   ```
+2. **Vérifier le rendu** :
+   ```bash
+   ls baremetal/autoinstall/generated/site-a-m710q1
+   ```
+   Vous devez obtenir :
+   ```text
+   meta-data
+   user-data
+   ```
+3. **Relire `user-data`** pour confirmer les sections sensibles :
+   ```bash
+   $EDITOR baremetal/autoinstall/generated/site-a-m710q1/user-data
+   ```
+4. **Optionnel : valider le schéma cloud-init** :
+   ```bash
+   make baremetal/validate HOST=site-a-m710q1
+   ```
 
-```bash
-make baremetal/host-init HOST=site-a-m710q1 PROFILE=lenovo-m710q
-```
+---
 
-La commande :
+## 4. Construire l'ISO
 
-- crée `baremetal/inventory/host_vars/site-a-m710q1/` ;
-- génère un `main.yml` minimal (`hostname`, `hardware_profile`, `netmode: dhcp`) ;
-- copie `secrets.sops.yaml` depuis l'exemple ;
-- ajoute l'hôte dans `baremetal/inventory/hosts.yml`.
+1. **ISO seed** (recommandé) :
+   ```bash
+   make baremetal/seed HOST=site-a-m710q1
+   ```
+   Résultat : `baremetal/autoinstall/generated/site-a-m710q1/seed-site-a-m710q1.iso`.
 
-La cible est idempotente : relancez-la après avoir supprimé un fichier ou pour
-ajouter l'hôte à l'inventaire.
+2. **ISO complète** (optionnel, nécessite l'ISO officielle Ubuntu) :
+   ```bash
+   make baremetal/fulliso HOST=site-a-m710q1 \
+     UBUNTU_ISO=/chemin/ubuntu-24.04-live-server-amd64.iso
+   ```
+   Conservez les ISO dans un stockage maîtrisé et chiffré.
 
-Ensuite, personnalisez `main.yml` (profil matériel, disques, réseau) puis
-éditez les secrets via SOPS :
+3. **Nettoyage si besoin** :
+   ```bash
+   make baremetal/clean
+   ```
 
-```bash
-$EDITOR baremetal/inventory/host_vars/site-a-m710q1/main.yml
-SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt \
-  sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
-```
+> 📦 Les artefacts générés localement servent à la validation. La production
+> officielle doit être rejouée par la CI/pipeline GitOps après revue de code.
 
-Vérifiez ensuite que l'hôte apparaît bien dans l'inventaire versionné :
+---
 
-```bash
-make baremetal/list
-```
+## 5. Soumettre la contribution
 
-La section « Hôtes déclarés » doit mentionner votre machine. Sinon, relancez `make baremetal/host-init`, corrigez vos variables et soumettez la PR associée.
-
-> 🔐 Pour activer le chiffrement OS, ajoutez `disk_encryption.enabled: true`
-> et référençez la passphrase fournie par SOPS
-> (`passphrase: "{{ disk_encryption_passphrase }}"`). Suivez le guide
-> [Chiffrement du disque système](baremetal-disk-encryption.md) pour créer
-> le secret `SOPS` requis.
-> 💡 Les profils matériels (`baremetal/inventory/profiles/hardware/`) fournissent
-> des valeurs de référence. Inspirez-vous-en pour compléter `main.yml`.
-> 🧩 Exemple : pour un Raspberry Pi 4B sur carte SD, rendez directement le profil matériel `raspberry-pi-4b-sd` avec :
-> `make baremetal/gen PROFILE=raspberry-pi-4b-sd`.
-
-## 4. Générer les fichiers Autoinstall
-
-```bash
-make baremetal/gen HOST=site-a-m710q1
-```
-
-La commande produit :
-
-```text
-baremetal/autoinstall/generated/site-a-m710q1/
-├── meta-data
-└── user-data
-```
-
-Relisez `user-data` pour valider le rendu des variables critiques.
-
-## 5. Construire l'ISO seed
-
-```bash
-make baremetal/seed HOST=site-a-m710q1
-```
-
-Le dépôt génère un fichier ISO idempotent :
-
-```text
-baremetal/autoinstall/generated/site-a-m710q1/
-└── seed-site-a-m710q1.iso
-```
-
-Pour produire une ISO complète intégrant l'installateur Ubuntu :
-
-```bash
-make baremetal/fulliso HOST=site-a-m710q1 \
-  UBUNTU_ISO=/chemin/ubuntu-24.04-live-server-amd64.iso
-```
-
-## 6. Préparer la Pull Request
-
-1. Créez une branche descriptive :
-
+1. **Créer une branche descriptive** :
    ```bash
    git checkout -b feat/site-a-m710q1
    ```
-
-2. Vérifiez et validez vos changements :
-
+2. **Inspecter et valider les changements** :
    ```bash
    git status
    git diff
+   make lint
+   make secrets-scan
    git add baremetal/inventory/host_vars/site-a-m710q1
    git commit -m "feat: add site-a-m710q1 host"
    ```
-
-3. Poussez et ouvrez la PR :
-
+3. **Pousser et ouvrir la PR** :
    ```bash
    git push origin feat/site-a-m710q1
    ```
+   Dans la PR, détaillez :
+   - l'objectif (nouvel hôte, modification de profil…) ;
+   - les tests effectués (`make gen`, `make seed`, `make lint`, `make secrets-scan`) ;
+   - le plan de rollback (commit ou tag précédent) en cas de problème.
 
-La CI exécutera automatiquement :
+4. **Laisser la CI travailler** :
+   - reconstruction automatique des Autoinstall touchés ;
+   - `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`, `trivy fs` ;
+   - `gitleaks detect` pour la chasse aux secrets.
 
-- `make lint` pour contrôler YAML, Ansible, Shell et Markdown ;
-- `make baremetal/gen` pour reconstruire les artefacts.
+5. **Après fusion** :
+   Vos pipelines GitOps (Flux/Argo CD) récupèrent les artefacts validés et
+   orchestrent la distribution. Aucun déploiement manuel n'est autorisé.
 
-> ℹ️ Les images ISO ne sont plus construites en CI : elles sont générées et
-> publiées par les pipelines internes après validation GitOps.
+---
 
-## 7. Déploiement GitOps
+## Check-list finale
 
-Une fois la PR fusionnée, la responsabilité de générer et de distribuer les ISO
-incombe aux pipelines internes (usine d'image, orchestrateur interne, etc.).
-Votre plateforme GitOps (Argo CD, Flux, etc.) consomme ensuite ces artefacts
-validés. Aucun accès manuel aux hôtes n'est requis.
+- [ ] `make doctor` sans erreur.
+- [ ] `make baremetal/gen` et `make baremetal/seed` exécutés avec succès.
+- [ ] `make lint` et `make secrets-scan` au vert.
+- [ ] Secrets uniquement dans des fichiers `*.sops.yaml` chiffrés.
+- [ ] PR créée avec tests, impacts et rollback documentés.
 
-## Check-list de sortie
-
-- [ ] `make doctor` est au vert.
-- [ ] Les fichiers `host_vars` passent `yamllint` / `ansible-lint`.
-- [ ] `make baremetal/gen` produit les artefacts attendus.
-- [ ] `make baremetal/seed` (et éventuellement `make baremetal/fulliso`) réussit.
-- [ ] La PR décrit l'objectif et les tests réalisés.
-
-> ✅ Une fois cette check-list validée, vos changements sont prêts pour revue de
-> code et intégration continue.
+✅ Si tout est coché, votre contribution est prête pour revue et intégration
+GitOps.

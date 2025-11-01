@@ -1,43 +1,52 @@
 # Fiche mémo technicien
 
-Ce mémo regroupe les commandes et contrôles essentiels pour opérer la
-chaîne Autoinstall en mode GitOps. Utilisez-le une fois l'onboarding
-terminé afin de gagner du temps sur les opérations quotidiennes.
+Gardez ce mémo à portée de main pour exploiter la chaîne Ubuntu Autoinstall
+après votre formation initiale. Chaque commande est idempotente et passe par
+Git afin de respecter les principes GitOps.
 
-## Commandes incontournables
+---
 
-| Objectif | Commande | Notes |
-|----------|----------|-------|
-| Vérifier l'environnement local | `make doctor` | Contrôle dépendances obligatoires et linters recommandés. |
-| Initialiser / resynchroniser un hôte | `make baremetal/host-init HOST=<nom> PROFILE=<profil>` | Crée ou remet à niveau `host_vars/` et l'inventaire Ansible. |
-| Regénérer les fichiers Autoinstall | `make baremetal/gen HOST=<nom>` | Rejouer pour valider un rendu après modification de variables. |
-| Construire une ISO seed | `make baremetal/seed HOST=<nom>` | Produit `seed-<hote>.iso` idempotent. |
-| Construire une ISO complète | `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>` | Nécessite l'ISO officielle Ubuntu en entrée. |
-| Lancer tous les linters | `make lint` | Reflète la CI (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`). |
-| Scanner les secrets | `make secrets-scan` | Alias local de `gitleaks detect`, identique au pipeline CI. |
-| Visualiser l'inventaire versionné | `make baremetal/list` | Résumé hôtes/profils pour contrôle express. |
-| Lister uniquement les hôtes | `make baremetal/list-hosts` | Confirme que `host_vars/` est cohérent avant une ISO. |
-| Lister uniquement les profils matériels | `make baremetal/list-profiles` | Vérifie les gabarits disponibles. |
+## Routine quotidienne
 
-## Rappels GitOps obligatoires
+| Action | Commande | Détails |
+|--------|----------|---------|
+| Vérifier la station de travail | `make doctor` | Contrôle dépendances (python3, ansible-core, xorriso, mkpasswd, sops, age, cloud-init). |
+| Synchroniser un hôte | `make baremetal/host-init HOST=<nom> PROFILE=<profil>` | Crée ou met à jour `host_vars/` + `inventory/hosts.yml`. Relancez après toute modification. |
+| Regénérer Autoinstall | `make baremetal/gen HOST=<nom>` | Produit `user-data` / `meta-data` à relire et versionner. |
+| Construire l'ISO seed | `make baremetal/seed HOST=<nom>` | Génère `seed-<nom>.iso`. Résultat identique à chaque exécution. |
+| Construire l'ISO complète | `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>` | Ajoute l'installateur officiel Ubuntu Live Server. |
+| Lancer les linters | `make lint` | `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`. |
+| Scanner les secrets | `make secrets-scan` | `gitleaks detect --config gitleaks.toml --exit-code 2`. |
+| Lister inventaire + profils | `make baremetal/list` | Vérifie rapidement la cohérence de vos hôtes et profils matériels. |
+| Nettoyer les artefacts | `make baremetal/clean` | Supprime les fichiers générés localement. |
 
-- **Toujours via Git** : aucune modification hors PR (ni inventaire, ni script).
-- **Branches descriptives** : `feat/`, `fix/`, `ops/` selon la nature du
-  changement. Documentez la PR pour contextualiser.
-- **Secrets chiffrés** : utilisez `sops` + `age`. Les fichiers `*.sops.yaml`
-  ne doivent jamais être commités en clair.
-- **CI comme garde-fou** : `make lint` et `make secrets-scan` doivent passer
-  localement avant toute revue. Les pipelines reconstruisent automatiquement
-  les artefacts impactés.
-- **Traçabilité** : associez chaque production d'ISO à un tag ou un artefact
-  référencé dans la PR pour assurer l'audit.
-- **Rollback** : préparez un plan de retour (tag, commit précédent) avant
-  d'appliquer une ISO en production.
+---
 
-Gardez cette fiche à portée pour accélérer vos opérations tout en respectant
-les exigences d'idempotence et de conformité GitOps.
+## Bonnes pratiques GitOps
 
-## Diagnostic rapide
+- **Toujours via Git** : branche dédiée + PR avec relecture. Aucun ajustement
+  manuel sur les serveurs ou dans les ISO publiées.
+- **Secrets chiffrés** : utilisez `sops` + `age` pour tous les fichiers
+  `*.sops.yaml`. Vérifiez avec `make secrets-scan` avant d'ouvrir une PR.
+- **CI obligatoire** : la revue doit montrer `make lint`, `make baremetal/gen`,
+  `make baremetal/seed` et `make secrets-scan` au vert. La CI relance les mêmes
+  contrôles et ajoute `trivy fs` + `gitleaks`.
+- **Traçabilité** : associez chaque génération d'ISO à un commit/tag et
+  conservez les artefacts dans un stockage maîtrisé et chiffré.
+- **Rollback prêt** : décrivez dans la PR la marche arrière prévue
+  (commit précédent, ISO de secours, etc.).
 
-- Lancez `make baremetal/list` pour confirmer qu'un hôte est bien versionné avant de générer une ISO ou d'utiliser l'assistant interactif.
-- En cas d'erreur (`sops` sans clé, ISO introuvable, dépendance manquante), appuyez-vous sur le guide [`docs/troubleshooting.md`](troubleshooting.md) et corrigez via Git (branche + PR) plutôt que par actions manuelles.
+---
+
+## Diagnostiquer vite
+
+- `make baremetal/list-hosts` : s'assurer qu'un hôte est bien versionné avant de
+  lancer `make baremetal/gen` ou l'assistant ISO.
+- `python3 baremetal/scripts/iso_wizard.py` : assistant interactif pour guider
+  un technicien pas à pas (check dépendances, génération ISO, nettoyage).
+- [`docs/troubleshooting.md`](troubleshooting.md) : recense les erreurs les plus
+  fréquentes (dépendances manquantes, clé SOPS absente, ISO introuvable) et les
+  résolutions GitOps associées.
+
+Respectez ces réflexes pour rester conforme aux exigences d'idempotence et de
+sécurité du projet.
