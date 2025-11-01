@@ -58,15 +58,18 @@ Gardez ce découpage : il garantit la reproductibilité et l'idempotence.
 
 ## Comment démarrer ?
 
-1. **Copier un exemple de variables**
+1. **Initialiser un hôte avec la cible dédiée**
    ```bash
-   cp -R baremetal/inventory/host_vars/example \
-     baremetal/inventory/host_vars/mon-premier-hote
+   make baremetal/host-init HOST=mon-premier-hote PROFILE=lenovo-m710q
    ```
+   La cible crée le dossier `baremetal/inventory/host_vars/mon-premier-hote/`,
+   génère un `main.yml` minimal, copie `secrets.sops.yaml` depuis l'exemple et
+   inscrit automatiquement l'hôte dans `baremetal/inventory/hosts.yml`. Elle
+   est idempotente : relancez-la pour synchroniser les fichiers si nécessaire.
 
 2. **Éditer les variables claires**
    - Fichier : `baremetal/inventory/host_vars/mon-premier-hote/main.yml`
-   - Renseignez `hostname`, `profile`, réseau, disque, etc.
+   - Renseignez `hostname`, `hardware_profile`, réseau, disques, etc.
 
 3. **Chiffrer les secrets**
    ```bash
@@ -101,8 +104,8 @@ Gardez ce découpage : il garantit la reproductibilité et l'idempotence.
 - **Profils matériels** : `baremetal/inventory/profiles/hardware/` fournit des bases par type de machine (disques, NIC, paquets). Dupliquez puis adaptez :
   - `lenovo-m710q` : ThinkCentre M710q (NVMe principal + SATA secondaire).
   - `raspberry-pi-4b-sd` : Raspberry Pi 4 Model B ARM64 sur carte SD (`/dev/mmcblk0`, miroir `ports.ubuntu.com`).
-- **Variables d'hôte** : chaque serveur possède un dossier `baremetal/inventory/host_vars/<hote>/` avec `main.yml` (clair) + `secrets.sops.yaml` (chiffré).
-- **Inventaire Ansible** : `baremetal/inventory/hosts.yml` est volontairement vide. Ajoutez uniquement les hôtes que vous voulez rendre.
+- **Variables d'hôte** : chaque serveur possède un dossier `baremetal/inventory/host_vars/<hote>/` avec `main.yml` (clair) + `secrets.sops.yaml` (chiffré). Utilisez `make baremetal/host-init` pour créer ou mettre à jour ce dossier.
+- **Inventaire Ansible** : `baremetal/inventory/hosts.yml` est alimenté automatiquement par `make baremetal/host-init`. Supprimez dans Git les hôtes qui ne sont plus utilisés.
 - **Templates** : `baremetal/autoinstall/templates/` décrit la structure commune de `user-data`/`meta-data`. Modifiez-les uniquement si le produit évolue.
 - **Profil sécurisé** : `baremetal/autoinstall/secure-ubuntu-22.04.yaml` propose un système durci (LUKS+LVM, UFW, durcissement SSH). La passphrase LUKS est injectée dynamiquement par la CI via `SOPS_DECRYPTED_DISK_PASSPHRASE`.
 - **Paramètres avancés** :
@@ -152,6 +155,7 @@ Ensuite, lancez `make baremetal/seed` ou `make baremetal/fulliso` en pointant ve
 |----------|-------|
 | `make doctor` | Vérifie les dépendances et linters attendus par la CI. |
 | `make baremetal/gen HOST=<nom>` | Rend `user-data`/`meta-data` pour un hôte. |
+| `make baremetal/host-init HOST=<nom> PROFILE=<profil>` | Prépare un hôte (répertoire `host_vars` + inventaire). |
 | `make baremetal/seed HOST=<nom>` | Crée une image CIDATA minimale. |
 | `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>` | Construit une ISO autonome. |
 | `make baremetal/clean` | Supprime les artefacts générés. |
