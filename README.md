@@ -132,7 +132,7 @@ Respectez ce découpage pour rester compatible avec l'usine GitOps.
 > matériel référencé.
 | Regénérer Autoinstall | `make baremetal/gen HOST=<nom>` | Produit `user-data` / `meta-data` à versionner. |
 | Construire un ISO seed | `make baremetal/seed HOST=<nom>` | Génère `seed-<nom>.iso` idempotent. |
-| Construire un ISO complet | `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>` | Intègre l'installateur officiel Ubuntu. |
+| Construire un ISO complet | `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>` | Intègre l'installateur officiel Ubuntu (stockez l'ISO dans `files/`, `~/Downloads/` ou `~/Téléchargements/` pour la détection automatique). |
 | Découvrir le matériel | `make baremetal/discover HOST=<nom>` | Alimente `.cache/discovery/<nom>.json` via Ansible. |
 | Lancer les linters | `make lint` | `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`. |
 | Scanner les secrets | `make secrets-scan` | `gitleaks detect --config gitleaks.toml --exit-code 2`. |
@@ -152,13 +152,16 @@ python3 baremetal/scripts/iso_wizard.py
 Le script vérifie l'environnement, synchronise le dépôt, initie les hôtes,
 gère les clés SOPS/age, déclenche les playbooks Ansible courants, construit les
 ISO et nettoie les artefacts en s'appuyant uniquement sur les
-cibles `make` (idempotence garantie). Les profils matériels proposés
+cibles `make` (idempotence garantie). Il détecte automatiquement les ISO Ubuntu
+stockées dans `files/`, `~/Downloads/` ou `~/Téléchargements/` et vous permet de
+sélectionner l'artefact via un simple numéro. Les profils matériels proposés
 correspondent désormais aux manifestes `*.yml`/`*.yaml` présents dans
 `baremetal/inventory/profiles/hardware/`. Pour préparer un nouveau matériel,
 collectez d'abord les faits via `make baremetal/discover`, puis nourrissez vos
 profils à partir du cache JSON généré.
 
-> 🆕 Les menus proposent également la gestion des clés SOPS/age et l'exécution
+> 🆕 Les menus proposent également la gestion des clés SOPS/age, la détection
+> automatique des ISO et l'exécution
 > des playbooks `baremetal/*`. Utilisez `0` ou `:q` pour annuler et revenir au
 > menu principal sans modifier l'état local.
 > ✏️ Après avoir initialisé un hôte, ouvrez directement ses fichiers

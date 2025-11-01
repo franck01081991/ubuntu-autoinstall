@@ -26,6 +26,12 @@ HARDWARE_PROFILE_DIR = REPO_ROOT / "baremetal" / "inventory" / "profiles" / "har
 GENERATED_DIR = REPO_ROOT / "baremetal" / "autoinstall" / "generated"
 DEFAULT_UBUNTU_ISO = "ubuntu-24.04-live-server-amd64.iso"
 DEFAULT_AGE_KEY_FILE = Path.home() / ".config" / "sops" / "age" / "keys.txt"
+ISO_SEARCH_DIRECTORIES = (
+    REPO_ROOT / "files",
+    Path.home() / "Downloads",
+    Path.home() / "Téléchargements",
+)
+UBUNTU_ISO_PATTERN = re.compile(r"ubuntu-.*-live-server-amd64\\.iso$", re.IGNORECASE)
 REQUIRED_BINARIES = ("git", "make")
 RECOMMENDED_BINARIES = ("sops", "age", "age-keygen", "ansible-playbook")
 SOPS_INSTALL_SCRIPT = REPO_ROOT / "scripts" / "install-sops.sh"
@@ -261,18 +267,51 @@ def prompt_iso_action() -> IsoAction:
 
 
 def prompt_iso_path(default: str) -> str:
+    candidates = discover_ubuntu_iso_candidates()
+    if candidates:
+        print("\nISO Ubuntu détectées automatiquement :")
+        for idx, path in enumerate(candidates, start=1):
+            print(f"  {idx}. {path}")
+        print("  0. Saisir un chemin différent")
+        print(
+            "Sélectionnez un numéro dans la liste ou saisissez un chemin absolu/relatif."
+        )
     while True:
         candidate = input(
             f"Chemin vers l'ISO Ubuntu officielle [{default}] (:q pour annuler) : "
         ).strip()
         if candidate.lower() in CANCEL_KEYWORDS:
             raise UserCancelled
+        if candidate.isdigit() and candidates:
+            idx = int(candidate)
+            if idx == 0:
+                candidate = ""
+            elif 1 <= idx <= len(candidates):
+                selected = candidates[idx - 1]
+                print(f"→ ISO sélectionnée : {selected}")
+                return str(selected)
+            else:
+                print("Sélection hors limites.\n")
+                continue
         if not candidate:
             candidate = default
         path = Path(candidate).expanduser()
         if path.is_file():
             return str(path)
         print(f"ISO introuvable à l'emplacement : {path}\n")
+
+
+def discover_ubuntu_iso_candidates() -> List[Path]:
+    """Return Ubuntu ISO files discovered in predefined directories."""
+
+    candidates: List[Path] = []
+    for directory in ISO_SEARCH_DIRECTORIES:
+        if not directory.is_dir():
+            continue
+        for path in sorted(directory.glob("*.iso")):
+            if UBUNTU_ISO_PATTERN.match(path.name):
+                candidates.append(path)
+    return candidates
 
 
 def prompt_age_key_file(default: Path) -> Path:

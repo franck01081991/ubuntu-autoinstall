@@ -28,10 +28,10 @@ Sortie type : `Missing required dependency: xorriso` ou absence de linters recom
 **Symptôme**
 Le script ISO signale `ISO introuvable à l'emplacement : ...`.
 
-**Résolution GitOps**  
-1. Déclarez l’ISO officielle (chemin ou artefact interne) dans votre documentation d’équipe ou vos variables Git.  
-2. Passez explicitement `UBUNTU_ISO=/chemin/ubuntu-24.04-live-server-amd64.iso` à la cible Make ou dans votre pipeline.  
-3. Relancez `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>`.
+**Résolution GitOps**
+1. Versionnez ou placez l’ISO officielle dans `files/` (ou documentez son artefact interne) et synchronisez vos scripts de bootstrap si nécessaire.
+2. Laissez l’assistant `python3 baremetal/scripts/iso_wizard.py` détecter automatiquement l’ISO (ou définissez `UBUNTU_ISO=/chemin/ubuntu-24.04-live-server-amd64.iso` dans votre pipeline GitOps).
+3. Relancez `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>` ou sélectionnez l’option correspondante dans le wizard.
 
 ## `make baremetal/gen` échoue avec `The filter plugin 'ansible.builtin.length' failed`
 
