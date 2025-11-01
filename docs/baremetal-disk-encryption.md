@@ -19,7 +19,8 @@ revues alimentent la génération des ISO.
 
 1. Une paire de clés `age` dédiée au dépôt (publique dans `.sops.yaml`, privée
    stockée hors dépôt).
-2. Le binaire `sops` (installable via `scripts/install-sops.sh`).
+2. Les binaires `sops` et `age` (installables via `scripts/install-sops.sh` et
+   `scripts/install-age.sh`).
 3. Un `host_vars` ou profil matériel à sécuriser.
 
 > ⚠️ Ne stockez jamais la passphrase en clair dans le dépôt, la CI ou les

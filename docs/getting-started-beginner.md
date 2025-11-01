@@ -42,8 +42,8 @@ pour résoudre les anomalies courantes.
    avant d'aller plus loin. Elle rappelle également les linters utilisés par la CI
    (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`).
 
-> ℹ️ Si vous devez installer `sops`, un script est disponible :
-> `./scripts/install-sops.sh` (Linux amd64).
+> ℹ️ Des scripts idempotents sont fournis pour Linux amd64 :
+> `./scripts/install-sops.sh` et `./scripts/install-age.sh`.
 
 ---
 

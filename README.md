@@ -42,7 +42,9 @@ Suivez ces sept étapes pour produire une ISO seed prête à l'emploi :
    make doctor
    ```
    Corrigez toute dépendance manquante (`python3`, `ansible-core`, `xorriso`,
-   `mkpasswd`, `sops`, `age`, `cloud-init`).
+   `mkpasswd`, `sops`, `age`, `cloud-init`). Des installateurs idempotents sont
+   fournis pour Linux amd64 : `./scripts/install-sops.sh` et
+   `./scripts/install-age.sh`.
 3. **Initialiser l'hôte cible**
    ```bash
    make baremetal/host-init HOST=site-a-m710q1 PROFILE=lenovo-m710q
@@ -103,6 +105,7 @@ baremetal/
 ansible/                # Collections et dépendances Ansible mutualisées
 docs/                   # Guides utilisateurs, ADR, secrets chiffrés
 scripts/install-sops.sh # Installation simplifiée de SOPS (Linux amd64)
+scripts/install-age.sh  # Installation simplifiée de age (Linux amd64)
 ```
 
 Respectez ce découpage pour rester compatible avec la CI et l'usine GitOps.
