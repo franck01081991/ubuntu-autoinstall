@@ -158,6 +158,10 @@ profils à partir du cache JSON généré.
 > 🆕 Les menus proposent également la gestion des clés SOPS/age et l'exécution
 > des playbooks `baremetal/*`. Utilisez `0` ou `:q` pour annuler et revenir au
 > menu principal sans modifier l'état local.
+> ✏️ Après avoir initialisé un hôte, ouvrez directement ses fichiers
+> `host_vars/<HOST>/` via l'option « Personnaliser la configuration d'un hôte »
+> pour lancer votre éditeur (ou `sops` pour les secrets) sans quitter
+> l'assistant.
 
 ## Gouvernance, sécurité et conformité
 

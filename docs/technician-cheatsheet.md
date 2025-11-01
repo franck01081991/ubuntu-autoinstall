@@ -48,6 +48,9 @@ Git afin de respecter les principes GitOps.
 - `python3 baremetal/scripts/iso_wizard.py` : assistant interactif pour guider
   un technicien pas à pas (dépendances, gestion des clés SOPS/age, playbooks,
   génération ISO, nettoyage).
+- Depuis le menu « Personnaliser la configuration d'un hôte », ouvrez les
+  fichiers `host_vars/<HOST>/` dans votre éditeur (ou `sops` pour les secrets)
+  juste après l'initialisation.
 - [`docs/troubleshooting.md`](troubleshooting.md) : recense les erreurs les plus
   fréquentes (dépendances manquantes, clé SOPS absente, ISO introuvable) et les
   résolutions GitOps associées.
