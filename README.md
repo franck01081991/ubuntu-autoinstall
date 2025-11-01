@@ -3,6 +3,8 @@
 Bienvenue ! Ce dépôt vous aide à fabriquer des images d'installation Ubuntu Server 24.04 LTS en suivant une approche **GitOps**. Tout est défini dans Git, vérifié par la CI/CD, puis reproduit à la demande sur votre poste ou dans une usine d'image. Aucune opération manuelle en production : on automatise, on révise, on rejoue.
 
 > 🙋 Première visite ? Commencez par le [guide débutant](docs/getting-started-beginner.md) pour suivre un cas concret pas à pas.
+>
+> ⏱️ Déjà opérationnel·le ? Gardez la [fiche mémo technicien](docs/technician-cheatsheet.md) sous la main pour retrouver les commandes critiques.
 
 ---
 
@@ -182,6 +184,7 @@ Ensuite, lancez `make baremetal/seed` ou `make baremetal/fulliso` en pointant ve
 - [ADR 0001 — recentrage bare metal](docs/adr/0001-focus-baremetal.md)
 - [ADR 0006 — rationalisation CI GitHub Actions](docs/adr/0006-ci-rationalization.md)
 - [Documentation anglaise](README.en.md)
+- [Fiche mémo technicien](docs/technician-cheatsheet.md)
 - [Ubuntu Autoinstall Reference](https://ubuntu.com/server/docs/install/autoinstall)
 - [Datasource Cloud-init NoCloud](https://cloudinit.readthedocs.io/en/latest/topics/datasources/nocloud.html)
 
