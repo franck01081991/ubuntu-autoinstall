@@ -1,6 +1,7 @@
 extends: default
 ignore: |
   **/secrets.sops.yaml
+  baremetal/autoinstall/secure-ubuntu-22.04.yaml
 rules:
   line-length:
     max: 160

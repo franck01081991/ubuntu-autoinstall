@@ -1,11 +1,10 @@
 ---
--# Shared tasks to render NoCloud autoinstall configurations
+# Shared tasks to render NoCloud autoinstall configurations
 - name: Initialize profile lookup facts
   ansible.builtin.set_fact:
     _hardware_profile_file: ""
     _explicit_host_vars_file: ""
 
-# Shared tasks to render NoCloud autoinstall configurations
 - name: Ensure autoinstall generated base directory exists
   ansible.builtin.file:
     path: "{{ autoinstall_dir }}/generated"
@@ -16,21 +15,29 @@
   when: profile | length > 0
   block:
     - name: Locate hardware profile file for explicit PROFILE
+      vars:
+        _hardware_first_found_query:
+          files:
+            - "{{ profile }}.yml"
+            - "{{ profile }}.yaml"
+          paths:
+            - "{{ inventory_root }}/profiles/hardware"
       ansible.builtin.set_fact:
-        _hardware_profile_file: "{{ lookup('first_found', {
-          'files': [profile + '.yml', profile + '.yaml'],
-          'paths': [inventory_root + '/profiles/hardware']
-        }, errors='ignore') | default('', true) }}"
+        _hardware_profile_file: "{{ lookup('first_found', _hardware_first_found_query, errors='ignore') | default('', true) }}"
 
     - name: Locate host variables when explicit PROFILE is not a hardware profile
       when: (_hardware_profile_file | default('')) | length == 0
       block:
         - name: Locate host variables file for explicit PROFILE
+          vars:
+            _explicit_host_vars_query:
+              files:
+                - main.yml
+                - main.yaml
+              paths:
+                - "{{ inventory_root }}/host_vars/{{ profile }}"
           ansible.builtin.set_fact:
-            _explicit_host_vars_file: "{{ lookup('first_found', {
-              'files': ['main.yml', 'main.yaml'],
-              'paths': [inventory_root + '/host_vars/' + profile]
-            }, errors='ignore') | default('', true) }}"
+            _explicit_host_vars_file: "{{ lookup('first_found', _explicit_host_vars_query, errors='ignore') | default('', true) }}"
 
         - name: Fail when explicit PROFILE does not match any inventory entry
           when: (_explicit_host_vars_file | default('')) | length == 0
@@ -63,11 +70,15 @@
     - profile | length == 0
     - host_raw_vars.hardware_profile is defined
     - host_raw_vars.hardware_profile | length > 0
+  vars:
+    _host_profile_lookup:
+      files:
+        - "{{ host_raw_vars.hardware_profile }}.yml"
+        - "{{ host_raw_vars.hardware_profile }}.yaml"
+      paths:
+        - "{{ inventory_root }}/profiles/hardware"
   ansible.builtin.include_vars:
-    file: "{{ lookup('first_found', {
-      'files': [host_raw_vars.hardware_profile + '.yml', host_raw_vars.hardware_profile + '.yaml'],
-      'paths': [inventory_root + '/profiles/hardware']
-    }) }}"
+    file: "{{ lookup('first_found', _host_profile_lookup) }}"
 
 - name: Load host variables
   when: profile | length == 0

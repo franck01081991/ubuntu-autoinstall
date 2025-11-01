@@ -1,8 +1,7 @@
 ---
-- name: Collect hardware facts and store them locally
-  hosts: all
-  gather_facts: true
-  become: true
+- name: Prepare local discovery cache directory
+  hosts: localhost
+  gather_facts: false
   vars:
     discovery_output_dir: "{{ discovery_output_dir | default('.cache/discovery') }}"
   tasks:
@@ -11,9 +10,16 @@
         path: "{{ discovery_output_dir }}"
         state: directory
         mode: "0700"
-      delegate_to: localhost
-      run_once: true
 
+- name: Collect hardware facts and store them locally
+  hosts: all
+  gather_facts: true
+  become: true
+  strategy: linear
+  serial: 1
+  vars:
+    discovery_output_dir: "{{ discovery_output_dir | default('.cache/discovery') }}"
+  tasks:
     - name: Collect block device inventory
       ansible.builtin.command:
         cmd: lsblk --bytes --json -O
