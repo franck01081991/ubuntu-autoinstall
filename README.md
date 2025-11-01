@@ -166,6 +166,11 @@ Ensuite, lancez `make baremetal/seed` ou `make baremetal/fulliso` en pointant ve
 | `make baremetal/clean` | Supprime les artefacts générés. |
 | `make lint` | Lance tous les linters (`yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`). |
 | `make secrets-scan` | Exécute `gitleaks detect --config gitleaks.toml --report-format sarif --report-path gitleaks.sarif --redact --exit-code 2`, identique au workflow CI. |
+| `make baremetal/list` | Résume l'inventaire Git (hôtes + profils matériels) pour vérification rapide. |
+| `make baremetal/list-hosts` | Affiche uniquement les hôtes déclarés (`host_vars`). |
+| `make baremetal/list-profiles` | Affiche uniquement les profils matériels disponibles. |
+
+Utilisez `make baremetal/list` avant ou après une modification pour confirmer que vos hôtes et profils sont correctement versionnés. Le guide [`docs/troubleshooting.md`](docs/troubleshooting.md) centralise les erreurs courantes (dépendances manquantes, clé SOPS absente, ISO introuvable) et leurs résolutions GitOps.
 
 ## Assistant interactif ISO
 
@@ -211,6 +216,7 @@ Chaque action reste idempotente en s'appuyant exclusivement sur les cibles Make 
 - [Partitionnement disque durci (ANSSI)](docs/baremetal-partitioning.md)
 - [Ubuntu Autoinstall Reference](https://ubuntu.com/server/docs/install/autoinstall)
 - [Datasource Cloud-init NoCloud](https://cloudinit.readthedocs.io/en/latest/topics/datasources/nocloud.html)
+- [Dépannage chaîne Autoinstall](docs/troubleshooting.md)
 
 ---
 

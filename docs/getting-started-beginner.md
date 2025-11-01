@@ -88,6 +88,14 @@ SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt \
   sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
 ```
 
+Vérifiez ensuite que l'hôte apparaît bien dans l'inventaire versionné :
+
+```bash
+make baremetal/list
+```
+
+La section « Hôtes déclarés » doit mentionner votre machine. Sinon, relancez `make baremetal/host-init`, corrigez vos variables et soumettez la PR associée.
+
 > 🔐 Pour activer le chiffrement OS, ajoutez `disk_encryption.enabled: true`
 > et référençez la passphrase fournie par SOPS
 > (`passphrase: "{{ disk_encryption_passphrase }}"`). Suivez le guide

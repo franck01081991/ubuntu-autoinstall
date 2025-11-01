@@ -155,6 +155,11 @@ Generated ISOs live under `baremetal/autoinstall/generated/<target>/`.
   installer ISO.
 - `make baremetal/clean`: remove generated artefacts.
 - `make lint`: run the CI linter suite locally.
+- `make baremetal/list`: inspect the Git-tracked hosts and hardware profiles at a glance.
+- `make baremetal/list-hosts`: display only `baremetal/inventory/host_vars/` entries.
+- `make baremetal/list-profiles`: display only `baremetal/inventory/profiles/hardware/` entries.
+
+Run `make baremetal/list` before launching the ISO wizard to double-check the inventory and combine it with the troubleshooting guide (`docs/troubleshooting.md`, FR) for the most common failure modes.
 
 ## Validation and CI/CD
 
@@ -237,3 +242,4 @@ image factory):
 - [French README](README.md)
 - [Ubuntu Autoinstall Reference](https://ubuntu.com/server/docs/install/autoinstall)
 - [Cloud-init NoCloud Datasource](https://cloudinit.readthedocs.io/en/latest/topics/datasources/nocloud.html)
+- [Troubleshooting guide (FR)](docs/troubleshooting.md)
