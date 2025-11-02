@@ -1,0 +1,261 @@
+#cloud-config
+autoinstall:
+  version: 1
+  locale: {{ locale | default('fr_FR.UTF-8') }}
+  keyboard:
+    layout: {{ keyboard_layout | default('fr') }}
+    variant: {{ keyboard_variant | default('oss') }}
+  identity:
+    hostname: {{ hostname }}
+    username: {{ username | default('admin') }}
+    password: "{{ password_hash }}"
+  ssh:
+    install-server: true
+    authorized-keys:
+{% for key in ssh_authorized_keys %}
+      - "{{ key }}"
+{% endfor %}
+    allow-pw: false
+  apt:
+    geoip: false
+    primary:
+      - arches: {{ apt_primary_arches | default(['amd64']) | to_json }}
+        uri: {{ apt_primary_uri | default('http://archive.ubuntu.com/ubuntu') }}
+        suites: ['noble','noble-updates','noble-security']
+  packages:
+    - jq
+    - ca-certificates
+    - curl
+    - htop
+    - ethtool
+    - git
+    - irqbalance
+{% for pkg in extra_packages | default([]) %}
+    - {{ pkg }}
+{% endfor %}
+{% set encryption = disk_encryption | default({}) %}
+{% set luks_enabled = encryption.enabled | default(false) %}
+{% set storage_override = storage_config_override | default([]) %}
+{% set storage_swap = storage_swap_size | default(0) %}
+{% set storage_extra_late_commands = storage_additional_late_commands | default([]) %}
+  storage:
+    swap:
+      size: {{ storage_swap }}
+{% if storage_override %}
+    config:
+{{ storage_override | to_nice_yaml | indent(6, true) }}
+{% else %}
+    config:
+      - id: disk0
+        type: disk
+        match:
+          path: "{{ disk_device }}"
+        wipe: superblock-recursive
+        ptable: gpt
+        grub_device: true
+{% for extra_disk in additional_disk_devices | default([]) %}
+      - id: disk{{ loop.index }}
+        type: disk
+        match:
+          path: "{{ extra_disk }}"
+        preserve: true
+{% endfor %}
+      - type: partition
+        id: efi
+        device: disk0
+        size: 512M
+        flag: boot
+      - type: partition
+        id: boot
+        device: disk0
+        size: 1G
+{% if luks_enabled %}
+      - type: partition
+        id: luks-root-partition
+        device: disk0
+        size: -1
+      - type: dm_crypt
+        id: luks-root
+        volume: luks-root-partition
+        dm_name: {{ encryption.device_name | default('cryptroot') }}
+        key: "{{ encryption.passphrase | mandatory('disk_encryption.passphrase must be provided when disk encryption is enabled') }}"
+{%   if encryption.cipher is defined %}
+        cipher: {{ encryption.cipher }}
+{%   endif %}
+{%   if encryption.keysize is defined %}
+        keysize: {{ encryption.keysize }}
+{%   endif %}
+{%   if encryption.hash is defined %}
+        hash: {{ encryption.hash }}
+{%   endif %}
+{%   if encryption.pbkdf is defined %}
+        pbkdf:
+{%     for pbkdf_key, pbkdf_value in encryption.pbkdf.items() %}
+          {{ pbkdf_key }}: {{ pbkdf_value | to_json }}
+{%     endfor %}
+{%   endif %}
+{% else %}
+      - type: partition
+        id: pv1
+        device: disk0
+        size: -1
+        flag: lvm
+{% endif %}
+      - type: format
+        id: fmt-efi
+        volume: efi
+        fstype: fat32
+      - type: format
+        id: fmt-boot
+        volume: boot
+        fstype: ext4
+      - type: lvm_volgroup
+        id: vg0
+        devices: [ {{ 'luks-root' if luks_enabled else 'pv1' }} ]
+      - type: lvm_partition
+        id: lv_root
+        volgroup: vg0
+        size: -1
+      - type: format
+        id: fmt-root
+        volume: lv_root
+        fstype: ext4
+      - type: mount
+        id: mnt-efi
+        path: /boot/efi
+        device: fmt-efi
+      - type: mount
+        id: mnt-boot
+        path: /boot
+        device: fmt-boot
+      - type: mount
+        id: mnt-root
+        path: /
+        device: fmt-root
+{% endif %}
+{% if netmode == 'static' %}
+  network:
+    version: 2
+    ethernets:
+      {{ nic }}:
+        dhcp4: false
+        addresses: [ "{{ ip }}/{{ cidr }}" ]
+        gateway4: "{{ gw }}"
+        nameservers:
+          addresses: {{ dns }}
+{% else %}
+  network:
+    version: 2
+    ethernets:
+      {{ nic | default('') }}: {}
+    renderer: networkd
+{% endif %}
+  user-data:
+    disable_root: true
+    packages:
+      - git
+      - ansible
+      - python3-apt
+    write_files:
+      - path: /root/firstboot-ansible.sh
+        owner: root:root
+        permissions: '0750'
+        content: |
+          #!/bin/bash
+          set -eux
+
+          MARKER="/var/lib/firstboot-ansible.done"
+          if [ -f "${MARKER}" ]; then
+            exit 0
+          fi
+
+          ANSIBLE_REPO_URL="{{ ansible_repo_url | default('https://github.com/franck01081991/infra-ansible.git') }}"
+          ANSIBLE_DIR="/opt/infra-ansible"
+          install -d "$(dirname "${ANSIBLE_DIR}")"
+
+          if [ -d "${ANSIBLE_DIR}/.git" ]; then
+            git -C "${ANSIBLE_DIR}" remote set-url origin "${ANSIBLE_REPO_URL}"
+            git -C "${ANSIBLE_DIR}" fetch --all --prune
+            git -C "${ANSIBLE_DIR}" pull --ff-only
+          else
+            rm -rf "${ANSIBLE_DIR}"
+            git clone "${ANSIBLE_REPO_URL}" "${ANSIBLE_DIR}"
+          fi
+
+          cd "${ANSIBLE_DIR}"
+
+          ansible-playbook \
+            -i inventory/hosts.ini \
+            ansible/site.yml \
+            --limit "{{ ansible_inventory_limit | default(hostname) }}" \
+            -c local
+
+          install -d "$(dirname "${MARKER}")"
+          touch "${MARKER}"
+      - path: /etc/systemd/system/firstboot-ansible.service
+        owner: root:root
+        permissions: '0644'
+        content: |
+          [Unit]
+          Description=Run Ansible post-install configuration once
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/root/firstboot-ansible.sh
+          RemainAfterExit=yes
+
+          [Install]
+          WantedBy=multi-user.target
+    runcmd:
+      - [systemctl, daemon-reload]
+      - [systemctl, enable, --now, firstboot-ansible.service]
+{% set late_cmds = [
+  "curtin in-target -- bash -lc 'cat >/etc/sysctl.d/99-tuning.conf <<EOF\\nnet.ipv4.ip_forward=1\\nnet.ipv4.tcp_congestion_control=bbr\\nnet.ipv4.conf.all.rp_filter=2\\nnet.ipv4.conf.default.accept_redirects=0\\nnet.ipv4.conf.all.accept_redirects=0\\nnet.ipv4.conf.default.send_redirects=0\\nnet.ipv4.conf.all.send_redirects=0\\nEOF'",
+  "curtin in-target -- sysctl --system",
+  "curtin in-target -- systemctl enable irqbalance"
+] %}
+{% if storage_extra_late_commands %}
+{%   set late_cmds = late_cmds + storage_extra_late_commands %}
+{% endif %}
+{% if enable_powertop_autotune | default(false) %}
+{%   set late_cmds = late_cmds + [
+    "curtin in-target -- bash -lc 'cat >/etc/systemd/system/powertop-autotune.service <<\"EOF\"\\n[Unit]\\nDescription=Powertop auto-tuning on boot\\nAfter=multi-user.target\\n\\n[Service]\\nType=oneshot\\nExecStart=/usr/sbin/powertop --auto-tune\\nRemainAfterExit=yes\\n\\n[Install]\\nWantedBy=multi-user.target\\nEOF'",
+    "curtin in-target -- systemctl daemon-reload",
+    "curtin in-target -- systemctl enable powertop-autotune.service",
+    "curtin in-target -- systemctl start powertop-autotune.service"
+  ] %}
+{% endif %}
+{% if enable_thermald | default(false) %}
+{%   set late_cmds = late_cmds + [
+    "curtin in-target -- systemctl enable thermald",
+    "curtin in-target -- systemctl start thermald"
+  ] %}
+{% endif %}
+{% if enable_zram_generator | default(false) %}
+{%   set zram_cfg = (zram_generator_config | default({})).get('swap', {}) %}
+{%   set zram_lines = ['[zram0]'] %}
+{%   if zram_cfg.get('zram-fraction') is not none %}
+{%     set zram_lines = zram_lines + ['zram-fraction = ' ~ zram_cfg.get('zram-fraction')] %}
+{%   endif %}
+{%   if zram_cfg.get('max-zram-size') is not none %}
+{%     set zram_lines = zram_lines + ['max-zram-size = ' ~ zram_cfg.get('max-zram-size') ~ 'M'] %}
+{%   endif %}
+{%   if zram_cfg.get('compression-algorithm') is not none %}
+{%     set zram_lines = zram_lines + ['compression-algorithm = ' ~ zram_cfg.get('compression-algorithm')] %}
+{%   endif %}
+{%   if zram_cfg.get('swap-priority') is not none %}
+{%     set zram_lines = zram_lines + ['swap-priority = ' ~ zram_cfg.get('swap-priority')] %}
+{%   endif %}
+{%   set zram_payload = (zram_lines | join('\\n')) ~ '\\n' %}
+{%   set late_cmds = late_cmds + [
+    "curtin in-target -- bash -lc 'cat >/etc/systemd/zram-generator.conf <<\"EOF\"\\n" ~ zram_payload ~ "EOF'",
+    "curtin in-target -- systemctl enable systemd-zram-setup@zram0.service",
+    "curtin in-target -- systemctl start systemd-zram-setup@zram0.service"
+  ] %}
+{% endif %}
+  late-commands:
+{% for command in late_cmds %}
+    - {{ command }}
+{% endfor %}

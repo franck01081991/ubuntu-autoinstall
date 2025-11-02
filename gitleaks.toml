@@ -1,0 +1,13 @@
+# Ubuntu Autoinstall gitleaks configuration
+# Focus on catching plain-text secrets while ignoring encrypted SOPS payloads
+# and generated artefacts tracked in git.
+
+# use default gitleaks rules
+
+[allowlist]
+  description = "Ignore encrypted secrets and generated outputs"
+  files = [
+    '''^baremetal/autoinstall/generated/''',
+    '''\.sops\.ya?ml$''',
+    '''\.age$'''
+  ]

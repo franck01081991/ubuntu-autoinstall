@@ -1,0 +1,27 @@
+---
+hostname: lenovo-90dq004yfr
+hardware_model: lenovo-thinkcentre-m700-90dq004yfr
+storage_profile: sata
+netmode: dhcp
+nic: enp1s0
+disk_device: /dev/sda
+hardware_specs:
+  cpu:
+    model: intel-core-i5-6500t
+    architecture: skylake
+    cores: 4
+    threads: 4
+    turbo_mhz: 3100
+  memory:
+    total_gb: 16
+    type: ddr4
+    speed_mhz: 2133
+extra_packages:
+  - intel-microcode
+  - thermald
+  - powertop
+  - lm-sensors
+  - linux-tools-generic
+enable_powertop_autotune: true
+# Secrets spécifiques à l'hôte (clé SSH, hash) doivent provenir des fichiers
+# `host_vars/<host>/secrets.sops.yaml`.

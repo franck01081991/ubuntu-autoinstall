@@ -1,0 +1,48 @@
+---
+- name: Prepare local discovery cache directory
+  hosts: localhost
+  gather_facts: false
+  vars:
+    discovery_output_dir: "{{ discovery_output_dir | default('.cache/discovery') }}"
+  tasks:
+    - name: Ensure local discovery cache directory exists
+      ansible.builtin.file:
+        path: "{{ discovery_output_dir }}"
+        state: directory
+        mode: "0700"
+
+- name: Collect hardware facts and store them locally
+  hosts: all
+  gather_facts: true
+  become: true
+  strategy: linear
+  serial: 1
+  vars:
+    discovery_output_dir: "{{ discovery_output_dir | default('.cache/discovery') }}"
+  tasks:
+    - name: Collect block device inventory
+      ansible.builtin.command:
+        cmd: lsblk --bytes --json -O
+      register: lsblk_result
+      changed_when: false
+
+    - name: Collect network link information
+      ansible.builtin.command:
+        cmd: ip -j link
+      register: ip_link_result
+      changed_when: false
+
+    - name: Build discovery payload
+      ansible.builtin.set_fact:
+        discovery_payload:
+          collected_at: "{{ ansible_date_time.iso8601 }}"
+          ansible_facts: "{{ ansible_facts | to_json | from_json }}"
+          lsblk: "{{ lsblk_result.stdout | default('{}') | from_json }}"
+          ip_link: "{{ ip_link_result.stdout | default('[]') | from_json }}"
+
+    - name: Write discovery cache for host
+      ansible.builtin.copy:
+        dest: "{{ discovery_output_dir }}/{{ inventory_hostname }}.json"
+        content: "{{ discovery_payload | to_nice_json }}"
+        mode: "0600"
+      delegate_to: localhost

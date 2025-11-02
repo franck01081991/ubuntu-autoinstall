@@ -1,0 +1,6 @@
+---
+hostname: thinkcentre1
+hardware_profile: lenovo-m710q
+netmode: dhcp
+# Secrets (password_hash, ssh_authorized_keys, etc.) sont gérés via
+# 'secrets.sops.yaml' adjacent chiffré avec SOPS.

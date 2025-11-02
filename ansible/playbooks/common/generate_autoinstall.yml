@@ -1,0 +1,131 @@
+---
+# Shared tasks to render NoCloud autoinstall configurations
+- name: Initialize profile lookup facts
+  ansible.builtin.set_fact:
+    _hardware_profile_file: ""
+    _explicit_host_vars_file: ""
+
+- name: Ensure autoinstall generated base directory exists
+  ansible.builtin.file:
+    path: "{{ autoinstall_dir }}/generated"
+    state: directory
+    mode: "0755"
+
+- name: Resolve explicit PROFILE context
+  when: profile | length > 0
+  block:
+    - name: Locate hardware profile file for explicit PROFILE
+      vars:
+        _hardware_first_found_query:
+          files:
+            - "{{ profile }}.yml"
+            - "{{ profile }}.yaml"
+          paths:
+            - "{{ inventory_root }}/profiles/hardware"
+      ansible.builtin.set_fact:
+        _hardware_profile_file: "{{ lookup('first_found', _hardware_first_found_query, errors='ignore') | default('', true) }}"
+
+    - name: Locate host variables when explicit PROFILE is not a hardware profile
+      when: (_hardware_profile_file | default('')) | length == 0
+      block:
+        - name: Locate host variables file for explicit PROFILE
+          vars:
+            _explicit_host_vars_query:
+              files:
+                - main.yml
+                - main.yaml
+              paths:
+                - "{{ inventory_root }}/host_vars/{{ profile }}"
+          ansible.builtin.set_fact:
+            _explicit_host_vars_file: "{{ lookup('first_found', _explicit_host_vars_query, errors='ignore') | default('', true) }}"
+
+        - name: Fail when explicit PROFILE does not match any inventory entry
+          when: (_explicit_host_vars_file | default('')) | length == 0
+          ansible.builtin.fail:
+            msg: >-
+              PROFILE '{{ profile }}' does not match any hardware profile under
+              inventory/profiles/hardware/ or host_vars entry.
+
+        - name: Reinterpret explicit PROFILE as host variables
+          ansible.builtin.set_fact:
+            profile: ""
+            primary_vars_file: "{{ _explicit_host_vars_file }}"
+            host_vars_dir: "{{ inventory_root }}/host_vars/{{ config_name }}"
+            host_secrets_file: "{{ host_vars_dir }}/secrets.sops.yaml"
+
+- name: Load hardware profile when rendering a PROFILE directly
+  when:
+    - profile | length > 0
+    - (_hardware_profile_file | default('')) | length > 0
+  ansible.builtin.include_vars:
+    file: "{{ _hardware_profile_file }}"
+
+- name: Parse host variables to resolve the hardware profile
+  when: profile | length == 0
+  ansible.builtin.set_fact:
+    host_raw_vars: "{{ lookup('file', primary_vars_file) | from_yaml }}"
+
+- name: Load hardware profile referenced by the host
+  when:
+    - profile | length == 0
+    - host_raw_vars.hardware_profile is defined
+    - host_raw_vars.hardware_profile | length > 0
+  vars:
+    _host_profile_lookup:
+      files:
+        - "{{ host_raw_vars.hardware_profile }}.yml"
+        - "{{ host_raw_vars.hardware_profile }}.yaml"
+      paths:
+        - "{{ inventory_root }}/profiles/hardware"
+  ansible.builtin.include_vars:
+    file: "{{ lookup('first_found', _host_profile_lookup) }}"
+
+- name: Load host variables
+  when: profile | length == 0
+  ansible.builtin.include_vars:
+    file: "{{ primary_vars_file }}"
+
+- name: Check if host secrets file exists
+  when: profile | length == 0
+  ansible.builtin.stat:
+    path: "{{ host_secrets_file }}"
+  register: host_secrets_file_stat
+
+- name: Load host secrets
+  when:
+    - profile | length == 0
+    - host_secrets_file_stat.stat.exists
+  ansible.builtin.include_vars:
+    file: "{{ host_secrets_file }}"
+
+- name: Load storage layout override when requested
+  when:
+    - storage_layout is defined
+    - storage_layout | length > 0
+  ansible.builtin.set_fact:
+    _storage_layout_data: "{{ lookup('template', templates_root + '/storage/' + storage_layout + '.yml.j2') | from_yaml }}"
+
+- name: Apply storage layout variables
+  when: _storage_layout_data is defined
+  ansible.builtin.set_fact:
+    storage_config_override: "{{ _storage_layout_data.storage_config_override }}"
+    storage_swap_size: "{{ storage_swap_size | default(_storage_layout_data.storage_swap_size | default(0), true) }}"
+    storage_additional_late_commands: "{{ (storage_additional_late_commands | default([])) + (_storage_layout_data.additional_late_commands | default([])) }}"
+
+- name: Ensure output dir exists for target {{ config_name }}
+  ansible.builtin.file:
+    path: "{{ autoinstall_dir }}/generated/{{ config_name }}"
+    state: directory
+    mode: "0755"
+
+- name: Render user-data (autoinstall)
+  ansible.builtin.template:
+    src: "{{ templates_root }}/user-data.j2"
+    dest: "{{ autoinstall_dir }}/generated/{{ config_name }}/user-data"
+    mode: "0644"
+
+- name: Render meta-data
+  ansible.builtin.template:
+    src: "{{ templates_root }}/meta-data.j2"
+    dest: "{{ autoinstall_dir }}/generated/{{ config_name }}/meta-data"
+    mode: "0644"

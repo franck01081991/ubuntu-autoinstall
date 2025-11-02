@@ -1,0 +1,69 @@
+# Dépannage : chaîne Ubuntu Autoinstall
+
+Ce guide recense les incidents les plus fréquents rencontrés par un·e technicien·ne lors de la génération d'ISO Autoinstall. Chaque résolution doit rester GitOps : corrigez la configuration dans Git, laissez la CI valider, puis rejouez les commandes idempotentes.
+
+## `make doctor` échoue (dépendance manquante)
+
+**Symptôme**  
+Sortie type : `Missing required dependency: xorriso` ou absence de linters recommandés.
+
+**Résolution GitOps**  
+1. Ajoutez/actualisez le rôle ou le script d’installation de vos dépendances poste (ex. playbook Ansible interne).  
+2. Réexécutez `make doctor` pour confirmer que toutes les dépendances sont disponibles.  
+3. Soumettez la PR associée et attendez la validation CI avant de générer des ISO.
+
+## `sops` ne trouve pas la clé `age`
+
+**Symptôme**  
+`sops` ou l’assistant ISO affiche « Le fichier de clé age est introuvable ».
+
+**Résolution GitOps**  
+1. Vérifiez que la variable `SOPS_AGE_KEY` (CI) ou `SOPS_AGE_KEY_FILE` pointe vers la clé partagée par l’équipe.
+2. Si besoin, mettez à jour `scripts/install-sops.sh`, `scripts/install-age.sh` ou votre bootstrap interne pour distribuer la clé via un secret versionné.
+3. Pour un atelier ou un labo, exécutez `./scripts/bootstrap-demo-age-key.sh` afin d’installer la clé de démonstration fournie par le dépôt.
+4. En production, remplacez cette clé par la vôtre (PR `sops updatekeys --add age:<votre_clef>`), puis relancez la commande (`make baremetal/list`, `make baremetal/gen`, wizard…).
+
+## `make baremetal/fulliso` échoue (ISO Ubuntu introuvable)
+
+**Symptôme**
+Le script ISO signale `ISO introuvable à l'emplacement : ...`.
+
+**Résolution GitOps**
+1. Versionnez ou placez l’ISO officielle dans `files/` (ou documentez son artefact interne) et synchronisez vos scripts de bootstrap si nécessaire.
+2. Laissez l’assistant `python3 baremetal/scripts/iso_wizard.py` détecter automatiquement l’ISO (ou définissez `UBUNTU_ISO=/chemin/ubuntu-24.04-live-server-amd64.iso` dans votre pipeline GitOps).
+3. Relancez `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>` ou sélectionnez l’option correspondante dans le wizard.
+
+## `make baremetal/gen` échoue avec `The filter plugin 'ansible.builtin.length' failed`
+
+**Symptôme**
+La génération Autoinstall s'interrompt avec le message :
+`The filter plugin 'ansible.builtin.length' failed: object of type 'NoneType' has no len()`.
+
+**Résolution GitOps**
+1. Assurez-vous que votre branche contient la correction qui initialise les variables `_hardware_profile_file` et `_explicit_host_vars_file` à des chaînes vides.
+2. Si vous avez un fork interne, récupérez la mise à jour (merge de la branche principale) afin de bénéficier de la résolution.
+3. Relancez `make baremetal/gen HOST=<nom>` pour vérifier que l'autoinstall se régénère correctement.
+
+## L’hôte n’apparaît pas dans `make baremetal/list`
+
+**Symptôme**
+La section « Hôtes déclarés » est vide ou manque votre machine.
+
+**Résolution GitOps**  
+1. Rejouez `make baremetal/host-init HOST=<nom> PROFILE=<profil>` pour réhydrater `host_vars/` et `hosts.yml`.  
+2. Commitez les ajustements (nouvelle entrée inventaire, profils) et ouvrez une PR.  
+3. Vérifiez à nouveau via `make baremetal/list`.
+
+## `git pull --ff-only` échoue dans l’assistant ISO
+
+**Symptôme**  
+L’assistant s’arrête sur un conflit ou une divergence de branche.
+
+**Résolution GitOps**  
+1. Faites un commit ou un stash de vos changements locaux.  
+2. Rejouez `git fetch --all --prune` puis `git pull --ff-only` dans votre branche GitOps.  
+3. Relancez l’assistant ISO pour poursuivre le flux.
+
+---
+
+Pour tout incident non listé, ouvrez un ticket d’amélioration en décrivant le symptôme, la commande exécutée et le correctif Git envisagé.

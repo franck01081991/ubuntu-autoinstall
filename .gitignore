@@ -1,0 +1,10 @@
+# build artifacts
+baremetal/autoinstall/generated/
+.cache/
+*.iso
+# editor / OS
+.DS_Store
+*.swp
+# encryption keys
+*.agekey
+sops-age-key.txt
