@@ -64,7 +64,7 @@ age/show-recipient:
 
 lint:
 	yamllint ansible baremetal
-ansible-lint   ansible/playbooks/common/generate_autoinstall.yml   baremetal/ansible/playbooks/generate_autoinstall.yml
+	ansible-lint ansible/playbooks/common/generate_autoinstall.yml baremetal/ansible/playbooks/generate_autoinstall.yml
 	find scripts baremetal/scripts -type f -name '*.sh' -print0 | xargs -0 -r shellcheck
 	find README*.md docs -type f -name '*.md' -print0 | xargs -0 -r markdownlint
 
