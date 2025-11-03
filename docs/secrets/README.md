@@ -3,7 +3,10 @@
 Ce répertoire rassemble les secrets chiffrés du dépôt. Toute donnée sensible
 doit être stockée sous forme chiffrée avec [SOPS](https://github.com/getsops/sops)
 et la couche de chiffrement [age](https://age-encryption.org/). Cette page
-reprend les fondamentaux pour les débutant·e·s.
+reprend les fondamentaux pour les débutant·e·s. Les variables spécifiques à un
+hôte ne sont **plus** versionnées : elles résident dans l'overlay local
+`baremetal/inventory-local/` (gitignoré) afin de respecter la politique de
+non-diffusion des secrets sur GitHub.
 
 ## 1. Comprendre les rôles de SOPS et age
 
@@ -36,35 +39,39 @@ autorisées peuvent les ouvrir localement ou dans la CI/CD.
 > (ou tout autre fichier) : si la commande affiche du YAML lisible, votre clé est
 > correctement chargée.
 
-## 3. Où placer les secrets ?
+## 3. Où placer les secrets (hors Git) ?
 
-- `baremetal/inventory/host_vars/<hote>/secrets.sops.yaml` : secrets spécifiques
-  à une machine (hash de mot de passe administrateur, clés SSH, jetons API).
+- `baremetal/inventory-local/host_vars/<hote>/secrets.sops.yaml` : secrets
+  spécifiques à une machine (hash de mot de passe administrateur, clés SSH,
+  jetons API). Le fichier reste local et doit être synchronisé via un support
+  chiffré (Vault, disque LUKS, coffre 1Password…).
 - `baremetal/inventory/group_vars/all/disk_encryption.sops.yaml` : passphrase
-  LUKS partagée entre plusieurs hôtes.
+  LUKS partagée entre plusieurs hôtes (optionnel, à versionner uniquement si le
+  contenu est générique et anonymisé).
 - `docs/secrets/baremetal-luks.sops.yaml` : exemple de secret global utilisé par
-  les profils Autoinstall sécurisés.
+  les profils Autoinstall sécurisés. Il sert de modèle et peut être rechiffré
+  avec vos propres clés.
 
-Tous ces fichiers sont chiffrés et versionnés. La CI/CD reçoit la clé privée via
-un secret chiffré (`SOPS_AGE_KEY`) et peut donc les déchiffrer pour rejouer les
-playbooks.
+> ℹ️ **Overlay local** : aucun fichier situé sous `baremetal/inventory-local/`
+> n'est versionné. Les pipelines CI/CD et GitOps doivent reconstituer cet
+> overlay à partir d'un coffre de secrets avant d'exécuter les tests ou de
+> générer des ISO. Utilisez le modèle `baremetal/inventory/examples/secrets.template.yaml`
+> comme base à chiffrer.
 
 ## 4. Créer ou mettre à jour un fichier chiffré
 
 1. **Ouvrir le fichier avec SOPS** (le fichier est créé s'il n'existe pas) :
    ```bash
-   sops baremetal/inventory/host_vars/<hote>/secrets.sops.yaml
+   sops baremetal/inventory-local/host_vars/<hote>/secrets.sops.yaml
    ```
 2. **Saisir les valeurs en clair** dans votre éditeur, puis sauvegarder. À la
    fermeture, SOPS chiffre le fichier et laisse seulement les métadonnées
    visibles (`sops: ...`).
 3. **Vérifier le rendu chiffré** :
+   Comme le fichier est gitignoré, `git diff` ne remontera aucune modification.
+   Utilisez plutôt :
    ```bash
-   git diff baremetal/inventory/host_vars/<hote>/secrets.sops.yaml
-   ```
-   ou affichez le contenu en clair sans l'éditer :
-   ```bash
-   sops -d baremetal/inventory/host_vars/<hote>/secrets.sops.yaml
+   sops -d baremetal/inventory-local/host_vars/<hote>/secrets.sops.yaml
    ```
 
 ## 5. Exemple minimal (passphrase LUKS)

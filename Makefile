@@ -2,12 +2,16 @@ ANSIBLE ?= ansible-playbook
 HOST ?= site-a-m710q1
 PROFILE ?=
 UBUNTU_ISO ?= ubuntu-24.04-live-server-amd64.iso
+HOSTS ?=
+NAME ?= multi
+DEFAULT_HOST ?=
+GRUB_TIMEOUT ?= 10
 
 BAREMETAL_DIR ?= baremetal
 TARGET := $(if $(PROFILE),$(PROFILE),$(HOST))
 FORMAT ?= table
 
-.PHONY: baremetal/gen baremetal/seed baremetal/fulliso baremetal/clean baremetal/list baremetal/list-hosts baremetal/list-profiles baremetal/discover baremetal/host-init baremetal/validate lint doctor secrets-scan age/keygen age/show-recipient
+.PHONY: baremetal/gen baremetal/seed baremetal/fulliso baremetal/multiiso baremetal/clean baremetal/list baremetal/list-hosts baremetal/list-profiles baremetal/discover baremetal/host-init baremetal/validate lint doctor secrets-scan age/keygen age/show-recipient
 
 REQUIRED_CMDS := python3 ansible-playbook xorriso mkpasswd sops age
 OPTIONAL_CMDS := yamllint ansible-lint shellcheck markdownlint gitleaks cloud-init
@@ -22,6 +26,17 @@ baremetal/seed: baremetal/gen
 
 baremetal/fulliso: baremetal/gen
 	bash $(BAREMETAL_DIR)/scripts/make_full_iso.sh $(TARGET) $(UBUNTU_ISO)
+
+HOSTS_LIST := $(strip $(HOSTS))
+
+baremetal/multiiso:
+	@test -n "$(HOSTS_LIST)" || { echo "HOSTS=... required" >&2; exit 2; }
+	python3 $(BAREMETAL_DIR)/scripts/make_multi_iso.py \
+	  --ubuntu-iso "$(UBUNTU_ISO)" \
+	  --name "$(NAME)" \
+	  --timeout "$(GRUB_TIMEOUT)" \
+	  $(if $(strip $(DEFAULT_HOST)),--default-host "$(DEFAULT_HOST)",) \
+	  $(foreach host,$(HOSTS_LIST),--host $(host))
 
 baremetal/validate:
 	bash $(BAREMETAL_DIR)/scripts/validate_cloud_init.sh $(TARGET)

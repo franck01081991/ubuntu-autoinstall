@@ -43,7 +43,7 @@ Ajoutez votre clé publique dans la section `creation_rules`. Exemple :
 
 ```yaml
 creation_rules:
-  - path_regex: baremetal/inventory/host_vars/.*/secrets\.sops\.ya?ml
+  - path_regex: baremetal/inventory-local/host_vars/.*/secrets\.sops\.ya?ml
     age: ["age1teamkey...", "age1technicien..."]
 ```
 
@@ -58,7 +58,7 @@ make baremetal/host-init HOST=srv01 PROFILE=default
 
 # Ouvre le fichier chiffré avec votre éditeur $EDITOR
 SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt \
-  sops baremetal/inventory/host_vars/srv01/secrets.sops.yaml
+  sops baremetal/inventory-local/host_vars/srv01/secrets.sops.yaml
 ```
 
 - `sops` déchiffre en mémoire, lance l'éditeur, puis rechiffre automatiquement.

@@ -84,15 +84,15 @@ pour résoudre les anomalies courantes.
    make baremetal/host-init HOST=site-a-m710q1 PROFILE=lenovo-m710q
    ```
    Effets :
-   - création de `baremetal/inventory/host_vars/site-a-m710q1/` ;
+   - création de `baremetal/inventory-local/host_vars/site-a-m710q1/` ;
    - génération d'un `main.yml` minimal (`hostname`, `hardware_profile`, `netmode`) ;
-   - copie d'un `secrets.sops.yaml` d'exemple ;
-   - ajout automatique de l'hôte dans `baremetal/inventory/hosts.yml`.
+   - dépôt d'un modèle `secrets.template.yaml` à chiffrer via SOPS ;
+   - ajout automatique de l'hôte dans `baremetal/inventory-local/hosts.yml`.
    - rappel en sortie des fichiers créés pour faciliter la navigation.
 
 2. **Compléter les variables claires** :
    ```bash
-   $EDITOR baremetal/inventory/host_vars/site-a-m710q1/main.yml
+   $EDITOR baremetal/inventory-local/host_vars/site-a-m710q1/main.yml
    ```
    Renseignez le profil matériel, les interfaces réseau, les disques et toute
    variable requise par vos templates.
@@ -108,7 +108,7 @@ pour résoudre les anomalies courantes.
       votre propre clé et faites-la relire via PR dans `.sops.yaml`.
    2. **Ouvrir le fichier chiffré avec SOPS** :
       ```bash
-      sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
+      sops baremetal/inventory-local/host_vars/site-a-m710q1/secrets.sops.yaml
       ```
       La première sauvegarde crée automatiquement la structure chiffrée. SOPS
       ouvre votre éditeur texte (défini par `$EDITOR`). Tapez les valeurs en
@@ -118,7 +118,7 @@ pour résoudre les anomalies courantes.
    `ssh_authorized_keys`, passphrases LUKS). Les passphrases globales se placent
    dans `baremetal/inventory/group_vars/all/disk_encryption.sops.yaml`.
 
-   > ✅ Vérification rapide : `sops -d baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml`
+   > ✅ Vérification rapide : `sops -d baremetal/inventory-local/host_vars/site-a-m710q1/secrets.sops.yaml`
    > affiche le contenu en clair dans le terminal (sans rien modifier). Si la
    > commande échoue, votre clé `age` n'est pas trouvée : relancez l'étape 1 ou
    > vérifiez la variable `SOPS_AGE_KEY_FILE`.
@@ -215,8 +215,16 @@ pour résoudre les anomalies courantes.
    git diff
    make lint
    make secrets-scan
-   git add baremetal/inventory/host_vars/site-a-m710q1
-   git commit -m "feat: add site-a-m710q1 host"
+   ```
+   Le dossier `baremetal/inventory-local/` est gitignoré : il ne doit pas être
+   ajouté au dépôt. Conservez-le dans un coffre sécurisé et, si vous devez
+   partager une configuration, extrayez uniquement les éléments anonymisés vers
+   `baremetal/inventory/` (profils matériels, exemples, documentation).
+   Ajoutez ensuite les fichiers versionnés réellement modifiés, par exemple :
+   ```bash
+   git add baremetal/inventory/profiles/hardware/
+   git add docs/
+   git commit -m "feat: document lenovo-m710q profile"
    ```
 3. **Pousser et ouvrir la PR** :
    ```bash

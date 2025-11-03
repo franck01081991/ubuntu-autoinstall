@@ -10,10 +10,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable, Sequence
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-INVENTORY_ROOT = REPO_ROOT / "baremetal" / "inventory"
-HOST_VARS_ROOT = INVENTORY_ROOT / "host_vars"
-HARDWARE_ROOT = INVENTORY_ROOT / "profiles" / "hardware"
+from lib import inventory
 
 
 @dataclass(frozen=True)
@@ -66,36 +63,40 @@ def parse_simple_keys(path: Path, keys: Iterable[str]) -> dict[str, str]:
 def collect_host_summaries() -> list[HostSummary]:
     """Return sorted host summaries discovered under host_vars/."""
 
-    if not HOST_VARS_ROOT.exists():
-        return []
-    summaries: list[HostSummary] = []
-    for entry in sorted(HOST_VARS_ROOT.iterdir(), key=lambda candidate: candidate.name):
-        if not entry.is_dir() or entry.name.startswith("."):
+    summaries: dict[str, HostSummary] = {}
+    for root in inventory.iter_inventory_roots():
+        host_root = root / "host_vars"
+        if not host_root.exists():
             continue
-        main_file = entry / "main.yml"
-        if not main_file.is_file():
-            continue
-        data = parse_simple_keys(main_file, ("hostname", "hardware_profile", "netmode"))
-        summaries.append(
-            HostSummary(
-                directory=entry.name,
-                hostname=data.get("hostname"),
-                hardware_profile=data.get("hardware_profile"),
-                netmode=data.get("netmode"),
+        for entry in sorted(host_root.iterdir(), key=lambda candidate: candidate.name):
+            if not entry.is_dir() or entry.name.startswith("."):
+                continue
+            main_file = entry / "main.yml"
+            if not main_file.is_file():
+                continue
+            data = parse_simple_keys(main_file, ("hostname", "hardware_profile", "netmode"))
+            summaries.setdefault(
+                entry.name,
+                HostSummary(
+                    directory=entry.name,
+                    hostname=data.get("hostname"),
+                    hardware_profile=data.get("hardware_profile"),
+                    netmode=data.get("netmode"),
+                ),
             )
-        )
-    return summaries
+    return [summaries[name] for name in sorted(summaries)]
 
 
 def collect_hardware_summaries() -> list[HardwareSummary]:
     """Return sorted hardware summaries discovered under profiles/hardware/."""
 
-    if not HARDWARE_ROOT.exists():
-        return []
     files: dict[str, Path] = {}
-    for candidate in HARDWARE_ROOT.iterdir():
-        if candidate.is_file() and candidate.suffix in {".yml", ".yaml"}:
-            files.setdefault(candidate.stem, candidate)
+    for root in inventory.hardware_profiles_roots():
+        if not root.exists():
+            continue
+        for candidate in root.iterdir():
+            if candidate.is_file() and candidate.suffix in {".yml", ".yaml"}:
+                files.setdefault(candidate.stem, candidate)
     summaries: list[HardwareSummary] = []
     for name in sorted(files):
         data = parse_simple_keys(

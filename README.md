@@ -23,7 +23,8 @@ artefacts. Aucune action manuelle n'est tolérée en production.
   - un ISO *seed* (NoCloud/CIDATA) à monter en plus de l'ISO officielle ;
   - un ISO complet qui embarque l'installateur Ubuntu Live Server + vos fichiers Autoinstall.
 - **Comment c'est géré** :
-  - modèles Jinja2, inventaire YAML et secrets SOPS versionnés dans `baremetal/` ;
+  - modèles Jinja2 et inventaire de référence versionnés dans `baremetal/` ;
+  - overlay local `baremetal/inventory-local/` (gitignoré) pour les variables d'hôte et secrets chiffrés ;
   - validations locales orchestrées par `make lint`, `make baremetal/gen` et `make secrets-scan` ;
   - livraison via pipelines GitOps (Flux ou Argo CD) qui tirent les artefacts depuis Git.
 - **Ce que l'on garantit** :
@@ -57,6 +58,11 @@ autonome. Elle complète le [guide débutant détaillé](docs/getting-started-be
 > 💡 **Astuce** : les scripts `./scripts/install-sops.sh` et
 > `./scripts/install-age.sh` (Linux amd64) sont idempotents. Relancez-les pour
 > mettre à jour ou réparer une installation.
+>
+> 📁 **Inventaire local** : le dossier `baremetal/inventory-local/` est ignoré
+> par Git (`.gitignore`). Synchronisez-le via un stockage sécurisé (Vault,
+> chiffrement de disque, partage chiffré) et recréez-le dans la CI/CD avant les
+> tests.
 
 ### Parcours en 7 étapes
 
@@ -64,24 +70,26 @@ autonome. Elle complète le [guide débutant détaillé](docs/getting-started-be
 |---|--------|---------------------|-----------|
 | 1 | **Cloner le dépôt** | Répertoire de travail local | `git clone … && cd ubuntu-autoinstall` |
 | 2 | **Contrôler la station** | Dépendances validées | `make doctor` |
-| 3 | **Initialiser l'hôte** | Dossier `host_vars/<HOST>/` + entrée dans `hosts.yml` | `make baremetal/host-init HOST=<HOST> PROFILE=<PROFIL>` |
+| 3 | **Initialiser l'hôte** | Dossier local `inventory-local/host_vars/<HOST>/` + entrée dans `inventory-local/hosts.yml` | `make baremetal/host-init HOST=<HOST> PROFILE=<PROFIL>` |
 | 4 | **Découvrir le matériel** | Cache JSON non versionné `.cache/discovery/<HOST>.json` | `make baremetal/discover HOST=<HOST>` |
-| 5 | **Déclarer variables & secrets** | Fichiers clairs + secrets chiffrés | Éditer `main.yml`, `sops secrets.sops.yaml` (voir le [guide des variables](docs/autoinstall-variables.md)) |
+| 5 | **Déclarer variables & secrets** | Fichiers clairs + secrets chiffrés (hors Git) | Éditer `baremetal/inventory-local/host_vars/<HOST>/main.yml`, chiffrer `secrets.sops.yaml` (voir le [guide des variables](docs/autoinstall-variables.md)) |
 | 6 | **Générer Autoinstall** | `meta-data` + `user-data` prêts à relire | `make baremetal/gen HOST=<HOST>` |
-| 7 | **Construire l'ISO** | ISO seed (et ISO complète optionnelle) | `make baremetal/seed HOST=<HOST>`<br>`make baremetal/fulliso HOST=<HOST> UBUNTU_ISO=/chemin/iso` |
+| 7 | **Construire l'ISO** | ISO seed, ISO complète ou ISO multi-hôtes | `make baremetal/seed HOST=<HOST>`<br>`make baremetal/fulliso HOST=<HOST> UBUNTU_ISO=/chemin/iso`<br>`make baremetal/multiiso HOSTS="<H1> <H2>" UBUNTU_ISO=/chemin/iso NAME=site-a` |
 
 ### Détails complémentaires
 
 - `make baremetal/host-init` est idempotent : relancez-le si vous supprimez un
   dossier ou ajustez un profil matériel.
 - Pour chiffrer vos secrets, positionnez `SOPS_AGE_KEY_FILE` si besoin puis
-  lancez `sops baremetal/inventory/host_vars/<HOST>/secrets.sops.yaml`.
+  lancez `sops baremetal/inventory-local/host_vars/<HOST>/secrets.sops.yaml`.
   La procédure détaillée est décrite dans le
   [guide SOPS + age](docs/sops-age-guide.md).
 - Après `make baremetal/gen`, relisez `baremetal/autoinstall/generated/<HOST>/user-data`
   pour confirmer les sections sensibles (`users`, `late-commands`, etc.).
 - `make baremetal/fulliso` nécessite l'ISO officielle Ubuntu téléchargée
   manuellement ; la variable `UBUNTU_ISO` doit pointer vers ce fichier.
+- `make baremetal/multiiso` agrège plusieurs hôtes rendus dans un seul ISO avec menu GRUB ; passez `HOSTS="h1 h2"` et `NAME=<artefact>` pour personnaliser l'entrée par défaut.
+- Consultez [docs/multi-host-iso.md](docs/multi-host-iso.md) pour la procédure complète multi-hôtes.
 - L'ISO complète générée injecte automatiquement `autoinstall ds=nocloud;s=/cdrom/nocloud/`
   dans les chargeurs GRUB (UEFI) **et** ISOLINUX (BIOS) afin de démarrer l'installation
   sans intervention.
@@ -102,7 +110,7 @@ et enregistre un marqueur (`/var/lib/firstboot-ansible.done`) pour garantir
 l'idempotence.
 
 - Configurez le dépôt cible via `ansible_repo_url` dans
-  `baremetal/inventory/host_vars/<HÔTE>/main.yml`. Valeur par défaut :
+  `baremetal/inventory-local/host_vars/<HÔTE>/main.yml`. Valeur par défaut :
   `https://github.com/franck01081991/infra-ansible.git`.
 - Ajustez la portée d'inventaire avec `ansible_inventory_limit` (défaut :
   `hostname`). La commande exécutée est :
@@ -150,9 +158,9 @@ Référez-vous à SOPS pour chiffrer le secret.
 | Préparation | Vérifier l'environnement | `make doctor` | Installez les binaires manquants avant de poursuivre. |
 | Inventaire | Créer/mettre à jour `host_vars` | `make baremetal/host-init` | Idempotent : relancez après toute suppression ou ajout. |
 | Découverte | Capturer les faits matériels | `make baremetal/discover` | Cache JSON non versionné sous `.cache/discovery/`. |
-| Configuration | Définir variables & secrets | `$EDITOR main.yml`, `sops secrets.sops.yaml` | Secrets uniquement via `sops` + `age`. |
+| Configuration | Définir variables & secrets | `$EDITOR baremetal/inventory-local/host_vars/<nom>/main.yml`, `sops baremetal/inventory-local/host_vars/<nom>/secrets.sops.yaml` | Secrets uniquement via `sops` + `age`. |
 | Validation | Vérifier rendu & lint | `make baremetal/gen`, `make lint`, `make secrets-scan` | `make lint` exécute `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`. |
-| Construction | Produire ISO | `make baremetal/seed`, `make baremetal/fulliso` | Téléchargez l'ISO officielle avant la version complète. |
+| Construction | Produire ISO | `make baremetal/seed`, `make baremetal/fulliso`, `make baremetal/multiiso` | Téléchargez l'ISO officielle avant la version complète. |
 | Livraison | Soumettre via PR | `git status`, `git commit`, `git push` | Décrivez l'objectif, les tests, le plan de rollback. |
 
 ### Structure à connaître
@@ -161,7 +169,8 @@ Référez-vous à SOPS pour chiffrer le secret.
 baremetal/
 ├── ansible/            # Rôles et tâches partagés (templates, scripts)
 ├── autoinstall/        # Templates Jinja2 + rendus générés
-├── inventory/          # Profils matériels + variables d'hôtes chiffrées
+├── inventory/          # Profils matériels + exemples versionnés
+├── inventory-local/    # Variables d'hôtes + secrets chiffrés (gitignorés)
 └── scripts/            # Génération ISO et assistants
 ansible/                # Collections et dépendances Ansible mutualisées
 docs/                   # Guides utilisateurs, ADR, secrets chiffrés
@@ -176,16 +185,17 @@ Respectez ce découpage pour rester compatible avec l'usine GitOps.
 | Usage | Commande | Commentaire |
 |-------|----------|-------------|
 | Vérifier l'environnement | `make doctor` | Contrôle dépendances et rappelle les linters attendus. |
-| Initialiser un hôte | `make baremetal/host-init HOST=<nom> PROFILE=<profil>` | Crée `host_vars/` + met à jour `inventory/hosts.yml`. |
+| Initialiser un hôte | `make baremetal/host-init HOST=<nom> PROFILE=<profil>` | Crée `inventory-local/host_vars/` + met à jour `inventory-local/hosts.yml`. |
 
 > ℹ️ Depuis l'assistant ISO et la CLI, la variable d'environnement `PROFILE` peut
 > pointer soit vers un profil matériel (`inventory/profiles/hardware/`), soit
-> vers un hôte (`inventory/host_vars/<HOST>/`). Dans ce second cas, les tâches
+> vers un hôte (`inventory-local/host_vars/<HOST>/`). Dans ce second cas, les tâches
 > Ansible rechargeront les variables d'hôte avant de résoudre le profil
 > matériel référencé.
 | Regénérer Autoinstall | `make baremetal/gen HOST=<nom>` | Produit `user-data` / `meta-data` à versionner. |
 | Construire un ISO seed | `make baremetal/seed HOST=<nom>` | Génère `seed-<nom>.iso` idempotent. |
 | Construire un ISO complet | `make baremetal/fulliso HOST=<nom> UBUNTU_ISO=<chemin>` | Intègre l'installateur officiel Ubuntu (stockez l'ISO dans `files/`, `~/Downloads/` ou `~/Téléchargements/` pour la détection automatique). |
+| Construire un ISO multi-hôtes | `make baremetal/multiiso HOSTS="<h1> <h2>" UBUNTU_ISO=<chemin> NAME=<artefact>` | Ajoute un menu GRUB permettant de choisir l'hôte cible (prérequis : rendre chaque hôte). |
 | Découvrir le matériel | `make baremetal/discover HOST=<nom>` | Alimente `.cache/discovery/<nom>.json` via Ansible. |
 | Lancer les linters | `make lint` | `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`. |
 | Scanner les secrets | `make secrets-scan` | `gitleaks detect --config gitleaks.toml --exit-code 2`. |
@@ -193,6 +203,17 @@ Respectez ce découpage pour rester compatible avec l'usine GitOps.
 | Afficher la clé publique age | `make age/show-recipient OUTPUT=~/.config/sops/age/keys.txt` | Récupère le recipient (`age1...`) à publier dans `.sops.yaml`. |
 | Inspecter l'inventaire | `make baremetal/list` | Résumé hôtes + profils matériels (`FORMAT=json` pour une sortie machine). |
 | Nettoyer les artefacts | `make baremetal/clean` | Supprime les rendus locaux. |
+
+### CLI GitOps (iso_manager.py)
+
+L'application en ligne de commande permet de rejouer les étapes clés sans scripts supplémentaires :
+```bash
+python3 scripts/iso_manager.py list-hosts
+python3 scripts/iso_manager.py render --host srv01 --host srv02
+python3 scripts/iso_manager.py multi --host srv01 --host srv02 --ubuntu-iso files/ubuntu-24.04-live-server-amd64.iso --name prod-2025-03 --render
+```
+
+Chaque sous-commande s'appuie sur les cibles `make` idempotentes du dépôt et échoue immédiatement si un hôte n'a pas encore été initialisé dans `baremetal/inventory-local/`.
 
 ### Assistant interactif
 
@@ -231,9 +252,7 @@ profils à partir du cache JSON généré.
   - `make lint` : `yamllint`, `ansible-lint`, `shellcheck`, `markdownlint`.
   - `make secrets-scan` : `gitleaks detect --config gitleaks.toml --exit-code 2`.
 - `make baremetal/gen HOST=<nom>` : regénère les fichiers Autoinstall impactés.
-- La CI GitHub Actions rejoue automatiquement `yamllint` et `ansible-lint` via
-  `.github/workflows/lint.yml` pour garantir qu'aucune régression
-  YAML/Ansible n'est mergée.
+- Les validations sont rejouées sur les runners GitOps internes ; aucun workflow GitHub Actions n'est conservé dans ce dépôt (voir l'ADR 0013).
 - **Gestion des secrets**
   - Secrets chiffrés avec `sops` + `age` (clé privée stockée côté plateforme CI).
   - `scripts/ci/check-no-plaintext-secrets.py` vérifie qu'aucune donnée sensible

@@ -1,5 +1,6 @@
 # Build artifacts
 baremetal/autoinstall/generated/
+baremetal/inventory-local/
 .cache/
 *.iso
 *.img

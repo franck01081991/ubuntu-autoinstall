@@ -7,9 +7,23 @@ if [[ -z "$HOST" ]]; then
   exit 2
 fi
 
-FILE="baremetal/inventory/host_vars/${HOST}/secrets.sops.yaml"
-if [[ ! -f "$FILE" ]]; then
-  echo "[-] ${FILE} missing"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
+OVERLAY_ROOT="${AUTOINSTALL_LOCAL_DIR:-${REPO_ROOT}/baremetal/inventory-local}"
+
+PRIMARY_FILE="${OVERLAY_ROOT}/host_vars/${HOST}/secrets.sops.yaml"
+FALLBACK_FILE="${REPO_ROOT}/baremetal/inventory/host_vars/${HOST}/secrets.sops.yaml"
+
+if [[ -f "$PRIMARY_FILE" ]]; then
+  FILE="$PRIMARY_FILE"
+elif [[ -f "$FALLBACK_FILE" ]]; then
+  FILE="$FALLBACK_FILE"
+else
+  TEMPLATE_FILE="${PRIMARY_FILE%.sops.yaml}.template.yaml"
+  if [[ -f "$TEMPLATE_FILE" ]]; then
+    echo "[-] ${PRIMARY_FILE} manquant. Chiffrez ${TEMPLATE_FILE} puis renommez-le en secrets.sops.yaml" >&2
+  else
+    echo "[-] Aucun secret trouvé pour l'hôte '$HOST'. Créez ${PRIMARY_FILE}." >&2
+  fi
   exit 1
 fi
 

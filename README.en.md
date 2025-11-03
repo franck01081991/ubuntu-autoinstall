@@ -70,12 +70,12 @@ the GitOps pipeline.
 - **Hardware profiles** (`baremetal/inventory/profiles/hardware/`): minimal
   defaults per model (disk layout, NIC, tuned packages). Use them as a starting
   point.
-- **Host variables** (`baremetal/inventory/host_vars/<host>/`): each host owns a
+- **Host variables** (`baremetal/inventory-local/host_vars/<host>/`): each host owns a
   directory with `main.yml` (non-sensitive values) and `secrets.sops.yaml`
-  (password hashes, SSH keys, tokens encrypted with SOPS).
-- **Host inventory** (`baremetal/inventory/hosts.yml`): empty by design so the
+  encrypted with SOPS. The folder lives outside Git history.
+- **Host inventory** (`baremetal/inventory-local/hosts.yml`): generated locally so the
   repository stays environment-agnostic. Declare only the machines you want to
-  render locally or through the GitOps CI.
+  render locally or through the GitOps automation.
 - **Templates** (`baremetal/autoinstall/templates/`): shared `user-data` and
   `meta-data` definitions. Only adjust them when the product evolves.
 
@@ -106,10 +106,10 @@ the GitOps pipeline.
    ```bash
    ./scripts/bootstrap-demo-age-key.sh   # installs the onboarding age key (${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt})
    export SOPS_AGE_KEY_FILE="${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}"
-   cp -R baremetal/inventory/host_vars/example \
-     baremetal/inventory/host_vars/site-a-m710q1
-   $EDITOR baremetal/inventory/host_vars/site-a-m710q1/main.yml
-   sops baremetal/inventory/host_vars/site-a-m710q1/secrets.sops.yaml
+   cp -R baremetal/inventory-local/host_vars/example \
+     baremetal/inventory-local/host_vars/site-a-m710q1
+   $EDITOR baremetal/inventory-local/host_vars/site-a-m710q1/main.yml
+   sops baremetal/inventory-local/host_vars/site-a-m710q1/secrets.sops.yaml
    ```
 
    The bootstrap script provisions a demo `age` identity suitable for
@@ -121,7 +121,7 @@ the GitOps pipeline.
    `ssh_authorized_keys`, tokens). Enable LUKS by adding
    `disk_encryption.enabled: true` and referencing the SOPS-managed passphrase
    as documented in the [disk encryption guide](docs/baremetal-disk-encryption.md).
-   Finally, declare the host in `baremetal/inventory/hosts.yml`. The file starts
+   Finally, declare the host in `baremetal/inventory-local/hosts.yml`. The file starts
    empty so each contributor tracks only their local targets:
 
    ```yaml
@@ -131,6 +131,10 @@ the GitOps pipeline.
          hosts:
            site-a-m710q1: {}
    ```
+
+   > 📁 `baremetal/inventory-local/` is gitignored on purpose. Keep it in an
+   > encrypted storage (Vault, LUKS volume, password manager) and rebuild the
+   > overlay in CI/CD before running any tests.
 
 3. **Discover hardware facts automatically**
 
@@ -160,42 +164,50 @@ the GitOps pipeline.
    ```bash
    make baremetal/fulliso HOST=site-a-m710q1 \
      UBUNTU_ISO=/path/ubuntu-24.04-live-server-amd64.iso
+   make baremetal/multiiso HOSTS="site-a-m710q1 site-a-m710q2" \
+     UBUNTU_ISO=/path/ubuntu-24.04-live-server-amd64.iso NAME=prod-rollout
    ```
 
 Generated ISOs live under `baremetal/autoinstall/generated/<target>/`.
+
+### GitOps-friendly CLI
+
+Use the helper application to orchestrate renders and ISO builds end-to-end:
+```bash
+python3 scripts/iso_manager.py list-hosts
+python3 scripts/iso_manager.py render --host srv01 --host srv02
+python3 scripts/iso_manager.py multi --host srv01 --host srv02 --ubuntu-iso files/ubuntu-24.04-live-server-amd64.iso --name prod-2025-03 --render
+```
+Each subcommand wraps the idempotent `make` targets and fails fast when a host is missing from `baremetal/inventory-local/`.
 
 ## Key Make targets
 
 - `make doctor`: dependency checks.
 - `make baremetal/gen HOST=<name>` or `PROFILE=<profile>`: render Autoinstall
   files. The `PROFILE` environment variable can target a hardware profile under
-  `inventory/profiles/hardware/` or an existing host in `inventory/host_vars/`;
+  `inventory/profiles/hardware/` or an existing host in `inventory-local/host_vars/`;
   in the latter case host variables are reloaded before resolving the referenced
   hardware profile.
 - `make baremetal/seed HOST=<name>`: create a seed ISO.
 - `make baremetal/fulliso HOST=<name> UBUNTU_ISO=<path>`: produce a standalone
   installer ISO.
+- `make baremetal/multiiso HOSTS="<h1> <h2>" UBUNTU_ISO=<path> NAME=<artifact>`: combine multiple rendered hosts into a GRUB menu.
+  (French walkthrough: [docs/multi-host-iso.md](docs/multi-host-iso.md)).
 - `make baremetal/discover HOST=<name>`: collect hardware facts into
   `.cache/discovery/<name>.json`.
 - `make baremetal/clean`: remove generated artefacts.
 - `make lint`: run the CI linter suite locally.
 - `make baremetal/list`: inspect the Git-tracked hosts and hardware profiles at a glance.
-- `make baremetal/list-hosts`: display only `baremetal/inventory/host_vars/` entries.
+- `make baremetal/list-hosts`: display only `baremetal/inventory-local/host_vars/` entries.
 - `make baremetal/list-profiles`: display only `baremetal/inventory/profiles/hardware/` entries.
 
 Run `make baremetal/list` before launching the ISO wizard to double-check the inventory and combine it with the troubleshooting guide (`docs/troubleshooting.md`, FR) for the most common failure modes.
 
 ## Validation and CI/CD
 
-- `.github/workflows/build-iso.yml`: renders Autoinstall artefacts for each
-  hardware profile and host, and verifies the presence of both `user-data` and
-  `meta-data`. No ISO or artefact is published anymore, which keeps runtimes
-  short and avoids storage pressure.
-- `.github/workflows/repository-integrity.yml`: runs `yamllint`, `ansible-lint`,
-  `shellcheck`, `markdownlint`, `trivy fs` (config + secrets), and validates
-  inventory consistency for the automated discovery workflow.
-- pip/npm/collection caches derive their keys from file hashes to remain
-  idempotent.
+- Run `make lint`, `make secrets-scan`, and `make baremetal/gen` locally before opening a pull request.
+- GitOps controllers (Flux/Argo CD) pull artefacts directly from the repository; GitHub Actions pipelines have been decommissioned.
+- Keep your local environment aligned with `make doctor` to guarantee reproducible builds on the internal runners.
 
 ## Security and compliance
 

@@ -1,6 +1,11 @@
 ---
 # SOPS configuration to ensure secrets remain encrypted at rest.
 creation_rules:
+  - path_regex: ^baremetal/inventory-local/host_vars/.+/secrets\.sops\.ya?ml$
+    encrypted_regex: '^(password_hash|ssh_authorized_keys|.*_secret|.*_passphrase)$'
+    key_groups:
+      - age:
+          - age12j8qqj94jtn7xhg0qc2zwftsfpn7xre4ztfuyk607ha9zqwy4qusyysk09
   - path_regex: ^baremetal/inventory/host_vars/.+/secrets\.sops\.ya?ml$
     encrypted_regex: '^(password_hash|ssh_authorized_keys|.*_secret|.*_passphrase)$'
     key_groups:
