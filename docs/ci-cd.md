@@ -2,7 +2,7 @@
 
 Le workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) automatise les contrôles suivants :
 
-1. Installation des dépendances (make, ansible, sops, age, yamllint, gitleaks).
+1. Installation des dépendances (make, ansible, sops, age, yamllint, gitleaks) avec vérification SHA256 du binaire gitleaks et extraction dans un répertoire temporaire pour ne pas polluer l'arborescence du dépôt.
 2. Création d'un hôte de démonstration (`make new-host HOST=ci-demo DISK=/dev/sda`).
 3. Chiffrement de `encrypt_disk_passphrase` via SOPS (clef age éphémère stockée uniquement pendant le job).
 4. Génération de l'autoinstall (`make gen HOST=ci-demo`).
