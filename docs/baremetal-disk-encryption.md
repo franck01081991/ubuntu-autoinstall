@@ -47,7 +47,7 @@ Sauvegardez : `sops` chiffre automatiquement le fichier pour tous les
 
 ## 2. Activer le chiffrement pour un hôte
 
-Dans `baremetal/inventory/host_vars/<hote>/main.yml`, ajoutez :
+Dans `baremetal/inventory-local/host_vars/<hote>/main.yml`, ajoutez :
 
 ```yaml
 disk_encryption:

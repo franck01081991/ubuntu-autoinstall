@@ -11,7 +11,7 @@ Git afin de respecter les principes GitOps.
 | Action | Commande | Détails |
 |--------|----------|---------|
 | Vérifier la station de travail | `make doctor` | Contrôle dépendances (python3, ansible-core, xorriso, mkpasswd, sops, age, cloud-init). |
-| Synchroniser un hôte | `make baremetal/host-init HOST=<nom> PROFILE=<profil>` | Crée ou met à jour `host_vars/` + `inventory/hosts.yml`. Relancez après toute modification. |
+| Synchroniser un hôte | `make baremetal/host-init HOST=<nom> PROFILE=<profil>` | Crée ou met à jour `baremetal/inventory-local/host_vars/` + `baremetal/inventory-local/hosts.yml` (gitignorés). Relancez après toute modification. |
 | Capturer les faits matériels | `make baremetal/discover HOST=<nom>` | Écrit `.cache/discovery/<nom>.json` (non versionné) via le playbook `discover_hardware.yml`. |
 | Regénérer Autoinstall | `make baremetal/gen HOST=<nom>` | Produit `user-data` / `meta-data` à relire et versionner. |
 | Construire l'ISO seed | `make baremetal/seed HOST=<nom>` | Génère `seed-<nom>.iso`. Résultat identique à chaque exécution. |

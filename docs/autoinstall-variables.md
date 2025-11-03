@@ -1,20 +1,22 @@
 # Variables d'inventaire Autoinstall
 
 Ce guide récapitule les variables à renseigner avant de générer un ISO (seed ou complet).
-Les valeurs sont réparties entre les fichiers `host_vars/<HÔTE>/main.yml`,
-`host_vars/<HÔTE>/secrets.sops.yaml` et les profils matériels
-`profiles/hardware/<PROFIL>.yml`.
+Les valeurs sont réparties entre les fichiers `baremetal/inventory-local/host_vars/<HÔTE>/main.yml`,
+`baremetal/inventory-local/host_vars/<HÔTE>/secrets.sops.yaml` (overlay local gitignoré)
+et les profils matériels `baremetal/inventory/profiles/hardware/<PROFIL>.yml`.
+L'overlay doit être stocké sur un support chiffré (Vault, disque protégé) et
+reconstitué dans la CI/CD avant exécution des tests.
 
 ## Rappel sur la hiérarchie
 
-1. `profiles/hardware/<PROFIL>.yml` définit les valeurs par défaut communes à un même matériel
+1. `baremetal/inventory/profiles/hardware/<PROFIL>.yml` définit les valeurs par défaut communes à un même matériel
    (modèle, disque, interface réseau, optimisations, etc.).
-2. `host_vars/<HÔTE>/main.yml` sélectionne le profil matériel et peut surcharger des valeurs
+2. `baremetal/inventory-local/host_vars/<HÔTE>/main.yml` sélectionne le profil matériel et peut surcharger des valeurs
    spécifiques à l'hôte (nom DNS, réseau, stockage, options). Les surcharges priment sur le profil.
-3. `host_vars/<HÔTE>/secrets.sops.yaml` contient **uniquement** les secrets (hash de mot de passe,
+3. `baremetal/inventory-local/host_vars/<HÔTE>/secrets.sops.yaml` contient **uniquement** les secrets (hash de mot de passe,
    clés SSH, passphrases). Ce fichier est toujours chiffré avec SOPS + age.
 
-## `host_vars/<HÔTE>/main.yml`
+## `baremetal/inventory-local/host_vars/<HÔTE>/main.yml`
 
 | Clé | Obligatoire | Description |
 |-----|-------------|-------------|
@@ -71,9 +73,9 @@ Ces valeurs alimentent directement la section `network:` du `user-data`.
 | `storage_swap_size` / `storage_config_override` | Non | Ajustements de partitionnement (ex : profils chiffrés). |
 
 Les profils servent de base à tous les hôtes identiques. Toute clé peut être surchargée dans
-`host_vars/<HÔTE>/main.yml` si un cas particulier l'exige.
+`baremetal/inventory-local/host_vars/<HÔTE>/main.yml` si un cas particulier l'exige.
 
-## `host_vars/<HÔTE>/secrets.sops.yaml`
+## `baremetal/inventory-local/host_vars/<HÔTE>/secrets.sops.yaml`
 
 | Clé | Obligatoire | Description |
 |-----|-------------|-------------|
@@ -82,8 +84,9 @@ Les profils servent de base à tous les hôtes identiques. Toute clé peut être
 | `disk_encryption.passphrase` | Oui si `disk_encryption.enabled: true` | Passphrase LUKS utilisée pendant l'installation. |
 | Toute autre donnée sensible | Non | Exemple : tokens, certificats, secrets applicatifs nécessaires aux `late-commands`.
 
-> ℹ️ **Rappel** : ne conservez aucune donnée en clair. Utilisez `sops baremetal/inventory/host_vars/<HÔTE>/secrets.sops.yaml`
-pour éditer ces valeurs.
+> ℹ️ **Rappel** : ne conservez aucune donnée en clair. Utilisez `sops baremetal/inventory-local/host_vars/<HÔTE>/secrets.sops.yaml`
+pour éditer ces valeurs. Comme ces fichiers sont gitignorés, sauvegardez-les dans un coffre sécurisé et restituez-les via la CI/CD
+pour les tests.
 
 ## Checklist avant de générer l'ISO
 
@@ -93,4 +96,5 @@ pour éditer ces valeurs.
 4. En cas de réseau statique, les variables `ip`, `cidr`, `gw`, `dns` sont définies.
 5. Lancez `make baremetal/gen HOST=<HÔTE>` pour vérifier le rendu, puis `make baremetal/seed HOST=<HÔTE>`.
 
-Ainsi, toutes les informations nécessaires à la génération de l'ISO sont centralisées et traçables dans Git.
+Ainsi, toutes les informations nécessaires à la génération de l'ISO sont centralisées dans votre overlay local et restent hors Git.
+Versionnez uniquement les profils matériels et les exemples anonymisés nécessaires au partage de connaissances.

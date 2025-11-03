@@ -1,18 +1,25 @@
 #!/usr/bin/env python3
-import argparse, os, sys, yaml
+from __future__ import annotations
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+import argparse
+import os
+import sys
+from pathlib import Path
 
-def load_yaml(path):
-    if not os.path.exists(path):
+import yaml
+
+from lib import inventory
+
+ROOT = Path(__file__).resolve().parents[1]
+
+def load_yaml(path: Path) -> dict:
+    if not path.exists():
         return {}
-    with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
+    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
-def dump_yaml(path, data):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(data, f, sort_keys=False)
+def dump_yaml(path: Path, data: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
 
 def main():
     ap = argparse.ArgumentParser(description="Create baremetal host skeleton")
@@ -21,11 +28,12 @@ def main():
     ap.add_argument("--ssh-key", default=None, help="ssh-ed25519 ...")
     args = ap.parse_args()
 
-    hv_dir = os.path.join(ROOT, "baremetal", "inventory", "host_vars", args.host)
-    os.makedirs(hv_dir, exist_ok=True)
+    overlay_root = inventory.get_overlay_root()
+    hv_dir = overlay_root / "host_vars" / args.host
+    hv_dir.mkdir(parents=True, exist_ok=True)
 
     # main.yml
-    main_yml_path = os.path.join(hv_dir, "main.yml")
+    main_yml_path = hv_dir / "main.yml"
     main_yml = load_yaml(main_yml_path)
     main_yml.setdefault("hostname", args.host)
     main_yml.setdefault("encrypt_disk", True)
@@ -35,21 +43,28 @@ def main():
         main_yml["ssh_authorized_keys"] = [args.ssh_key]
     dump_yaml(main_yml_path, main_yml)
 
-    # secrets.sops.yaml (plaintext placeholder; you will encrypt with sops)
-    secrets_path = os.path.join(hv_dir, "secrets.sops.yaml")
-    if not os.path.exists(secrets_path):
-        dump_yaml(secrets_path, {"encrypt_disk_passphrase": ""})
+    # secrets.sops.yaml placeholder (operator must encrypt with SOPS)
+    secrets_path = hv_dir / "secrets.sops.yaml"
+    if not secrets_path.exists():
+        dump_yaml(
+            secrets_path,
+            {
+                "encrypt_disk_passphrase": "",
+                "_comment": "Encrypt this file with `sops --in-place` before committing artefacts.",
+            },
+        )
 
     # hosts.yml
-    hosts_path = os.path.join(ROOT, "baremetal", "inventory", "hosts.yml")
+    hosts_path = inventory.get_overlay_root() / "hosts.yml"
     hosts = load_yaml(hosts_path) or {}
     hosts.setdefault("all", {}).setdefault("hosts", {})
     if args.host not in hosts["all"]["hosts"]:
         hosts["all"]["hosts"][args.host] = {}
         dump_yaml(hosts_path, hosts)
 
-    print(f"✅ Host '{args.host}' initialized in {hv_dir}")
-    print(f"   - Edit LUKS passphrase: sops {secrets_path} (set encrypt_disk_passphrase)")
+    repo_rel = os.path.relpath(hv_dir, ROOT)
+    print(f"✅ Host '{args.host}' initialized in {repo_rel}")
+    print(f"   - Encrypt secrets: sops --in-place {secrets_path}")
     if args.ssh_key:
         print("   - SSH key set in main.yml")
     if not args.disk:

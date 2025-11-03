@@ -21,8 +21,14 @@ from typing import Dict, List, Sequence
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-HOST_VARS_DIR = REPO_ROOT / "baremetal" / "inventory" / "host_vars"
-HARDWARE_PROFILE_DIR = REPO_ROOT / "baremetal" / "inventory" / "profiles" / "hardware"
+SCRIPTS_ROOT = REPO_ROOT / "scripts"
+if str(SCRIPTS_ROOT) not in sys.path:
+    sys.path.append(str(SCRIPTS_ROOT))
+
+from lib import inventory
+
+OVERLAY_ROOT = inventory.get_overlay_root()
+HOST_VARS_DIR = OVERLAY_ROOT / "host_vars"
 GENERATED_DIR = REPO_ROOT / "baremetal" / "autoinstall" / "generated"
 DEFAULT_UBUNTU_ISO = "ubuntu-24.04-live-server-amd64.iso"
 DEFAULT_AGE_KEY_FILE = Path.home() / ".config" / "sops" / "age" / "keys.txt"
@@ -55,6 +61,7 @@ class IsoAction:
     label: str
     requires_ubuntu_iso: bool
     make_targets: Sequence[str]
+    host_selection: str = "single"
 
 
 ISO_ACTIONS: List[IsoAction] = [
@@ -72,6 +79,12 @@ ISO_ACTIONS: List[IsoAction] = [
         label="3. Seed + Full ISO",
         requires_ubuntu_iso=True,
         make_targets=("baremetal/seed", "baremetal/fulliso"),
+    ),
+    IsoAction(
+        label="4. ISO multi-hôtes (GRUB)",
+        requires_ubuntu_iso=True,
+        make_targets=("baremetal/multiiso",),
+        host_selection="multi",
     ),
 ]
 
@@ -157,19 +170,24 @@ def warn_missing_binaries(binaries: Sequence[str]) -> None:
 def list_hosts() -> List[str]:
     """Return the list of host directories declared in the inventory."""
 
-    if not HOST_VARS_DIR.exists():
-        print(f"Inventaire introuvable : {HOST_VARS_DIR}", file=sys.stderr)
+    discovered: Dict[str, Path] = {}
+    for root in inventory.iter_inventory_roots():
+        host_root = root / "host_vars"
+        if not host_root.exists():
+            continue
+        for entry in host_root.iterdir():
+            if not entry.is_dir() or entry.name.startswith("."):
+                continue
+            if not any((entry / candidate).is_file() for candidate in ("main.yml", "main.yaml")):
+                continue
+            discovered.setdefault(entry.name, entry)
+    if not discovered:
+        print(
+            "Inventaire introuvable : aucun répertoire host_vars détecté dans l'overlay ou le dépôt.",
+            file=sys.stderr,
+        )
         sys.exit(1)
-
-    hosts = [
-        entry.name
-        for entry in HOST_VARS_DIR.iterdir()
-        if entry.is_dir()
-        and not entry.name.startswith(".")
-        and any((entry / filename).is_file() for filename in ("main.yml", "main.yaml"))
-    ]
-    hosts.sort()
-    return hosts
+    return sorted(discovered)
 
 
 def list_host_files(host_dir: Path) -> List[Path]:
@@ -190,18 +208,18 @@ def list_host_files(host_dir: Path) -> List[Path]:
 def list_hardware_profiles() -> List[str]:
     """Return available hardware profiles defined in the inventory."""
 
-    if not HARDWARE_PROFILE_DIR.exists():
-        return []
-
-    profiles = [
-        entry.stem
-        for entry in HARDWARE_PROFILE_DIR.iterdir()
-        if entry.is_file()
-        and entry.suffix.lower() in {".yml", ".yaml"}
-        and not entry.name.startswith(".")
-    ]
-    profiles.sort()
-    return profiles
+    files: Dict[str, Path] = {}
+    for root in inventory.hardware_profiles_roots():
+        if not root.exists():
+            continue
+        for entry in root.iterdir():
+            if (
+                entry.is_file()
+                and entry.suffix.lower() in {".yml", ".yaml"}
+                and not entry.name.startswith(".")
+            ):
+                files.setdefault(entry.stem, entry)
+    return sorted(files)
 
 
 def prompt_choice(
@@ -241,6 +259,97 @@ def prompt_host(hosts: Sequence[str]) -> str:
     idx = prompt_choice(hosts, "Hôtes disponibles :", allow_cancel=True)
     return hosts[idx]
 
+
+def format_path_for_display(path: Path) -> str:
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
+def sanitize_name(value: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9._-]", "-", value)
+
+
+def prompt_multi_hosts(hosts: Sequence[str]) -> List[str]:
+    if not hosts:
+        raise UserCancelled
+    while True:
+        print("\nHôtes disponibles :")
+        for idx, name in enumerate(hosts, start=1):
+            print(f"  {idx}. {name}")
+        raw = input(
+            "Sélectionnez plusieurs hôtes (ex: 1 2 3, '*' pour tous, :q pour annuler) : "
+        ).strip()
+        if not raw:
+            print("Vous devez sélectionner au moins un hôte.\n")
+            continue
+        lowered = raw.lower()
+        if lowered in CANCEL_KEYWORDS:
+            raise UserCancelled
+        if lowered in {"*", "all", "tous", "tout"}:
+            return list(hosts)
+        tokens = [token for token in re.split(r"[\s,]+", raw) if token]
+        selected: List[str] = []
+        invalid = False
+        for token in tokens:
+            if token.isdigit():
+                idx = int(token)
+                if 1 <= idx <= len(hosts):
+                    candidate = hosts[idx - 1]
+                    if candidate not in selected:
+                        selected.append(candidate)
+                    continue
+                print(f"Sélection hors limites : {token}\n")
+                invalid = True
+                break
+            if token in hosts:
+                if token not in selected:
+                    selected.append(token)
+                continue
+            print(f"Entrée inconnue : {token}\n")
+            invalid = True
+            break
+        if invalid:
+            continue
+        if not selected:
+            print("Aucun hôte sélectionné.\n")
+            continue
+        return selected
+
+
+def prompt_multi_iso_name(default: str) -> str:
+    pattern = re.compile(r"^[a-zA-Z0-9._-]+$")
+    while True:
+        raw = input(
+            f"Nom de l'ISO multi-hôtes [{default}] (:q pour annuler) : "
+        ).strip()
+        if not raw:
+            return default
+        if raw.lower() in CANCEL_KEYWORDS:
+            raise UserCancelled
+        if not pattern.match(raw):
+            print("Nom invalide. Utilisez uniquement lettres, chiffres, points, tirets, underscores.\n")
+            continue
+        return raw
+
+
+def prompt_default_host(hosts: Sequence[str], default: str) -> str:
+    mapping = {str(idx): name for idx, name in enumerate(hosts, start=1)}
+    while True:
+        raw = input(
+            f"Entrée GRUB par défaut [{default}] (numéro ou nom, :q pour annuler) : "
+        ).strip()
+        if not raw:
+            return default
+        lowered = raw.lower()
+        if lowered in CANCEL_KEYWORDS:
+            raise UserCancelled
+        if raw in mapping:
+            return mapping[raw]
+        if raw in hosts:
+            return raw
+        print("Sélection invalide.\n")
 
 def prompt_new_host_name() -> str:
     pattern = re.compile(r"^[a-zA-Z0-9._-]+$")
@@ -446,6 +555,32 @@ def summarize_outputs(host: str) -> None:
         print(f"  - {artefact.relative_to(REPO_ROOT)}")
 
 
+def summarize_multi_outputs(name: str) -> None:
+    multi_dir = GENERATED_DIR / "_multi" / name
+    if not multi_dir.exists():
+        print(
+            f"⚠️ Aucun artefact multi-hôte trouvé dans {multi_dir}.",
+            file=sys.stderr,
+        )
+        return
+    artefacts = sorted(multi_dir.glob("*.iso"))
+    if not artefacts:
+        print(
+            f"⚠️ Aucun fichier ISO généré sous {multi_dir}.",
+            file=sys.stderr,
+        )
+        return
+    print("\nISO multi-hôtes générées :")
+    for artefact in artefacts:
+        print(f"  - {artefact.relative_to(REPO_ROOT)}")
+    manifest = multi_dir / "manifest.json"
+    if manifest.is_file():
+        print(f"  - Manifest : {manifest.relative_to(REPO_ROOT)}")
+    summary = multi_dir / "SUMMARY.txt"
+    if summary.is_file():
+        print(f"  - Résumé : {summary.relative_to(REPO_ROOT)}")
+
+
 def edit_host_file(path: Path, sops_env: Dict[str, str]) -> None:
     """Open the requested file with the appropriate editor."""
 
@@ -541,6 +676,7 @@ def handle_host_initialization(sops_env: Dict[str, str]) -> None:
         print("Opération annulée.")
         return
 
+    HOST_VARS_DIR.mkdir(parents=True, exist_ok=True)
     existing_path = HOST_VARS_DIR / host
     if existing_path.exists():
         confirm = input(
@@ -580,9 +716,10 @@ def handle_host_initialization(sops_env: Dict[str, str]) -> None:
         print(f"La commande s'est terminée avec une erreur : {exc}", file=sys.stderr)
         sys.exit(exc.returncode or 1)
 
+    display_dir = format_path_for_display(HOST_VARS_DIR / host)
     print(
         "\nHôte initialisé. Vous pouvez maintenant personnaliser les fichiers dans "
-        f"baremetal/inventory/host_vars/{host}/ puis relancer la génération d'ISO."
+        f"{display_dir} puis relancer la génération d'ISO."
     )
 
     customize = input(
@@ -607,17 +744,29 @@ def handle_iso_generation(sops_env: Dict[str, str]) -> None:
             return
 
     try:
-        host = prompt_host(hosts)
-    except UserCancelled:
-        print("Opération annulée.")
-        return
-    print(f"\nHôte sélectionné : {host}\n")
-
-    try:
         action = prompt_iso_action()
     except UserCancelled:
         print("Opération annulée.")
         return
+
+    selected_hosts: List[str]
+    host: str | None = None
+    if action.host_selection == "multi":
+        try:
+            selected_hosts = prompt_multi_hosts(hosts)
+        except UserCancelled:
+            print("Opération annulée.")
+            return
+        print(f"\nHôtes sélectionnés : {', '.join(selected_hosts)}\n")
+    else:
+        try:
+            host = prompt_host(hosts)
+        except UserCancelled:
+            print("Opération annulée.")
+            return
+        selected_hosts = [host]
+        print(f"\nHôte sélectionné : {host}\n")
+
     ubuntu_iso: str | None = None
     if action.requires_ubuntu_iso:
         try:
@@ -626,8 +775,27 @@ def handle_iso_generation(sops_env: Dict[str, str]) -> None:
             print("Opération annulée.")
             return
 
+    iso_name: str | None = None
+    default_host: str | None = None
+    if action.host_selection == "multi":
+        default_name = sanitize_name("multi-" + "-".join(selected_hosts))
+        if not default_name:
+            default_name = "multi-iso"
+        try:
+            iso_name = prompt_multi_iso_name(default_name)
+            default_host = prompt_default_host(selected_hosts, selected_hosts[0])
+        except UserCancelled:
+            print("Opération annulée.")
+            return
+
     print("\nRésumé :")
-    print(f"  - Hôte : {host}")
+    if action.host_selection == "multi":
+        print(f"  - Hôtes : {', '.join(selected_hosts)}")
+        print(f"  - Nom ISO : {iso_name}")
+        if default_host:
+            print(f"  - Entrée GRUB par défaut : {default_host}")
+    else:
+        print(f"  - Hôte : {host}")
     print(f"  - Artefacts : {action.label.split('.', 1)[-1].strip()}")
     if ubuntu_iso:
         print(f"  - ISO Ubuntu source : {ubuntu_iso}")
@@ -642,16 +810,34 @@ def handle_iso_generation(sops_env: Dict[str, str]) -> None:
         return
 
     try:
-        for target in action.make_targets:
-            variables = {"HOST": host}
-            if target == "baremetal/fulliso" and ubuntu_iso:
+        if action.host_selection == "multi":
+            for item in selected_hosts:
+                run_make("baremetal/gen", variables={"HOST": item}, sops_env=sops_env)
+            variables = {"HOSTS": " ".join(selected_hosts), "NAME": iso_name}
+            if default_host:
+                variables["DEFAULT_HOST"] = default_host
+            if ubuntu_iso:
                 variables["UBUNTU_ISO"] = ubuntu_iso
-            run_make(target, variables=variables, sops_env=sops_env)
+            run_make(
+                "baremetal/multiiso",
+                variables=variables,
+                sops_env=sops_env,
+                propagate_profile=False,
+            )
+        else:
+            for target in action.make_targets:
+                variables = {"HOST": host}
+                if target == "baremetal/fulliso" and ubuntu_iso:
+                    variables["UBUNTU_ISO"] = ubuntu_iso
+                run_make(target, variables=variables, sops_env=sops_env)
     except subprocess.CalledProcessError as exc:
         print(f"La commande s'est terminée avec une erreur : {exc}", file=sys.stderr)
         sys.exit(exc.returncode or 1)
 
-    summarize_outputs(host)
+    if action.host_selection == "multi":
+        summarize_multi_outputs(iso_name or "multi")
+    else:
+        summarize_outputs(host)
 
 
 def handle_clean(sops_env: Dict[str, str]) -> None:
@@ -801,18 +987,21 @@ def handle_host_customization(
         except UserCancelled:
             print("Opération annulée.")
             return
-    host_dir = HOST_VARS_DIR / selected_host
+    host_dir = inventory.first_existing(inventory.host_vars_candidates(selected_host))
+    if host_dir is None:
+        host_dir = HOST_VARS_DIR / selected_host
+        host_dir.mkdir(parents=True, exist_ok=True)
     files = list_host_files(host_dir)
     if not files:
         print(
-            f"Aucun fichier à personnaliser dans {host_dir.relative_to(REPO_ROOT)}.",
+            f"Aucun fichier à personnaliser dans {format_path_for_display(host_dir)}.",
             file=sys.stderr,
         )
         return
 
     while True:
         options = [
-            str(path.relative_to(REPO_ROOT))
+            format_path_for_display(path)
             for path in files
         ] + ["Terminer la personnalisation"]
         try:

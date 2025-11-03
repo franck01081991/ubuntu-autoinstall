@@ -6,10 +6,10 @@ usage() {
 Usage: $(basename "$0") --host <name> --profile <hardware_profile>
 
 Initialise un hôte bare metal :
-  - crée baremetal/inventory/host_vars/<name>/
+  - crée baremetal/inventory-local/host_vars/<name>/
   - génère main.yml pré-rempli
-  - copie secrets.sops.yaml de l'exemple
-  - ajoute l'hôte dans baremetal/inventory/hosts.yml
+  - dépose un modèle de secrets à chiffrer via SOPS
+  - ajoute l'hôte dans baremetal/inventory-local/hosts.yml
 USAGE
 }
 
@@ -46,19 +46,21 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-HOST_VARS_ROOT="${REPO_ROOT}/baremetal/inventory/host_vars"
-EXAMPLE_DIR="${HOST_VARS_ROOT}/example"
+OVERLAY_ROOT="${AUTOINSTALL_LOCAL_DIR:-${REPO_ROOT}/baremetal/inventory-local}"
+HOST_VARS_ROOT="${OVERLAY_ROOT}/host_vars"
+EXAMPLE_TEMPLATE="${REPO_ROOT}/baremetal/inventory/examples/secrets.template.yaml"
 HOST_DIR="${HOST_VARS_ROOT}/${HOST}"
 MAIN_FILE="${HOST_DIR}/main.yml"
 SECRETS_FILE="${HOST_DIR}/secrets.sops.yaml"
-HOSTS_FILE="${REPO_ROOT}/baremetal/inventory/hosts.yml"
+HOSTS_FILE="${OVERLAY_ROOT}/hosts.yml"
 
-if [[ ! -d "${EXAMPLE_DIR}" ]]; then
-  echo "Répertoire d'exemple introuvable: ${EXAMPLE_DIR}" >&2
+if [[ ! -f "${EXAMPLE_TEMPLATE}" ]]; then
+  echo "Modèle de secrets introuvable: ${EXAMPLE_TEMPLATE}" >&2
   exit 1
 fi
 
 mkdir -p "${HOST_DIR}"
+mkdir -p "${OVERLAY_ROOT}"
 
 tmp_main=""
 cleanup() {
@@ -87,8 +89,13 @@ else
 fi
 
 if [[ ! -f "${SECRETS_FILE}" ]]; then
-  install -m 0640 "${EXAMPLE_DIR}/secrets.sops.yaml" "${SECRETS_FILE}"
-  echo "Copie de secrets.sops.yaml vers ${SECRETS_FILE}"
+  TEMPLATE_TARGET="${SECRETS_FILE%.sops.yaml}.template.yaml"
+  install -m 0600 "${EXAMPLE_TEMPLATE}" "${TEMPLATE_TARGET}"
+  cat <<MSG
+Modèle de secrets copié : ${TEMPLATE_TARGET}
+Chiffrez-le avec : sops --encrypt --in-place ${TEMPLATE_TARGET}
+Puis renommez le fichier chiffré en : ${SECRETS_FILE}
+MSG
 else
   echo "${SECRETS_FILE} existe déjà, aucune copie"
 fi
@@ -131,4 +138,9 @@ if new_text != original_text:
 else:
     print(f"{host} déjà présent dans {hosts_file}")
 PY
-echo "Initialisation terminée. Personnalisez ${MAIN_FILE} puis éditez ${SECRETS_FILE} via SOPS."
+cat <<EOT
+Initialisation terminée.
+- Personnalisez ${MAIN_FILE}
+- Chiffrez le modèle de secrets généré puis renommez-le en ${SECRETS_FILE}
+- Les fichiers sont stockés hors Git dans ${OVERLAY_ROOT}
+EOT

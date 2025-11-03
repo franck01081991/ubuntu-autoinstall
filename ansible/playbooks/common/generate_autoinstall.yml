@@ -20,8 +20,7 @@
           files:
             - "{{ profile }}.yml"
             - "{{ profile }}.yaml"
-          paths:
-            - "{{ inventory_root }}/profiles/hardware"
+          paths: "{{ inventory_profile_paths }}"
       ansible.builtin.set_fact:
         _hardware_profile_file: "{{ lookup('first_found', _hardware_first_found_query, errors='ignore') | default('', true) }}"
 
@@ -34,8 +33,7 @@
               files:
                 - main.yml
                 - main.yaml
-              paths:
-                - "{{ inventory_root }}/host_vars/{{ profile }}"
+              paths: "{{ (inventory_host_paths | map('regex_replace', '$', '/' + profile)) | list }}"
           ansible.builtin.set_fact:
             _explicit_host_vars_file: "{{ lookup('first_found', _explicit_host_vars_query, errors='ignore') | default('', true) }}"
 
@@ -50,8 +48,8 @@
           ansible.builtin.set_fact:
             profile: ""
             primary_vars_file: "{{ _explicit_host_vars_file }}"
-            host_vars_dir: "{{ inventory_root }}/host_vars/{{ config_name }}"
-            host_secrets_file: "{{ host_vars_dir }}/secrets.sops.yaml"
+            host_vars_dir: "{{ _explicit_host_vars_file | dirname }}"
+            host_secrets_file: "{{ ( _explicit_host_vars_file | dirname ) + '/secrets.sops.yaml' }}"
 
 - name: Load hardware profile when rendering a PROFILE directly
   when:
@@ -75,8 +73,7 @@
       files:
         - "{{ host_raw_vars.hardware_profile }}.yml"
         - "{{ host_raw_vars.hardware_profile }}.yaml"
-      paths:
-        - "{{ inventory_root }}/profiles/hardware"
+      paths: "{{ inventory_profile_paths }}"
   ansible.builtin.include_vars:
     file: "{{ lookup('first_found', _host_profile_lookup) }}"
 
@@ -84,6 +81,12 @@
   when: profile | length == 0
   ansible.builtin.include_vars:
     file: "{{ primary_vars_file }}"
+
+- name: Derive host variables directory
+  when: profile | length == 0
+  ansible.builtin.set_fact:
+    host_vars_dir: "{{ primary_vars_file | dirname }}"
+    host_secrets_file: "{{ (primary_vars_file | dirname) + '/secrets.sops.yaml' }}"
 
 - name: Check if host secrets file exists
   when: profile | length == 0
