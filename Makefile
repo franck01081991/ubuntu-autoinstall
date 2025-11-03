@@ -73,6 +73,29 @@ secrets-scan:
 	@echo 'gitleaks report generated at gitleaks.sarif'
 
 doctor:
-	@missing=0; for cmd in $(REQUIRED_CMDS); do if ! command -v $$cmd >/dev/null 2>&1; then printf 'Missing required dependency: %s
-' "$$cmd" >&2; missing=1; fi; done; if [ $$missing -ne 0 ]; then echo 'Install the required tools above, then rerun `make doctor`.' >&2; exit 1; fi; optional_missing=0; for cmd in $(OPTIONAL_CMDS); do if ! command -v $$cmd >/dev/null 2>&1; then printf 'Optional tool not found (recommended for CI parity): %s
-' "$$cmd" >&2; optional_missing=1; fi; done; if [ $$optional_missing -eq 0 ]; then echo 'All optional linting tools detected.'; else echo 'Installez les outils optionnels pour rester aligné avec les contrôles internes.'; fi; echo 'Environment looks good.'
+	@missing=0; \
+	for cmd in $(REQUIRED_CMDS); do \
+		if ! command -v $$cmd >/dev/null 2>&1; then \
+			printf 'Missing required dependency: %s\
+' "$$cmd" >&2; \
+			missing=1; \
+		fi; \
+	done; \
+	if [ $$missing -ne 0 ]; then \
+		echo 'Install the required tools above, then rerun `make doctor`.' >&2; \
+		exit 1; \
+	fi; \
+	optional_missing=0; \
+	for cmd in $(OPTIONAL_CMDS); do \
+		if ! command -v $$cmd >/dev/null 2>&1; then \
+			printf 'Optional tool not found (recommended for CI parity): %s\
+' "$$cmd" >&2; \
+			optional_missing=1; \
+		fi; \
+	done; \
+	if [ $$optional_missing -eq 0 ]; then \
+		echo 'All optional linting tools detected.'; \
+	else \
+		echo 'Installez les outils optionnels pour rester aligné avec les contrôles internes.'; \
+	fi; \
+	echo 'Environment looks good.'
