@@ -1,0 +1,96 @@
+{% set disk      = host.storage.disk | default({}) %}
+{% set wipe      = host.storage.wipe | default('superblock-recursive') %}
+{% set efi_size  = host.storage.efi_size | default('550M') %}
+{% set bios_size = host.storage.bios_grub_size | default('1M') %}
+{% set boot_size = host.storage.boot_size | default('1G') %}
+{% set root_fs   = host.storage.root_fs | default('ext4') %}
+{% set swap_size = host.storage.swap_size | default('0') %}
+{% set vg_name   = host.storage.vg_name | default('vg0') %}
+{% set lv_root   = host.storage.lv_root | default('lv_root') %}
+{% set lv_swap   = host.storage.lv_swap | default('lv_swap') %}
+{% set luks_pw   = host.storage.password | default(secrets.encrypt_disk_passphrase) %}
+storage:
+  config:
+    - id: disk0
+      type: disk
+      ptable: gpt
+      wipe: {{ wipe }}
+{% if disk.device is defined %}
+      path: {{ disk.device }}
+{% elif disk.match is defined %}
+      match: {{ disk.match | to_nice_yaml(indent=8) | indent(6, true) }}
+{% else %}
+      match: { name: "nvme0n1|sd[a-z]|vd[a-z]" }
+{% endif %}
+    - id: part-bios
+      type: partition
+      device: disk0
+      size: {{ bios_size }}
+      flag: bios_grub
+    - id: part-efi
+      type: partition
+      device: disk0
+      size: {{ efi_size }}
+      flag: boot
+    - id: part-boot
+      type: partition
+      device: disk0
+      size: {{ boot_size }}
+      grub_device: true
+    - id: part-main
+      type: partition
+      device: disk0
+      size: -1
+    - id: fmt-efi
+      type: format
+      volume: part-efi
+      fstype: fat32
+    - id: mnt-efi
+      type: mount
+      device: fmt-efi
+      path: /boot/efi
+    - id: fmt-boot
+      type: format
+      volume: part-boot
+      fstype: ext4
+    - id: mnt-boot
+      type: mount
+      device: fmt-boot
+      path: /boot
+    - id: luks1
+      type: dm_crypt
+      volume: part-main
+      key: "{{ luks_pw }}"
+      dm_name: cryptroot
+    - id: {{ vg_name }}
+      type: lvm_volgroup
+      name: {{ vg_name }}
+      devices: [luks1]
+{% if swap_size not in ['0', 0, '0B', '0M', '0G'] %}
+    - id: {{ lv_swap }}
+      type: lvm_partition
+      name: {{ lv_swap }}
+      volgroup: {{ vg_name }}
+      size: {{ swap_size }}
+    - id: fmt-swap
+      type: format
+      volume: {{ lv_swap }}
+      fstype: swap
+    - id: mnt-swap
+      type: mount
+      device: fmt-swap
+      path: none
+{% endif %}
+    - id: {{ lv_root }}
+      type: lvm_partition
+      name: {{ lv_root }}
+      volgroup: {{ vg_name }}
+      size: -1
+    - id: fmt-root
+      type: format
+      volume: {{ lv_root }}
+      fstype: {{ root_fs }}
+    - id: mnt-root
+      type: mount
+      device: fmt-root
+      path: /

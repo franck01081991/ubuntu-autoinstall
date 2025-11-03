@@ -42,7 +42,7 @@ storage:
       type: dm_crypt
       name: cryptroot
       volume: luks-part
-      key: {{ secrets.encrypt_disk_passphrase | tojson }}
+      key: {{ (secrets.encrypt_disk_passphrase | default(hostvars.get('encrypt_disk_passphrase'))) | tojson }}
       options:
         - "--type"
         - "luks2"

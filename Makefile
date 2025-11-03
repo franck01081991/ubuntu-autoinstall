@@ -109,3 +109,27 @@ doctor:
 		echo 'Installez les outils optionnels pour rester aligné avec les contrôles internes.'; \
 	fi; \
 	echo 'Environment looks good.'
+.RECIPEPREFIX := >
+
+.PHONY: new-host gen iso clean-generated
+
+# Crée le squelette d'hôte
+new-host:
+> test -n "$(HOST)" || { echo "HOST=... required"; exit 2; }
+> python3 scripts/new_host.py --host "$(HOST)" $(if $(DISK),--disk $(DISK),) $(if $(SSH_KEY),--ssh-key "$(SSH_KEY)",)
+
+# Génère user-data/meta-data après contrôle SOPS
+gen:
+> test -n "$(HOST)" || { echo "HOST=... required"; exit 2; }
+> ./scripts/check_inventory.sh "$(HOST)"
+> $(MAKE) baremetal/gen HOST=$(HOST)
+
+# Construit une ISO autonome pour cet hôte (si ta cible existe déjà)
+iso:
+> test -n "$(HOST)" || { echo "HOST=... required"; exit 2; }
+> ./scripts/check_inventory.sh "$(HOST)"
+> $(MAKE) baremetal/fulliso HOST=$(HOST)
+
+# Nettoie les artefacts
+clean-generated:
+> rm -rf baremetal/autoinstall/generated || true

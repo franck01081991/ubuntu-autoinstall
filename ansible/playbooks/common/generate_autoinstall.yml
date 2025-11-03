@@ -118,6 +118,17 @@
     state: directory
     mode: "0755"
 
+- name: Decrypt host secrets with sops (no galaxy)
+  command: sops -d {{ host_secrets_file }}
+  register: sops_out
+  changed_when: false
+  no_log: true
+
+- name: Load secrets dict for template
+  set_fact:
+    secrets: "{{ sops_out.stdout | from_yaml }}"
+  no_log: true
+
 - name: Render user-data (autoinstall)
   ansible.builtin.template:
     src: "{{ templates_root }}/user-data.j2"

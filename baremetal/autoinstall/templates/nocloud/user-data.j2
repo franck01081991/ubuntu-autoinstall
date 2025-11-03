@@ -1,0 +1,49 @@
+#cloud-config
+autoinstall:
+  version: 1
+  interactive-sections: []
+  locale: {{ host.locale | default('fr_FR.UTF-8') }}
+  keyboard:
+    layout: {{ host.keyboard.layout | default('fr') }}
+    variant: {{ host.keyboard.variant | default('') }}
+  network:
+    network:
+      version: 2
+      ethernets:
+        all:
+          match: { name: "*" }
+          dhcp4: true
+          dhcp6: true
+  storage:
+    layout:
+      name: {{ host.storage.layout | default('lvm') }}
+      sizing-policy: {{ host.storage.sizing_policy | default('all') }}
+      password: "{{ secrets.encrypt_disk_passphrase }}"
+  identity:
+    hostname: {{ host.hostname | default(target) }}
+    realname: {{ host.realname | default('Ubuntu User') }}
+    username: {{ host.username | default('ubuntu') }}
+    password: {{ host.password_hash | default('"$6$hash_manquant"') }}
+  ssh:
+    install-server: true
+    authorized-keys:
+    {% for key in (host.ssh_authorized_keys | default(ssh_authorized_keys | default([]))) %}
+      - {{ key }}
+    {% endfor %}
+    allow-pw: false
+  updates: security
+  packages:
+    - qemu-guest-agent
+  user-data:
+    timezone: {{ host.timezone | default('Europe/Paris') }}
+    write_files:
+      - path: /etc/ssh/sshd_config.d/10-hardening.conf
+        permissions: '0644'
+        content: |
+          PasswordAuthentication no
+          KbdInteractiveAuthentication no
+          ChallengeResponseAuthentication no
+    runcmd:
+      - systemctl enable --now qemu-guest-agent || true
+      - systemctl restart ssh || true
+  shutdown: reboot
