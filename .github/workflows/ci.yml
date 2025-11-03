@@ -1,9 +1,10 @@
+---
 name: CI
 
-on:
+'on':
   push:
-    branches: [ main ]
-  pull_request:
+    branches: [main]
+  pull_request: {}
 
 jobs:
   build:
@@ -30,18 +31,22 @@ jobs:
           python3 -m pip install --user ansible-lint
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           GITLEAKS_VERSION=8.18.1
-          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz
+          GITLEAKS_TARBALL="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSL "$GITLEAKS_TARBALL" | tar -xz
           sudo install gitleaks /usr/local/bin/gitleaks
 
       - name: Install sops
         run: |
           SOPS_VERSION="3.8.1"
-          curl -sSL -o "sops-v${SOPS_VERSION}.linux.amd64" "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64"
-          curl -sSL -o sops.checksums "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.checksums.txt"
-          grep "sops-v${SOPS_VERSION}.linux.amd64" sops.checksums > sops.checksums.linux
+          SOPS_FILENAME="sops-v${SOPS_VERSION}.linux.amd64"
+          SOPS_TARBALL="https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/${SOPS_FILENAME}"
+          SOPS_CHECKSUMS="https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.checksums.txt"
+          curl -sSL -o "$SOPS_FILENAME" "$SOPS_TARBALL"
+          curl -sSL -o sops.checksums "$SOPS_CHECKSUMS"
+          grep "$SOPS_FILENAME" sops.checksums > sops.checksums.linux
           sha256sum --check --status sops.checksums.linux
-          sudo install -m 0755 "sops-v${SOPS_VERSION}.linux.amd64" /usr/local/bin/sops
-          rm -f "sops-v${SOPS_VERSION}.linux.amd64" sops.checksums sops.checksums.linux
+          sudo install -m 0755 "$SOPS_FILENAME" /usr/local/bin/sops
+          rm -f "$SOPS_FILENAME" sops.checksums sops.checksums.linux
 
       - name: Configure SOPS key material
         run: |
@@ -53,11 +58,10 @@ jobs:
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           make new-host HOST=ci-demo DISK=/dev/sda
-          cat <<'PLAINTEXT' > plain.yaml
+          cat <<'PLAINTEXT' > baremetal/inventory/host_vars/ci-demo/secrets.sops.yaml
           encrypt_disk_passphrase: ci-demo-passphrase
           PLAINTEXT
-          sops --encrypt --input-type yaml --output-type yaml plain.yaml > baremetal/inventory/host_vars/ci-demo/secrets.sops.yaml
-          rm plain.yaml
+          sops --encrypt --in-place baremetal/inventory/host_vars/ci-demo/secrets.sops.yaml
 
       - name: Generate autoinstall seed
         run: |
