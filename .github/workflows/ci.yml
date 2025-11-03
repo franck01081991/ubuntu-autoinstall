@@ -24,12 +24,12 @@ jobs:
       - name: Install sops
         run: |
           SOPS_VERSION="3.8.1"
-          curl -sSL -o sops "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64"
-          curl -sSL -o sops.sha256 "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64.sha256"
-          sed "s|sops-v${SOPS_VERSION}.linux.amd64|sops|" sops.sha256 > sops.sha256.adjusted
-          sha256sum --check --status sops.sha256.adjusted
-          sudo install -m 0755 sops /usr/local/bin/sops
-          rm -f sops sops.sha256 sops.sha256.adjusted
+          curl -sSL -o "sops-v${SOPS_VERSION}.linux.amd64" "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64"
+          curl -sSL -o sops.checksums "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.checksums.txt"
+          grep "sops-v${SOPS_VERSION}.linux.amd64" sops.checksums > sops.checksums.linux
+          sha256sum --check --status sops.checksums.linux
+          sudo install -m 0755 "sops-v${SOPS_VERSION}.linux.amd64" /usr/local/bin/sops
+          rm -f "sops-v${SOPS_VERSION}.linux.amd64" sops.checksums sops.checksums.linux
 
       - name: Configure SOPS key material
         run: |
