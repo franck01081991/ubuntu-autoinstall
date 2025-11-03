@@ -1,0 +1,89 @@
+# STORAGE — GPT + EFI + /boot (clair) + LUKS + LVM(/)
+storage:
+  config:
+    - id: disk0
+      type: disk
+      ptable: gpt
+      grub_device: true
+{% if hostvars.install_disk is defined and hostvars.install_disk %}
+      path: {{ hostvars.install_disk | tojson }}
+{% else %}
+      match: { size: largest }
+{% endif %}
+
+    # 100 MiB bios_grub (compat BIOS)
+    - id: bios-grub
+      type: partition
+      device: disk0
+      size: 104857600
+      flag: bios_grub
+
+    # 550 MiB EFI
+    - id: efi-part
+      type: partition
+      device: disk0
+      size: 576716800
+      flag: boot
+
+    # /boot 1 GiB non chiffré
+    - id: boot-part
+      type: partition
+      device: disk0
+      size: 1073741824
+
+    # Reste du disque pour LUKS
+    - id: luks-part
+      type: partition
+      device: disk0
+      size: -1
+
+    # LUKS2
+    - id: luks0
+      type: dm_crypt
+      name: cryptroot
+      volume: luks-part
+      key: {{ secrets.encrypt_disk_passphrase | tojson }}
+      options:
+        - "--type"
+        - "luks2"
+        - "--cipher"
+        - "aes-xts-plain64"
+        - "--key-size"
+        - "512"
+
+    # LVM dans LUKS
+    - id: vg0
+      type: lvm_volgroup
+      name: vg0
+      devices: [luks0]
+
+    - id: lv-root
+      type: lvm_partition
+      name: lv_root
+      volgroup: vg0
+      size: -1
+
+    # Formats & montages
+    - id: fs-efi
+      type: format
+      volume: efi-part
+      fstype: fat32
+    - type: mount
+      device: fs-efi
+      path: /boot/efi
+
+    - id: fs-boot
+      type: format
+      volume: boot-part
+      fstype: ext4
+    - type: mount
+      device: fs-boot
+      path: /boot
+
+    - id: fs-root
+      type: format
+      volume: lv-root
+      fstype: ext4
+    - type: mount
+      device: fs-root
+      path: /
