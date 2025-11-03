@@ -1,19 +1,17 @@
-# build artifacts
+# Build artifacts
 baremetal/autoinstall/generated/
 .cache/
 *.iso
-# editor / OS
-.DS_Store
-*.swp
-# encryption keys
-*.agekey
-sops-age-key.txt
-# build artifacts
-baremetal/autoinstall/generated/**
-*.iso
 *.img
-.cache/
+
+# Python
 __pycache__/
 .venv/
-*.swp
+
+# Editors / OS
 .DS_Store
+*.swp
+
+# Encryption keys
+*.agekey
+sops-age-key.txt

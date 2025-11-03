@@ -13,21 +13,11 @@ PATCH="autoinstall ds=nocloud;s=/cdrom/nocloud/"
 WORK="$(mktemp -d -p "$TMPDIR" autoinstall.XXXXXX)"; trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK/nocloud"
 cp "${OUTDIR}/user-data" "${OUTDIR}/meta-data" "$WORK/nocloud/"
-write_grub() {
-  local p="$1"
-  cat > "$p" <<EOF
-set default=0
-set timeout_style=hidden
-set timeout=0
-menuentry 'Auto Install Ubuntu Server' {
-    linux   /casper/vmlinuz ${PATCH} ---
-    initrd  /casper/initrd
-}
-EOF
-}
+GRUB_TEMPLATE="${BARE}/autoinstall/grub/default.cfg"
+[ -f "$GRUB_TEMPLATE" ] || { echo "Missing GRUB template: $GRUB_TEMPLATE" >&2; exit 1; }
 declare -a MAP
-GRUB="$WORK/grub.cfg"; write_grub "$GRUB"; MAP+=("-map" "$GRUB" /boot/grub/grub.cfg)
-LOOP="$WORK/loopback.cfg"; write_grub "$LOOP"; MAP+=("-map" "$LOOP" /boot/grub/loopback.cfg)
+GRUB="$WORK/grub.cfg"; sed "s|@AUTOINSTALL_PATCH@|${PATCH}|g" "$GRUB_TEMPLATE" > "$GRUB"; MAP+=("-map" "$GRUB" /boot/grub/grub.cfg)
+LOOP="$WORK/loopback.cfg"; sed "s|@AUTOINSTALL_PATCH@|${PATCH}|g" "$GRUB_TEMPLATE" > "$LOOP"; MAP+=("-map" "$LOOP" /boot/grub/loopback.cfg)
 MAP+=("-map" "$WORK/nocloud" /nocloud)
 rm -f "$ISO_OUT"
 xorriso -indev "$ISO_IN" -outdev "$ISO_OUT" "${MAP[@]}" -boot_image any replay >/dev/null

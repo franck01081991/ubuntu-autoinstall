@@ -85,6 +85,8 @@ autonome. Elle complète le [guide débutant détaillé](docs/getting-started-be
 - L'ISO complète générée injecte automatiquement `autoinstall ds=nocloud;s=/cdrom/nocloud/`
   dans les chargeurs GRUB (UEFI) **et** ISOLINUX (BIOS) afin de démarrer l'installation
   sans intervention.
+- Le gabarit GRUB par défaut (`baremetal/autoinstall/grub/default.cfg`) est versionné.
+  Modifiez-le si vous devez adapter l'entrée `Auto Install Ubuntu Server`.
 
 Une fois vos validations locales terminées et la PR fusionnée, vos pipelines
 GitOps reconstruisent les artefacts de référence. Pensez à regénérer les ISO
