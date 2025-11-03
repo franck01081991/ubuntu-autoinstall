@@ -14,13 +14,23 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y make python3 python3-yaml python3-pip git ansible xorriso squashfs-tools curl ca-certificates sops age yamllint
+          sudo apt-get install -y make python3 python3-yaml python3-pip git ansible xorriso squashfs-tools curl ca-certificates age yamllint
           python3 -m pip install --user ansible-lint
           export PATH="$HOME/.local/bin:$PATH"
           ansible-galaxy collection install community.sops
           GITLEAKS_VERSION=8.18.1
           curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz | tar -xz
           sudo install gitleaks /usr/local/bin/gitleaks
+
+      - name: Install sops
+        run: |
+          SOPS_VERSION="3.8.1"
+          curl -sSL -o sops "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64"
+          curl -sSL -o sops.sha256 "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64.sha256"
+          sed "s|sops-v${SOPS_VERSION}.linux.amd64|sops|" sops.sha256 > sops.sha256.adjusted
+          sha256sum --check --status sops.sha256.adjusted
+          sudo install -m 0755 sops /usr/local/bin/sops
+          rm -f sops sops.sha256 sops.sha256.adjusted
 
       - name: Configure SOPS key material
         run: |
