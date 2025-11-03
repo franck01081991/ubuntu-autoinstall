@@ -1,5 +1,5 @@
 ---
-- name: Render autoinstall NoCloud for a host or hardware profile (baremetal)
+- name: Render autoinstall NoCloud for a host (baremetal)
   hosts: localhost
   gather_facts: false
   vars:
@@ -7,27 +7,6 @@
     templates_root: "{{ autoinstall_dir }}/templates"
     inventory_root: "{{ playbook_dir }}/../../inventory"
     target: "{{ lookup('env','HOST') | default(host, true) }}"
-    profile: "{{ lookup('env','PROFILE') | default('', true) }}"
-    config_scope: "{{ 'profiles/hardware' if profile else 'host_vars' }}"
-    config_name: "{{ profile if profile else target }}"
-    host_vars_dir: "{{ inventory_root }}/host_vars/{{ config_name }}"
-    host_secrets_file: "{{ host_vars_dir }}/secrets.sops.yaml"
-    primary_vars_file: >-
-      {{ lookup(
-        'first_found',
-        {
-          'files': (
-            [config_name + '.yml', config_name + '.yaml']
-            if profile
-            else ['main.yml', 'main.yaml']
-          ),
-          'paths': [
-            inventory_root + '/' + config_scope
-            if profile
-            else inventory_root + '/' + config_scope + '/' + config_name
-          ],
-        }
-      ) }}
   tasks:
     - name: Include shared autoinstall rendering tasks
       ansible.builtin.import_tasks: "{{ playbook_dir }}/../../../ansible/playbooks/common/generate_autoinstall.yml"

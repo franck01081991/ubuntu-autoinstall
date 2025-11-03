@@ -1,6 +1,15 @@
 ---
 hostname: thinkcentre1
-hardware_profile: lenovo-m710q
-netmode: dhcp
-# Secrets (password_hash, ssh_authorized_keys, etc.) sont gérés via
-# 'secrets.sops.yaml' adjacent chiffré avec SOPS.
+install_disk: /dev/sda
+encrypt_disk: true
+admin_user:
+  name: admin
+  gecos: "ANSSI Admin"
+  groups:
+    - sudo
+  shell: /bin/bash
+network_interface: eno1
+network:
+  method: dhcp
+ssh_authorized_keys:
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEexampleplaceholderkey generated-for-thinkcentre1"

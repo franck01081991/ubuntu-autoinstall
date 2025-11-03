@@ -7,255 +7,161 @@ autoinstall:
     variant: {{ keyboard_variant | default('oss') }}
   identity:
     hostname: {{ hostname }}
-    username: {{ username | default('admin') }}
-    password: "{{ password_hash }}"
+    username: {{ admin_user_name }}
+    password: "!"
   ssh:
     install-server: true
-    authorized-keys:
-{% for key in ssh_authorized_keys %}
-      - "{{ key }}"
-{% endfor %}
     allow-pw: false
-  apt:
-    geoip: false
-    primary:
-      - arches: {{ apt_primary_arches | default(['amd64']) | to_json }}
-        uri: {{ apt_primary_uri | default('http://archive.ubuntu.com/ubuntu') }}
-        suites: ['noble','noble-updates','noble-security']
-  packages:
-    - jq
-    - ca-certificates
-    - curl
-    - htop
-    - ethtool
-    - git
-    - irqbalance
-{% for pkg in extra_packages | default([]) %}
-    - {{ pkg }}
-{% endfor %}
-{% set encryption = disk_encryption | default({}) %}
-{% set luks_enabled = encryption.enabled | default(false) %}
-{% set storage_override = storage_config_override | default([]) %}
-{% set storage_swap = storage_swap_size | default(0) %}
-{% set storage_extra_late_commands = storage_additional_late_commands | default([]) %}
+{% if ssh_authorized_keys | default([]) %}
+    authorized-keys:
+{%   for key in ssh_authorized_keys %}
+      - "{{ key }}"
+{%   endfor %}
+{% endif %}
   storage:
-    swap:
-      size: {{ storage_swap }}
-{% if storage_override %}
-    config:
-{{ storage_override | to_nice_yaml | indent(6, true) }}
-{% else %}
     config:
       - id: disk0
         type: disk
         match:
-          path: "{{ disk_device }}"
+{% if install_disk | default('') %}
+          path: {{ install_disk }}
+{% else %}
+          size: largest
+{% endif %}
         wipe: superblock-recursive
         ptable: gpt
         grub_device: true
-{% for extra_disk in additional_disk_devices | default([]) %}
-      - id: disk{{ loop.index }}
-        type: disk
-        match:
-          path: "{{ extra_disk }}"
-        preserve: true
-{% endfor %}
-      - type: partition
-        id: efi
+      - id: part-efi
+        type: partition
         device: disk0
         size: 512M
         flag: boot
-      - type: partition
-        id: boot
-        device: disk0
-        size: 1G
-{% if luks_enabled %}
-      - type: partition
-        id: luks-root-partition
+      - id: part-luks
+        type: partition
         device: disk0
         size: -1
-      - type: dm_crypt
-        id: luks-root
-        volume: luks-root-partition
-        dm_name: {{ encryption.device_name | default('cryptroot') }}
-        key: "{{ encryption.passphrase | mandatory('disk_encryption.passphrase must be provided when disk encryption is enabled') }}"
-{%   if encryption.cipher is defined %}
-        cipher: {{ encryption.cipher }}
-{%   endif %}
-{%   if encryption.keysize is defined %}
-        keysize: {{ encryption.keysize }}
-{%   endif %}
-{%   if encryption.hash is defined %}
-        hash: {{ encryption.hash }}
-{%   endif %}
-{%   if encryption.pbkdf is defined %}
+      - id: luks-system
+        type: dm_crypt
+        volume: part-luks
+        dm_name: cryptosystem
+        key: "{{ encrypt_disk_passphrase }}"
+        cipher: aes-xts-plain64
+        keysize: 512
         pbkdf:
-{%     for pbkdf_key, pbkdf_value in encryption.pbkdf.items() %}
-          {{ pbkdf_key }}: {{ pbkdf_value | to_json }}
-{%     endfor %}
-{%   endif %}
-{% else %}
-      - type: partition
-        id: pv1
-        device: disk0
+          type: argon2id
+          time: 4
+          memory: 1048576
+          parallel: 2
+      - id: vg-system
+        type: lvm_volgroup
+        name: vg_system
+        devices:
+          - luks-system
+      - id: lv-root
+        type: lvm_partition
+        name: lv_root
+        volgroup: vg-system
         size: -1
-        flag: lvm
-{% endif %}
-      - type: format
-        id: fmt-efi
-        volume: efi
+      - id: fmt-efi
+        type: format
+        volume: part-efi
         fstype: fat32
-      - type: format
-        id: fmt-boot
-        volume: boot
+      - id: fmt-root
+        type: format
+        volume: lv-root
         fstype: ext4
-      - type: lvm_volgroup
-        id: vg0
-        devices: [ {{ 'luks-root' if luks_enabled else 'pv1' }} ]
-      - type: lvm_partition
-        id: lv_root
-        volgroup: vg0
-        size: -1
-      - type: format
-        id: fmt-root
-        volume: lv_root
-        fstype: ext4
-      - type: mount
-        id: mnt-efi
+      - id: mount-efi
+        type: mount
         path: /boot/efi
         device: fmt-efi
-      - type: mount
-        id: mnt-boot
-        path: /boot
-        device: fmt-boot
-      - type: mount
-        id: mnt-root
+      - id: mount-root
+        type: mount
         path: /
         device: fmt-root
-{% endif %}
-{% if netmode == 'static' %}
   network:
     version: 2
-    ethernets:
-      {{ nic }}:
-        dhcp4: false
-        addresses: [ "{{ ip }}/{{ cidr }}" ]
-        gateway4: "{{ gw }}"
-        nameservers:
-          addresses: {{ dns }}
-{% else %}
-  network:
-    version: 2
-    ethernets:
-      {{ nic | default('') }}: {}
     renderer: networkd
+    ethernets:
+      {{ network_interface | default('eth0') }}:
+{% if network | default({}) and network.get('method') == 'static' %}
+        dhcp4: false
+        addresses:
+          - {{ network.address }}
+        gateway4: {{ network.gateway }}
+        nameservers:
+          addresses: {{ network.nameservers | to_json }}
+{% else %}
+        dhcp4: true
 {% endif %}
   user-data:
     disable_root: true
+    package_update: true
+    package_upgrade: true
+    users:
+      - name: {{ admin_user_name }}
+        gecos: {{ admin_user_gecos | to_json }}
+        groups: {{ admin_user_groups | to_json }}
+        shell: {{ admin_user_shell }}
+        lock-passwd: true
+        sudo: "ALL=(ALL) NOPASSWD:ALL"
+{% if ssh_authorized_keys | default([]) %}
+        ssh_authorized_keys:
+{%   for key in ssh_authorized_keys %}
+          - "{{ key }}"
+{%   endfor %}
+{% endif %}
     packages:
       - git
       - ansible
       - python3-apt
+      - curl
+      - ca-certificates
+      - auditd
+      - needrestart
+      - unattended-upgrades
     write_files:
-      - path: /root/firstboot-ansible.sh
-        owner: root:root
+      - path: /root/install_anssi_marker.sh
         permissions: '0750'
+        owner: root:root
         content: |
-          #!/bin/bash
-          set -eux
-
-          MARKER="/var/lib/firstboot-ansible.done"
-          if [ -f "${MARKER}" ]; then
-            exit 0
-          fi
-
-          ANSIBLE_REPO_URL="{{ ansible_repo_url | default('https://github.com/franck01081991/infra-ansible.git') }}"
-          ANSIBLE_DIR="/opt/infra-ansible"
-          install -d "$(dirname "${ANSIBLE_DIR}")"
-
-          if [ -d "${ANSIBLE_DIR}/.git" ]; then
-            git -C "${ANSIBLE_DIR}" remote set-url origin "${ANSIBLE_REPO_URL}"
-            git -C "${ANSIBLE_DIR}" fetch --all --prune
-            git -C "${ANSIBLE_DIR}" pull --ff-only
-          else
-            rm -rf "${ANSIBLE_DIR}"
-            git clone "${ANSIBLE_REPO_URL}" "${ANSIBLE_DIR}"
-          fi
-
-          cd "${ANSIBLE_DIR}"
-
-          ansible-playbook \
-            -i inventory/hosts.ini \
-            ansible/site.yml \
-            --limit "{{ ansible_inventory_limit | default(hostname) }}" \
-            -c local
-
-          install -d "$(dirname "${MARKER}")"
-          touch "${MARKER}"
-      - path: /etc/systemd/system/firstboot-ansible.service
+{{ anssi_marker_script | indent(10) }}
+      - path: /etc/sudoers.d/zz-logfile
+        permissions: '0440'
+        owner: root:root
+        content: |
+          Defaults logfile="/var/log/sudo.log"
+          Defaults log_host,log_year
+      - path: /etc/systemd/system/collect-autoinstall-logs.service
         owner: root:root
         permissions: '0644'
         content: |
           [Unit]
-          Description=Run Ansible post-install configuration once
-          After=network-online.target
-          Wants=network-online.target
+          Description=Archive autoinstall logs after installation
+          ConditionPathExists=!/root/autoinstall-logs.tgz
+          After=multi-user.target
 
           [Service]
           Type=oneshot
-          ExecStart=/root/firstboot-ansible.sh
-          RemainAfterExit=yes
+          ExecStart=/usr/bin/env bash -c 'set -euo pipefail; tar -czf /root/autoinstall-logs.tgz /var/log/installer /var/log/cloud-init*'
 
           [Install]
           WantedBy=multi-user.target
     runcmd:
       - [systemctl, daemon-reload]
-      - [systemctl, enable, --now, firstboot-ansible.service]
-{% set late_cmds = [
-  "curtin in-target -- bash -lc 'cat >/etc/sysctl.d/99-tuning.conf <<EOF\\nnet.ipv4.ip_forward=1\\nnet.ipv4.tcp_congestion_control=bbr\\nnet.ipv4.conf.all.rp_filter=2\\nnet.ipv4.conf.default.accept_redirects=0\\nnet.ipv4.conf.all.accept_redirects=0\\nnet.ipv4.conf.default.send_redirects=0\\nnet.ipv4.conf.all.send_redirects=0\\nEOF'",
-  "curtin in-target -- sysctl --system",
-  "curtin in-target -- systemctl enable irqbalance"
-] %}
-{% if storage_extra_late_commands %}
-{%   set late_cmds = late_cmds + storage_extra_late_commands %}
-{% endif %}
-{% if enable_powertop_autotune | default(false) %}
-{%   set late_cmds = late_cmds + [
-    "curtin in-target -- bash -lc 'cat >/etc/systemd/system/powertop-autotune.service <<\"EOF\"\\n[Unit]\\nDescription=Powertop auto-tuning on boot\\nAfter=multi-user.target\\n\\n[Service]\\nType=oneshot\\nExecStart=/usr/sbin/powertop --auto-tune\\nRemainAfterExit=yes\\n\\n[Install]\\nWantedBy=multi-user.target\\nEOF'",
-    "curtin in-target -- systemctl daemon-reload",
-    "curtin in-target -- systemctl enable powertop-autotune.service",
-    "curtin in-target -- systemctl start powertop-autotune.service"
-  ] %}
-{% endif %}
-{% if enable_thermald | default(false) %}
-{%   set late_cmds = late_cmds + [
-    "curtin in-target -- systemctl enable thermald",
-    "curtin in-target -- systemctl start thermald"
-  ] %}
-{% endif %}
-{% if enable_zram_generator | default(false) %}
-{%   set zram_cfg = (zram_generator_config | default({})).get('swap', {}) %}
-{%   set zram_lines = ['[zram0]'] %}
-{%   if zram_cfg.get('zram-fraction') is not none %}
-{%     set zram_lines = zram_lines + ['zram-fraction = ' ~ zram_cfg.get('zram-fraction')] %}
-{%   endif %}
-{%   if zram_cfg.get('max-zram-size') is not none %}
-{%     set zram_lines = zram_lines + ['max-zram-size = ' ~ zram_cfg.get('max-zram-size') ~ 'M'] %}
-{%   endif %}
-{%   if zram_cfg.get('compression-algorithm') is not none %}
-{%     set zram_lines = zram_lines + ['compression-algorithm = ' ~ zram_cfg.get('compression-algorithm')] %}
-{%   endif %}
-{%   if zram_cfg.get('swap-priority') is not none %}
-{%     set zram_lines = zram_lines + ['swap-priority = ' ~ zram_cfg.get('swap-priority')] %}
-{%   endif %}
-{%   set zram_payload = (zram_lines | join('\\n')) ~ '\\n' %}
-{%   set late_cmds = late_cmds + [
-    "curtin in-target -- bash -lc 'cat >/etc/systemd/zram-generator.conf <<\"EOF\"\\n" ~ zram_payload ~ "EOF'",
-    "curtin in-target -- systemctl enable systemd-zram-setup@zram0.service",
-    "curtin in-target -- systemctl start systemd-zram-setup@zram0.service"
-  ] %}
-{% endif %}
+      - [systemctl, enable, --now, collect-autoinstall-logs.service]
   late-commands:
-{% for command in late_cmds %}
-    - {{ command }}
-{% endfor %}
+    - curtin in-target -- chmod 0644 /etc/sudoers.d/zz-logfile
+    - curtin in-target -- bash -c 'set -euo pipefail; mkdir -p /var/log/journal'
+    - curtin in-target -- bash -c 'set -euo pipefail; systemctl disable --now avahi-daemon.service || true'
+    - curtin in-target -- bash -c 'set -euo pipefail; systemctl disable --now cups.service || true'
+    - curtin in-target -- bash -c 'set -euo pipefail; systemctl disable --now bluetooth.service || true'
+    - curtin in-target -- bash -c 'set -euo pipefail; sed -i "s/^#\?PermitRootLogin.*/PermitRootLogin no/" /etc/ssh/sshd_config'
+    - curtin in-target -- bash -c 'set -euo pipefail; sed -i "s/^#\?PasswordAuthentication.*/PasswordAuthentication no/" /etc/ssh/sshd_config'
+    - curtin in-target -- bash -c 'set -euo pipefail; sed -i "s/^#\?KbdInteractiveAuthentication.*/KbdInteractiveAuthentication no/" /etc/ssh/sshd_config'
+    - curtin in-target -- systemctl restart ssh
+    - curtin in-target -- bash -c '/root/install_anssi_marker.sh "{{ repository_commit }}"'
+    - curtin in-target -- bash -c 'set -euo pipefail; systemctl mask ctrl-alt-del.target'
+    - curtin in-target -- bash -c 'set -euo pipefail; touch /etc/cloud/cloud-init.disabled'
+{% if log_upload_url | default('') %}
+    - curtin in-target -- bash -c 'set -euo pipefail; if [ -f /root/autoinstall-logs.tgz ]; then curl -X PUT -T /root/autoinstall-logs.tgz {{ log_upload_url }}; fi'
+{% endif %}

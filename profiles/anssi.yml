@@ -1,0 +1,19 @@
+---
+name: ANSSI baseline for Ubuntu autoinstall
+controls:
+  disk_encryption:
+    description: "Disques chiffrés par défaut en LUKS2 (cipher aes-xts-plain64, clé 512 bits, PBKDF argon2id)."
+  ssh_hardening:
+    description: "Accès SSH par clés uniquement, root interdit, authentification par mot de passe désactivée."
+  sudo_auditing:
+    description: "Journalisation des commandes sudo dans /var/log/sudo.log avec horodatage et hôte."
+  service_reduction:
+    description: "Services non essentiels (avahi, cups, bluetooth) désactivés au premier démarrage."
+  logging_persistence:
+    description: "journalctl stocké de manière persistante (création de /var/log/journal) et collecte des logs d'installation."
+  user_account:
+    description: "Compte administrateur nominatif unique avec mot de passe verrouillé, escalade sudo par clé SSH."
+  compliance_marker:
+    description: "Marqueur /etc/anssi-profile généré avec date ISO-8601 et commit Git source."
+  network_stack:
+    description: "Paramètres SSH renforcés (KbdInteractiveAuthentication désactivé) et service ctrl-alt-del masqué."

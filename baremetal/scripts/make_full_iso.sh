@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BAREMETAL_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 AUTOINSTALL_DIR="${BAREMETAL_ROOT}/autoinstall"
 OUTDIR="${AUTOINSTALL_DIR}/generated/${HOST}"
-[ -d "$OUTDIR" ] || { echo "Missing $OUTDIR. Run: make baremetal/gen HOST=${HOST}"; exit 1; }
+[ -d "$OUTDIR" ] || { echo "Missing $OUTDIR. Run: make gen HOST=${HOST}"; exit 1; }
 [ -f "$ISO_IN" ] || { echo "Missing source ISO: $ISO_IN"; exit 1; }
 
 TMP="$(mktemp -d)"
