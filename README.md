@@ -122,9 +122,7 @@ ansible_repo_url: git@github.com:example/infra-ansible.git
 # host_vars/<HÔTE>/secrets.sops.yaml
 cloud_init_private_keys:
   infra_ansible: |
-    -----BEGIN OPENSSH PRIVATE KEY-----
-    (clé chiffrée via SOPS)
-    -----END OPENSSH PRIVATE KEY-----
+    ENC[AES256_GCM,data=AGE_ENCRYPTED_PAYLOAD,type:str]
 ```
 
 Ajoutez ensuite un bloc `write_files` supplémentaire (via un profil ou une

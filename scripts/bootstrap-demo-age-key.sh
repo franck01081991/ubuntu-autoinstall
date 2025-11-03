@@ -6,14 +6,23 @@ TARGET_FILE="${BOOTSTRAP_AGE_KEY_FILE:-${SOPS_AGE_KEY_FILE:-${1:-$DEFAULT_KEY_FI
 TARGET_DIR="$(dirname "${TARGET_FILE}")"
 
 mkdir -p "${TARGET_DIR}"
-cat <<'KEY' >"${TARGET_FILE}"
-# demo age identity for ubuntu-autoinstall training only
-AGE-SECRET-KEY-1X9SCJNY3MVQ97NJ870586FG0VQVZ693ZN7HT0D67U25K3HV4Q5CQUUQEKF
-KEY
-chmod 600 "${TARGET_FILE}"
 
-printf "Wrote demo age identity to %s\n" "${TARGET_FILE}"
-printf "Public recipient: %s\n" "age1akkcd4nm65lekere3zuem7v3fxqxp3sz2mzpqvs9lh98ffq98psqjl9y6r"
+if [[ -f "${TARGET_FILE}" && "${BOOTSTRAP_OVERWRITE:-0}" != "1" ]]; then
+  printf "age identity already exists at %s (set BOOTSTRAP_OVERWRITE=1 to replace)\n" "${TARGET_FILE}"
+  exit 0
+fi
+
+tmp_key="$(mktemp)"
+trap 'rm -f "${tmp_key}"' EXIT
+
+age-keygen -o "${tmp_key}" >/dev/null
+chmod 600 "${tmp_key}"
+mv "${tmp_key}" "${TARGET_FILE}"
+
+public_recipient="$(age-keygen -y "${TARGET_FILE}")"
+
+printf "Generated demo age identity at %s\n" "${TARGET_FILE}"
+printf "Public recipient: %s\n" "${public_recipient}"
 if [[ -z "${SOPS_AGE_KEY_FILE:-}" ]]; then
   printf "Export SOPS_AGE_KEY_FILE to reuse this key: export SOPS_AGE_KEY_FILE=%s\n" "${TARGET_FILE}"
 fi
