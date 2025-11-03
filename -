@@ -1,0 +1,7 @@
+set default=0
+set timeout_style=hidden
+set timeout=0
+menuentry 'Auto Install Ubuntu Server' {
+    linux   /casper/vmlinuz autoinstall ds=nocloud;s=/cdrom/nocloud/ ---
+    initrd  /casper/initrd
+}
