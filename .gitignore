@@ -8,3 +8,12 @@ baremetal/autoinstall/generated/
 # encryption keys
 *.agekey
 sops-age-key.txt
+# build artifacts
+baremetal/autoinstall/generated/**
+*.iso
+*.img
+.cache/
+__pycache__/
+.venv/
+*.swp
+.DS_Store

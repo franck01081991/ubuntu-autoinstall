@@ -1,0 +1,26 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+      - id: check-yaml
+
+  - repo: local
+    hooks:
+      - id: yamllint
+        name: yamllint
+        entry: yamllint
+        language: system
+        types: [yaml]
+      - id: gitleaks
+        name: gitleaks (detect secrets)
+        entry: gitleaks detect --no-git --source . --config=gitleaks.toml --redact
+        language: system
+        pass_filenames: false
+      - id: forbid-plaintext-passwords
+        name: forbid plaintext passwords in YAML
+        entry: bash -c "grep -RInE '(^|[^_])password:|ansible_become_pass:' -- **/*.y*ml | grep -v 'secrets.sops.yaml' && exit 1 || exit 0"
+        language: system
+        pass_filenames: false

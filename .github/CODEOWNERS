@@ -1,0 +1,6 @@
+	# Templates autoinstall + règles SOPS + CI doivent être relues par toi
+/baremetal/autoinstall/templates/** @franck01081991
+/.sops.yaml @franck01081991
+/.github/workflows/** @franck01081991
+/scripts/** @franck01081991
+/docs/** @franck01081991

@@ -7,4 +7,3 @@ COPY . /workspace
 # Exemple:
 # docker build -t ubuntu-autoinstall:latest .
 # docker run --rm -v $(pwd):/workspace -w /workspace ubuntu-autoinstall:latest make gen HOST=thinkcentre1
-	

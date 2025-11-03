@@ -4,20 +4,20 @@ Ce guide recense les incidents les plus fréquents rencontrés par un·e technic
 
 ## `make doctor` échoue (dépendance manquante)
 
-**Symptôme**  
+**Symptôme**
 Sortie type : `Missing required dependency: xorriso` ou absence de linters recommandés.
 
-**Résolution GitOps**  
-1. Ajoutez/actualisez le rôle ou le script d’installation de vos dépendances poste (ex. playbook Ansible interne).  
-2. Réexécutez `make doctor` pour confirmer que toutes les dépendances sont disponibles.  
+**Résolution GitOps**
+1. Ajoutez/actualisez le rôle ou le script d’installation de vos dépendances poste (ex. playbook Ansible interne).
+2. Réexécutez `make doctor` pour confirmer que toutes les dépendances sont disponibles.
 3. Soumettez la PR associée et attendez la validation CI avant de générer des ISO.
 
 ## `sops` ne trouve pas la clé `age`
 
-**Symptôme**  
+**Symptôme**
 `sops` ou l’assistant ISO affiche « Le fichier de clé age est introuvable ».
 
-**Résolution GitOps**  
+**Résolution GitOps**
 1. Vérifiez que la variable `SOPS_AGE_KEY` (CI) ou `SOPS_AGE_KEY_FILE` pointe vers la clé partagée par l’équipe.
 2. Si besoin, mettez à jour `scripts/install-sops.sh`, `scripts/install-age.sh` ou votre bootstrap interne pour distribuer la clé via un secret versionné.
 3. Pour un atelier ou un labo, exécutez `./scripts/bootstrap-demo-age-key.sh` afin d’installer la clé de démonstration fournie par le dépôt.
@@ -49,19 +49,19 @@ La génération Autoinstall s'interrompt avec le message :
 **Symptôme**
 La section « Hôtes déclarés » est vide ou manque votre machine.
 
-**Résolution GitOps**  
-1. Rejouez `make baremetal/host-init HOST=<nom> PROFILE=<profil>` pour réhydrater `host_vars/` et `hosts.yml`.  
-2. Commitez les ajustements (nouvelle entrée inventaire, profils) et ouvrez une PR.  
+**Résolution GitOps**
+1. Rejouez `make baremetal/host-init HOST=<nom> PROFILE=<profil>` pour réhydrater `host_vars/` et `hosts.yml`.
+2. Commitez les ajustements (nouvelle entrée inventaire, profils) et ouvrez une PR.
 3. Vérifiez à nouveau via `make baremetal/list`.
 
 ## `git pull --ff-only` échoue dans l’assistant ISO
 
-**Symptôme**  
+**Symptôme**
 L’assistant s’arrête sur un conflit ou une divergence de branche.
 
-**Résolution GitOps**  
-1. Faites un commit ou un stash de vos changements locaux.  
-2. Rejouez `git fetch --all --prune` puis `git pull --ff-only` dans votre branche GitOps.  
+**Résolution GitOps**
+1. Faites un commit ou un stash de vos changements locaux.
+2. Rejouez `git fetch --all --prune` puis `git pull --ff-only` dans votre branche GitOps.
 3. Relancez l’assistant ISO pour poursuivre le flux.
 
 ---

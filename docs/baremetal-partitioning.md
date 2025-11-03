@@ -40,14 +40,14 @@ volumes jusqu’à ces valeurs puis attribue l’espace résiduel à `/srv`.
 
 ## Mise en œuvre GitOps
 
-1. **Sélectionner le layout**  
+1. **Sélectionner le layout**
    Dans `host_vars` ou votre profil matériel, définissez :
    ```yaml
    storage_layout: anssi-luks-lvm
    disk_device: /dev/nvme0n1   # adaptez selon votre plateforme
    ```
 
-2. **Définir la passphrase LUKS**  
+2. **Définir la passphrase LUKS**
    - Ajoutez la passphrase chiffrée dans `baremetal/inventory/group_vars/all/disk_encryption.sops.yaml`.
    - Référencez-la via :
      ```yaml
@@ -56,11 +56,11 @@ volumes jusqu’à ces valeurs puis attribue l’espace résiduel à `/srv`.
        passphrase: "{{ disk_encryption_passphrase }}"
      ```
 
-3. **Générer l’autoinstall**  
+3. **Générer l’autoinstall**
    Exécutez `make baremetal/gen HOST=<hote>` (ou `PROFILE=<profil>`) puis
    contrôlez le rendu `user-data` dans la PR.
 
-4. **Construire l’ISO**  
+4. **Construire l’ISO**
    Utilisez `make baremetal/seed` ou `make baremetal/fulliso` selon vos besoins.
 
 ## Validation et tests
