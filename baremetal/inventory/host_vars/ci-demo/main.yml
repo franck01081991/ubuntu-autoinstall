@@ -1,0 +1,11 @@
+hostname: ci-demo
+instance_id: CI-DEMO
+realname: "CI Demo"
+username: ubuntu
+password_hash: "$6$JLyVGnezo5v/hemS$IkNPwjxLU6KOf0bssbJ1hMTLtZXCXsEbs3FcNpaZ2jorSCzHb9sGoYoarXcMp2l17k81PwhS.Ww2xZwtkuoXz0"
+ssh_authorized_keys:
+  - "ssh-ed25519 AAAA...ta_cle_publique..."
+packages:
+  - qemu-guest-agent
+  - curl
+  - vim
