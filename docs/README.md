@@ -9,7 +9,7 @@
 ## Prérequis
 - Ubuntu 24.04 ou équivalent avec `make`, `python3`, `ansible`, `sops`, `age`, `xorriso`, `squashfs-tools`.
 - Accès à la clé age privée permettant de déchiffrer `baremetal/inventory/host_vars/<host>/secrets.sops.yaml`.
-- `community.sops` installé côté Ansible (`ansible-galaxy collection install community.sops`).
+- `sops` CLI disponible dans le PATH pour déchiffrer `secrets.sops.yaml`.
 
 ## Commandes essentielles
 | Étape | Commande | Description |

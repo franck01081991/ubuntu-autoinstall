@@ -45,9 +45,23 @@
       Missing secrets for host '{{ target }}' (expected {{ _host_secrets_file }}).
       Populate it with sops before generating the autoinstall media.
 
-- name: Load host secrets via sops
-  community.sops.load_vars:
-    file: "{{ _host_secrets_file }}"
+- name: Decrypt host secrets via sops CLI
+  ansible.builtin.command:
+    cmd: "sops -d --output-type yaml {{ _host_secrets_file | quote }}"
+  register: _host_secrets_decrypted
+  changed_when: false
+  no_log: true
+
+- name: Parse host secrets payload
+  ansible.builtin.set_fact:
+    host_secrets: "{{ (_host_secrets_decrypted.stdout | default('') | from_yaml) | default({}, true) }}"
+  no_log: true
+
+- name: Expose encrypt_disk_passphrase from secrets
+  when: host_secrets.encrypt_disk_passphrase is defined
+  ansible.builtin.set_fact:
+    encrypt_disk_passphrase: "{{ host_secrets.encrypt_disk_passphrase }}"
+  no_log: true
 
 - name: Determine disk encryption policy
   ansible.builtin.set_fact:

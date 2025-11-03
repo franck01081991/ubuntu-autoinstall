@@ -2,5 +2,3 @@
 collections:
   - name: community.general
     version: "8.5.0"
-  - name: community.sops
-    version: "1.6.0"
